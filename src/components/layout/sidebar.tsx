@@ -13,6 +13,7 @@ import {
   PanelLeft,
   Radio,
   Settings,
+  X,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
@@ -31,9 +32,13 @@ const NAV = [
 export function Sidebar({
   collapsed,
   onToggle,
+  onNavigate,
+  overlay = false,
 }: {
   collapsed: boolean;
   onToggle: () => void;
+  onNavigate?: () => void;
+  overlay?: boolean;
 }) {
   const pathname = usePathname();
   const { overlays } = useWorkspace();
@@ -57,11 +62,11 @@ export function Sidebar({
         </div>
         <button
           type="button"
-          onClick={onToggle}
-          className="rounded-md p-1.5 text-sidebar-muted hover:bg-sidebar-hover hover:text-white"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          onClick={overlay ? onNavigate : onToggle}
+          className="rounded-md p-1.5 text-sidebar-muted hover:bg-sidebar-hover hover:text-white md:inline-flex"
+          aria-label={overlay ? "Close menu" : collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <PanelLeft size={16} />
+          {overlay ? <X size={16} /> : <PanelLeft size={16} />}
         </button>
       </div>
 
@@ -85,6 +90,7 @@ export function Sidebar({
               key={item.href}
               href={item.href}
               title={item.label}
+              onClick={onNavigate}
               className={cn(
                 "relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors",
                 active
@@ -118,6 +124,7 @@ export function Sidebar({
         <Link
           href="/settings"
           title="Settings"
+          onClick={onNavigate}
           className={cn(
             "flex items-center gap-3 rounded-md px-3 py-2 text-[13px] text-sidebar-muted hover:bg-sidebar-hover hover:text-white",
             pathname.startsWith("/settings") && "bg-sidebar-hover text-white",

@@ -28,11 +28,11 @@ export function ChangesPage() {
         actions={
           <>
             <BellButton />
-            <span className="text-sm text-muted">{formatHeaderDate("2026-08-18")}</span>
+            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
           </>
         }
       />
-      <div className="space-y-4 px-8 py-6">
+      <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <div className="flex flex-wrap gap-1.5">
           {(["All", ...CHANGE_TYPES] as const).map((item) => (
             <button

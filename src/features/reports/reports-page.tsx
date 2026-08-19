@@ -56,11 +56,11 @@ export function ReportsPage() {
         actions={
           <>
             <BellButton />
-            <span className="text-sm text-muted">{formatHeaderDate("2026-08-18")}</span>
+            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
           </>
         }
       />
-      <div className="space-y-6 px-8 py-6">
+      <div className="space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <Stat label="Sites" value={metrics.activeSites} />
           <Stat label="Portfolio capacity" value={formatMWTotal(metrics.totalMW)} />
@@ -179,9 +179,9 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 
 function ChartCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-md border border-line bg-surface p-5">
+    <div className="min-w-0 overflow-hidden rounded-md border border-line bg-surface p-4 sm:p-5">
       <h2 className="mb-3 text-base font-semibold">{title}</h2>
-      {children}
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }

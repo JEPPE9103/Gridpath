@@ -29,8 +29,8 @@ const ALERTS = [
 export function ProductPreview() {
   return (
     <AppFrame>
-      <div className="grid min-h-[420px] grid-cols-[52px_1fr] bg-canvas md:grid-cols-[148px_1fr]">
-        <aside className="bg-sidebar px-2 py-4 text-white md:px-3">
+      <div className="grid min-h-[300px] bg-canvas sm:min-h-[420px] sm:grid-cols-[52px_1fr] md:grid-cols-[148px_1fr]">
+        <aside className="hidden bg-sidebar px-2 py-4 text-white sm:block md:px-3">
           <p className="hidden px-1 text-[10px] font-semibold tracking-[0.16em] md:block">
             NOXHEIM
           </p>

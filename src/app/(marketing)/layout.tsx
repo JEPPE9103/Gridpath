@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-canvas text-[15px] text-ink">
+    <div className="min-h-screen overflow-x-clip bg-canvas text-[15px] text-ink">
       <MarketingNavbar />
       {children}
       <MarketingFooter />

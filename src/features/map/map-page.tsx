@@ -37,14 +37,14 @@ export function MapPage() {
               Compare ({compared.length}/4)
             </Button>
             <BellButton />
-            <span className="text-sm text-muted">{formatHeaderDate("2026-08-18")}</span>
+            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
           </>
         }
       />
-      <div className="relative min-h-0 flex-1 px-8 py-4">
-        <div className="relative h-[calc(100vh-180px)] min-h-[520px] overflow-hidden rounded-md border border-line bg-surface">
+      <div className="relative min-h-0 flex-1 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
+        <div className="relative h-[calc(100dvh-11rem)] min-h-[360px] overflow-hidden rounded-md border border-line bg-surface sm:h-[calc(100vh-180px)] sm:min-h-[520px]">
           <SwedenMap projects={projects} selectedId={selectedId} onSelect={setSelectedId} />
-          <div className="absolute left-3 top-3 rounded-md border border-line bg-surface px-3 py-2 text-xs">
+          <div className="absolute left-3 top-3 hidden rounded-md border border-line bg-surface px-3 py-2 text-xs sm:block">
             <p className="font-medium">Outlook</p>
             <LegendDot color="#176C4A" label="Favourable" />
             <LegendDot color="#B54708" label="Possible" />
@@ -52,7 +52,7 @@ export function MapPage() {
             <LegendDot color="#8B9098" label="Unknown" />
           </div>
           {selected ? (
-            <aside className="absolute right-3 top-3 w-[320px] rounded-md border border-line bg-surface p-4">
+            <aside className="absolute inset-x-3 bottom-3 max-h-[58%] overflow-auto rounded-md border border-line bg-surface p-4 md:inset-x-auto md:bottom-auto md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-[320px]">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h2 className="text-base font-semibold">{selected.name}</h2>
@@ -71,7 +71,7 @@ export function MapPage() {
                 <Line label="Stage" value={<StageBadge stage={selected.stage} />} />
                 <Line label="Target COD" value={selected.targetCOD} />
               </dl>
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <Link href={`/projects/${selected.id}`} className="flex-1">
                   <Button className="w-full">Open Project</Button>
                 </Link>
@@ -94,7 +94,7 @@ export function MapPage() {
 
       {compareOpen ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface shadow-sm">
-          <div className="flex items-center justify-between px-8 py-3">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <div>
               <h2 className="text-base font-semibold">Compare sites ({compared.length}/4)</h2>
               <p className="text-xs text-muted">{rankingExplanation()}</p>
@@ -109,11 +109,11 @@ export function MapPage() {
             </div>
           </div>
           {compared.length === 0 ? (
-            <p className="px-8 pb-6 text-sm text-muted">
+            <p className="px-4 pb-6 text-sm text-muted sm:px-6 lg:px-8">
               Select up to four sites from the map to compare development profiles.
             </p>
           ) : (
-            <div className="overflow-x-auto px-8 pb-6">
+            <div className="overflow-x-auto px-4 pb-6 sm:px-6 lg:px-8">
               <table className="w-full min-w-[800px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">

@@ -13,7 +13,7 @@ export function AppFrame({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-md border border-line bg-surface shadow-[0_28px_64px_-32px_rgba(26,30,36,0.45)]",
+        "max-w-full overflow-hidden rounded-md border border-line bg-surface shadow-[0_28px_64px_-32px_rgba(26,30,36,0.45)]",
         className,
       )}
     >

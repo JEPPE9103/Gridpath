@@ -47,11 +47,11 @@ export function DemoCTA() {
           <p className="mt-5 max-w-md text-base leading-7 text-muted">
             Bring sites, connection processes and grid changes into one workspace.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <CtaLink href="#demo-form" className="px-5">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <CtaLink href="#demo-form" className="w-full px-5 sm:w-auto">
               Book a demo
             </CtaLink>
-            <CtaLink href="/overview" variant="secondary" className="px-5">
+            <CtaLink href="/overview" variant="secondary" className="w-full px-5 sm:w-auto">
               Open product demo
             </CtaLink>
           </div>

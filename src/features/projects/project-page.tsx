@@ -61,7 +61,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
     return (
       <>
         <PageHeader title="Project not found" />
-        <div className="px-8 py-8">
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
             title="This project is not in the demo portfolio"
             description="Return to the portfolio table and select a listed site."
@@ -95,12 +95,12 @@ export function ProjectPage({ projectId }: { projectId: string }) {
               {compareIds.includes(project.id) ? "In compare" : "Add to compare"}
             </Button>
             <BellButton />
-            <span className="text-sm text-muted">{formatHeaderDate("2026-08-18")}</span>
+            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
           </>
         }
       />
 
-      <div className="border-b border-line bg-canvas px-8 pb-4">
+      <div className="border-b border-line bg-canvas px-4 pb-4 sm:px-6 lg:px-8">
         <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4 xl:grid-cols-8">
           <Meta label="Grid operator" value={project.gridOperator} />
           <Meta label="Connection outlook" value={<OutlookBadge outlook={project.outlook} />} />
@@ -113,8 +113,8 @@ export function ProjectPage({ projectId }: { projectId: string }) {
         </dl>
       </div>
 
-      <div className="px-8 pt-3">
-        <div className="flex gap-1 border-b border-line">
+      <div className="overflow-x-auto px-4 pt-3 sm:px-6 lg:px-8">
+        <div className="flex min-w-max gap-1 border-b border-line">
           {TABS.map((item) => (
             <button
               key={item.id}
@@ -133,7 +133,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      <div className="px-8 py-6">
+      <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         {tab === "overview" ? (
           <OverviewTab project={project} onComplete={(itemId) => setChecklistStatus(project.id, itemId, "Complete")} />
         ) : null}

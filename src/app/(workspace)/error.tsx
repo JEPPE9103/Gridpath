@@ -13,7 +13,7 @@ export default function Error({
   return (
     <>
       <PageHeader title="Something went wrong" subtitle="The workspace hit an unexpected error." />
-      <div className="px-8 py-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         <div className="max-w-lg rounded-md border border-line bg-surface p-6">
           <p className="text-sm text-muted">
             Try again, or return to Overview. Demo data is local to this browser.

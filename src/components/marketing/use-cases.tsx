@@ -69,7 +69,7 @@ export function UseCases() {
               </button>
             ))}
           </div>
-          <div className="rounded-md border border-line bg-canvas px-6 py-8">
+          <div className="rounded-md border border-line bg-canvas px-5 py-6 sm:px-6 sm:py-8">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal">
               {current.label}
             </p>

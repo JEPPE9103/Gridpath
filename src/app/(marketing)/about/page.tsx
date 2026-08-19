@@ -12,7 +12,7 @@ export default function AboutPage() {
   return (
     <MarketingSection>
       <Eyebrow>About</Eyebrow>
-      <h1 className="mt-3 max-w-2xl text-4xl font-semibold tracking-tight">
+      <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
         Software for grid-connected development.
       </h1>
       <div className="mt-8 max-w-2xl space-y-4 text-base leading-7 text-muted">

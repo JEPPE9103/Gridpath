@@ -83,12 +83,12 @@ export function OverviewPage() {
         actions={
           <>
             <BellButton />
-            <span className="text-sm text-muted">{formatHeaderDate("2026-08-18")}</span>
+            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
           </>
         }
       />
 
-      <div className="space-y-6 px-8 py-6">
+      <div className="space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <KpiCard
             label="Active Sites"
@@ -118,8 +118,8 @@ export function OverviewPage() {
         </section>
 
         <section className="rounded-md border border-line bg-surface">
-          <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3 sm:px-5">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base font-semibold">Active Alerts</h2>
               <CountBadge tone="critical">{criticalCount} critical</CountBadge>
               <CountBadge>{alerts.length} total</CountBadge>

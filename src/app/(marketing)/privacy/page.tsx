@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <MarketingSection>
       <Eyebrow>Privacy</Eyebrow>
-      <h1 className="mt-3 max-w-2xl text-4xl font-semibold tracking-tight">Privacy</h1>
+      <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">Privacy</h1>
       <div className="mt-8 max-w-2xl space-y-4 text-base leading-7 text-muted">
         <p>
           This website is an early product surface. The demo request form is validated in the

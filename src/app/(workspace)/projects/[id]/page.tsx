@@ -13,7 +13,7 @@ export default async function Page({
   return (
     <Suspense
       fallback={
-        <div className="px-8 py-10 text-sm text-muted">Loading project…</div>
+        <div className="px-4 py-10 text-sm text-muted sm:px-6 lg:px-8">Loading project…</div>
       }
     >
       <ProjectPage projectId={id} />

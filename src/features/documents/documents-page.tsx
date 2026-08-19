@@ -34,11 +34,11 @@ export function DocumentsPage() {
         actions={
           <>
             <BellButton />
-            <span className="text-sm text-muted">{formatHeaderDate("2026-08-18")}</span>
+            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
           </>
         }
       />
-      <div className="space-y-4 px-8 py-6">
+      <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <form
           className="flex flex-wrap items-end gap-2 rounded-md border border-line bg-surface p-4"
           onSubmit={(event) => {

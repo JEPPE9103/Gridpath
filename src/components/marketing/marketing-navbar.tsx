@@ -38,7 +38,7 @@ export function MarketingNavbar() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 border-b bg-canvas/92 backdrop-blur-sm transition-[padding,border-color] duration-200",
+        "sticky top-0 z-50 border-b bg-canvas/92 pt-[env(safe-area-inset-top)] backdrop-blur-sm transition-[padding,border-color] duration-200",
         compact ? "border-line py-2" : "border-transparent py-4",
       )}
     >

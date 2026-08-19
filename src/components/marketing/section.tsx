@@ -18,7 +18,7 @@ export function MarketingSection({
     <section
       id={id}
       className={cn(
-        "scroll-mt-24 px-5 py-20 sm:px-8 md:px-10 lg:py-28",
+        "scroll-mt-24 px-5 py-14 sm:px-8 sm:py-20 md:px-10 lg:py-28",
         dark ? "bg-ink text-white" : "bg-canvas text-ink",
         className,
       )}
