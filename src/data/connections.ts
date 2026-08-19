@@ -10,7 +10,7 @@ export const connectionCases: ConnectionCase[] = [
     submittedAt: "2025-11-12",
     nextMilestone: "Study workshop / signed study agreement",
     deadline: "2026-09-30",
-    owner: "Anna Hellström",
+    owner: "Jesper Persson",
     status: "At Risk",
   },
   {
@@ -22,7 +22,7 @@ export const connectionCases: ConnectionCase[] = [
     submittedAt: "2026-03-04",
     nextMilestone: "Completeness confirmation",
     deadline: "2026-10-15",
-    owner: "Anna Hellström",
+    owner: "Jesper Persson",
     status: "On Track",
   },
   {
@@ -46,7 +46,7 @@ export const connectionCases: ConnectionCase[] = [
     submittedAt: "2026-01-20",
     nextMilestone: "NIA and permit pack",
     deadline: "2026-09-05",
-    owner: "Anna Hellström",
+    owner: "Jesper Persson",
     status: "At Risk",
   },
   {
@@ -70,7 +70,7 @@ export const connectionCases: ConnectionCase[] = [
     submittedAt: "2026-02-02",
     nextMilestone: "Offer acceptance",
     deadline: "2026-11-09",
-    owner: "Anna Hellström",
+    owner: "Jesper Persson",
     status: "On Track",
   },
   {
@@ -94,7 +94,7 @@ export const connectionCases: ConnectionCase[] = [
     submittedAt: "2025-06-18",
     nextMilestone: "Agreement execution",
     deadline: "2026-09-30",
-    owner: "Anna Hellström",
+    owner: "Jesper Persson",
     status: "On Track",
   },
 ];

@@ -29,7 +29,7 @@ export function SettingsPage() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted">Owner</dt>
-              <dd>Anna Hellström</dd>
+              <dd>Jesper Persson</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted">Role</dt>

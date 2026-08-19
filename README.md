@@ -89,7 +89,7 @@ The feature views already consume repository outputs rather than hardcoded page 
 
 ## Product notes for demos
 
-- Default user: Anna Hellström, Portfolio Manager
+- Default user: Jesper Persson, Portfolio Manager
 - Portfolio: 11 Swedish sites (BESS, solar, wind, EV charging, industrial)
 - Strongest screens: Overview alerts, project control centre, Map & Compare, Changes feed
 - Capacity figures on public maps are labelled **indicative** unless an official offer or agreement exists

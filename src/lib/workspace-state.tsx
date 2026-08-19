@@ -95,7 +95,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         category: input.category,
         status: "Draft",
         updatedAt: new Date().toISOString(),
-        owner: "Anna Hellström",
+        owner: "Jesper Persson",
       };
       overlaysStore.set((current) => ({
         ...current,

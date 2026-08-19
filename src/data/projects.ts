@@ -28,7 +28,7 @@ export const projects: Project[] = [
     confidence: "High",
     targetCOD: "Q3 2029",
     lastUpdated: "2026-08-18T09:14:00+02:00",
-    owner: "Anna Hellström",
+    owner: "Jesper Persson",
     caseId: "VF-GS-2025-1842",
     description:
       "20 MW / 20 MW bidirectional battery at the Gävle industrial fringe, intended for frequency response, congestion relief and local peak shaving. The 130 kV connection request is in grid study with Vattenfall Eldistribution.",
@@ -52,7 +52,7 @@ export const projects: Project[] = [
       { id: "doc-gavle-sld", name: "Single-line diagram rev C", category: "Technical", status: "Complete", updatedAt: "2026-07-22T10:00:00+02:00", owner: "Erik Lindqvist" },
       { id: "doc-gavle-land", name: "Option agreement — Gävle 4:18", category: "Land", status: "Complete", updatedAt: "2026-05-14T11:30:00+02:00", owner: "Maya Rahman" },
       { id: "doc-gavle-nia", name: "Network Impact Assessment draft", category: "Grid", status: "In Progress", updatedAt: "2026-08-12T16:20:00+02:00", owner: "Erik Lindqvist" },
-      { id: "doc-gavle-permit", name: "Environmental screening memo", category: "Permit", status: "In Progress", updatedAt: "2026-08-01T09:00:00+02:00", owner: "Anna Hellström" },
+      { id: "doc-gavle-permit", name: "Environmental screening memo", category: "Permit", status: "In Progress", updatedAt: "2026-08-01T09:00:00+02:00", owner: "Jesper Persson" },
     ]),
     connectionHistory: [
       { id: "h-gavle-1", date: "2026-08-18T09:14:00+02:00", title: "Indicative headroom reduced", detail: "Vattenfall capacity publication shows Gävle 130 kV node headroom falling from ~25 MW to ~12 MW. Bidirectional 20 MW request is no longer covered by the public signal.", source: "Indicative" },
@@ -84,7 +84,7 @@ export const projects: Project[] = [
     },
     stageDetails: buildStageDetails({
       current: "Grid Study",
-      owner: "Anna Hellström",
+      owner: "Jesper Persson",
       overrides: {
         "Grid Study": {
           submitted: ["Study data pack", "Operating scenario set"],
@@ -113,7 +113,7 @@ export const projects: Project[] = [
     confidence: "High",
     targetCOD: "Q2 2028",
     lastUpdated: "2026-08-15T11:20:00+02:00",
-    owner: "Anna Hellström",
+    owner: "Jesper Persson",
     caseId: "ELV-APP-2026-0911",
     description:
       "30 MW / 30 MW battery colocated with industrial load west of Västerås. Application pack submitted to Ellevio. Public capacity signal and customer load diversity currently support a favourable outlook.",
@@ -132,7 +132,7 @@ export const projects: Project[] = [
       { id: "study-agreement", label: "Grid Study Agreement", status: "Not Started" },
     ]),
     documents: docs("vasteras-storage", [
-      { id: "doc-vas-app", name: "Connection application pack", category: "Grid", status: "Complete", updatedAt: "2026-03-04T09:00:00+01:00", owner: "Anna Hellström" },
+      { id: "doc-vas-app", name: "Connection application pack", category: "Grid", status: "Complete", updatedAt: "2026-03-04T09:00:00+01:00", owner: "Jesper Persson" },
       { id: "doc-vas-sld", name: "Single-line diagram rev B", category: "Technical", status: "Complete", updatedAt: "2026-02-18T14:00:00+01:00", owner: "Erik Lindqvist" },
       { id: "doc-vas-land", name: "Lease — Västerås industrial plot 12", category: "Land", status: "Complete", updatedAt: "2026-01-22T10:00:00+01:00", owner: "Maya Rahman" },
     ]),
@@ -158,7 +158,7 @@ export const projects: Project[] = [
     },
     stageDetails: buildStageDetails({
       current: "Application",
-      owner: "Anna Hellström",
+      owner: "Jesper Persson",
       overrides: {
         Application: {
           submitted: [
@@ -265,7 +265,7 @@ export const projects: Project[] = [
     confidence: "Medium",
     targetCOD: "Q4 2031",
     lastUpdated: "2026-08-18T08:30:00+02:00",
-    owner: "Anna Hellström",
+    owner: "Jesper Persson",
     caseId: "SVK-APP-2026-0044",
     description:
       "120 MW onshore wind north of Uppsala, seeking a 220 kV connection to Svenska kraftnät. Application deadline is 5 September 2026. Network Impact Assessment, landowner agreement and environmental permit are still missing.",
@@ -289,7 +289,7 @@ export const projects: Project[] = [
       { id: "doc-up-nia", name: "Network Impact Assessment", category: "Grid", status: "Missing", updatedAt: "2026-08-18T08:30:00+02:00", owner: "Erik Lindqvist" },
       { id: "doc-up-land", name: "Landowner agreement pack", category: "Land", status: "Missing", updatedAt: "2026-08-18T08:30:00+02:00", owner: "Maya Rahman" },
       { id: "doc-up-env", name: "Environmental permit", category: "Permit", status: "Missing", updatedAt: "2026-08-18T08:30:00+02:00", owner: "Maya Rahman" },
-      { id: "doc-up-app", name: "SvK application draft", category: "Grid", status: "In Progress", updatedAt: "2026-08-10T17:00:00+02:00", owner: "Anna Hellström" },
+      { id: "doc-up-app", name: "SvK application draft", category: "Grid", status: "In Progress", updatedAt: "2026-08-10T17:00:00+02:00", owner: "Jesper Persson" },
     ]),
     connectionHistory: [
       { id: "h-up-1", date: "2026-08-18T08:30:00+02:00", title: "Application deadline in 18 days", detail: "Completeness deadline 5 September 2026. NIA, landowner agreement and environmental permit are outstanding.", source: "Official" },
@@ -313,7 +313,7 @@ export const projects: Project[] = [
     },
     stageDetails: buildStageDetails({
       current: "Application",
-      owner: "Anna Hellström",
+      owner: "Jesper Persson",
       overrides: {
         Application: {
           submitted: ["Complete connection application pack (draft)", "Single-line diagram"],
@@ -612,7 +612,7 @@ export const projects: Project[] = [
     confidence: "High",
     targetCOD: "Q3 2028",
     lastUpdated: "2026-08-11T10:15:00+02:00",
-    owner: "Anna Hellström",
+    owner: "Jesper Persson",
     caseId: "VF-OFF-2026-0088",
     description:
       "45 MW solar south of Jönköping. Grid study complete. Connection offer received from Vattenfall Eldistribution and is under commercial review.",
@@ -628,10 +628,10 @@ export const projects: Project[] = [
       { id: "study-agreement", label: "Grid Study Agreement", status: "Complete" },
     ]),
     documents: docs("jonkoping-solar", [
-      { id: "doc-jon-offer", name: "Connection offer 12 Aug 2026", category: "Grid", status: "Complete", updatedAt: "2026-08-11T10:15:00+02:00", owner: "Anna Hellström" },
+      { id: "doc-jon-offer", name: "Connection offer 12 Aug 2026", category: "Grid", status: "Complete", updatedAt: "2026-08-11T10:15:00+02:00", owner: "Jesper Persson" },
       { id: "doc-jon-study", name: "Grid study report", category: "Grid", status: "Complete", updatedAt: "2026-07-03T09:00:00+02:00", owner: "Erik Lindqvist" },
       { id: "doc-jon-permit", name: "Building permit", category: "Permit", status: "Complete", updatedAt: "2026-05-19T14:00:00+02:00", owner: "Maya Rahman" },
-      { id: "doc-jon-comm", name: "Offer commercial memo", category: "Commercial", status: "In Progress", updatedAt: "2026-08-13T16:40:00+02:00", owner: "Anna Hellström" },
+      { id: "doc-jon-comm", name: "Offer commercial memo", category: "Commercial", status: "In Progress", updatedAt: "2026-08-13T16:40:00+02:00", owner: "Jesper Persson" },
     ]),
     connectionHistory: [
       { id: "h-jon-1", date: "2026-08-11T10:15:00+02:00", title: "Connection offer received", detail: "Official offer issued. Validity 90 days. Customer contribution SEK 11.4m.", source: "Official" },
@@ -654,7 +654,7 @@ export const projects: Project[] = [
     },
     stageDetails: buildStageDetails({
       current: "Offer",
-      owner: "Anna Hellström",
+      owner: "Jesper Persson",
       overrides: {
         Offer: {
           submitted: ["Connection offer review", "Internal investment recommendation (draft)"],
@@ -756,7 +756,7 @@ export const projects: Project[] = [
     confidence: "High",
     targetCOD: "Q2 2028",
     lastUpdated: "2026-08-05T09:00:00+02:00",
-    owner: "Anna Hellström",
+    owner: "Jesper Persson",
     caseId: "VF-AGR-2025-0091",
     description:
       "40 MW industrial electrification at Kiruna. Connection agreement in signing. This is the portfolio's most advanced demand project.",
@@ -772,8 +772,8 @@ export const projects: Project[] = [
       { id: "study-agreement", label: "Grid Study Agreement", status: "Complete" },
     ]),
     documents: docs("kiruna-industrial", [
-      { id: "doc-kir-agr", name: "Connection agreement (execution copy)", category: "Grid", status: "In Progress", updatedAt: "2026-08-05T09:00:00+02:00", owner: "Anna Hellström" },
-      { id: "doc-kir-offer", name: "Accepted connection offer", category: "Commercial", status: "Complete", updatedAt: "2026-03-21T10:00:00+01:00", owner: "Anna Hellström" },
+      { id: "doc-kir-agr", name: "Connection agreement (execution copy)", category: "Grid", status: "In Progress", updatedAt: "2026-08-05T09:00:00+02:00", owner: "Jesper Persson" },
+      { id: "doc-kir-offer", name: "Accepted connection offer", category: "Commercial", status: "Complete", updatedAt: "2026-03-21T10:00:00+01:00", owner: "Jesper Persson" },
       { id: "doc-kir-design", name: "130 kV extension design", category: "Technical", status: "Complete", updatedAt: "2026-06-16T13:00:00+02:00", owner: "Erik Lindqvist" },
     ]),
     connectionHistory: [
@@ -797,7 +797,7 @@ export const projects: Project[] = [
     },
     stageDetails: buildStageDetails({
       current: "Agreement",
-      owner: "Anna Hellström",
+      owner: "Jesper Persson",
       overrides: {
         Agreement: {
           submitted: ["Connection agreement (execution copy)", "Construction interface schedule", "Protection and control requirements"],

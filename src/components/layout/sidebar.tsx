@@ -132,11 +132,11 @@ export function Sidebar({
       <div className={cn("mx-2 mb-3 rounded-md bg-sidebar-hover px-3 py-3", collapsed && "px-2")}>
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal text-[11px] font-semibold">
-            AH
+            JP
           </div>
           {collapsed ? null : (
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-medium">Anna Hellström</p>
+              <p className="truncate text-[13px] font-medium">Jesper Persson</p>
               <p className="truncate text-[11px] text-sidebar-muted">Portfolio Manager</p>
             </div>
           )}

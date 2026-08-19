@@ -125,7 +125,7 @@ function ManagePillar() {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                     Case VF-GS-2025-1842
                   </p>
-                  <p className="mt-2 text-xs text-muted">Owner: Anna Hellström</p>
+                  <p className="mt-2 text-xs text-muted">Owner: Jesper Persson</p>
                   <p className="mt-1 text-xs text-muted">Next: study workshop · 30 Sep 2026</p>
                 </div>
               </div>
