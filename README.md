@@ -18,6 +18,28 @@ This repository is a demonstration MVP with seeded Swedish portfolio data. It is
 - MapLibre GL
 - Recharts (reports only)
 
+## Local Supabase development
+
+Keep this against the local instance only. Do not run `db push` for this workflow.
+
+```bash
+npx supabase start
+npx supabase db reset
+npm run dev:bootstrap-auth
+npm run dev
+```
+
+`npm run dev:bootstrap-auth` recreates the local development login after a reset. It talks only to `http://127.0.0.1:54321` (or localhost) and refuses any other URL.
+
+Local login:
+
+- Email: `anna@noxheim-demo.local`
+- Password: `NoxheimDemo2026!`
+- User: Anna Hellström, Portfolio Manager
+- Organization: NorthGrid Development AB (owner)
+
+Then open [http://localhost:3000/login](http://localhost:3000/login) and sign in. The workspace routes require this session.
+
 ## Install and run
 
 ```bash
@@ -25,7 +47,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The app redirects to `/overview`.
+Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
 npm run build

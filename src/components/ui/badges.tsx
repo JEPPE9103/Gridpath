@@ -38,7 +38,7 @@ export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
         base,
         confidence === "High" && "bg-teal-soft text-teal",
         confidence === "Medium" && "bg-warning-bg text-warning",
-        confidence === "Low" && "bg-canvas text-muted",
+        (confidence === "Low" || confidence === "Unknown") && "bg-canvas text-muted",
       )}
     >
       {confidence}
@@ -69,7 +69,7 @@ export function SourceBadge({ source }: { source: DataSourceKind }) {
 export function StatusBadge({
   status,
 }: {
-  status: ConnectionCaseStatus | DocumentStatus | ChecklistStatus;
+  status: ConnectionCaseStatus | DocumentStatus | ChecklistStatus | "Complete" | "Cancelled";
 }) {
   const critical = status === "Overdue" || status === "Missing" || status === "At Risk";
   const warning =

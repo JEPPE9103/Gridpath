@@ -5,15 +5,13 @@ import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badge
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatCapacity, formatDate, formatHeaderDate } from "@/lib/format";
-import { projectRepository } from "@/lib/repositories";
-import { useWorkspace } from "@/lib/workspace-state";
 import {
   OUTLOOKS,
   PIPELINE_STAGES,
   TECHNOLOGIES,
   type Outlook,
   type PipelineStage,
-  type Project,
+  type ProjectListItem,
   type Technology,
 } from "@/types";
 import { useMemo, useState } from "react";
@@ -30,9 +28,15 @@ type SortKey =
   | "targetCOD"
   | "lastUpdated";
 
-export function PortfolioPage() {
-  const { overlays } = useWorkspace();
-  const projects = useMemo(() => projectRepository.list(overlays), [overlays]);
+export function PortfolioPage({
+  projects,
+  blockedByRls,
+  error,
+}: {
+  projects: ProjectListItem[];
+  blockedByRls: boolean;
+  error: string | null;
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [technology, setTechnology] = useState<Technology | "All">("All");
@@ -123,7 +127,17 @@ export function PortfolioPage() {
           />
         </div>
 
-        {filtered.length === 0 ? (
+        {blockedByRls ? (
+          <EmptyState
+            title="Projects require a signed-in workspace user"
+            description="Row-level security is blocking anonymous reads of the seeded NorthGrid organization. Authentication is not enabled yet, so the Portfolio cannot load local Supabase data until a seed user and organization membership exist."
+          />
+        ) : error ? (
+          <EmptyState
+            title="Could not load projects"
+            description={error}
+          />
+        ) : filtered.length === 0 ? (
           <EmptyState
             title="No projects match these filters"
             description="Clear search or filters to see the full Sweden portfolio."
@@ -195,14 +209,17 @@ export function PortfolioPage() {
   );
 }
 
-function compareProjects(a: Project, b: Project, key: SortKey): number {
+function compareProjects(a: ProjectListItem, b: ProjectListItem, key: SortKey): number {
   if (key === "capacity") {
     return Math.max(a.importMW, a.exportMW) - Math.max(b.importMW, b.exportMW);
   }
   if (key === "lastUpdated") {
     return new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime();
   }
-  return String(a[key]).localeCompare(String(b[key]), "sv");
+
+  const left = a[key];
+  const right = b[key];
+  return String(left).localeCompare(String(right), "sv");
 }
 
 function Select({

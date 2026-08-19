@@ -33,7 +33,7 @@ export type Outlook =
   | "Needs Attention"
   | "Unknown";
 
-export type Confidence = "High" | "Medium" | "Low";
+export type Confidence = "High" | "Medium" | "Low" | "Unknown";
 
 export type DataSourceKind =
   | "Official"
@@ -199,6 +199,24 @@ export interface Project {
   stageDetails: Record<ConnectionStage, StageDetail>;
   owner: string;
   caseId?: string;
+}
+
+export interface ProjectListItem {
+  id: string;
+  name: string;
+  location: string;
+  latitude: number;
+  longitude: number;
+  technology: Technology;
+  importMW: number;
+  exportMW: number;
+  gridOperator: string;
+  voltageLevel: string;
+  stage: PipelineStage | "Energisation";
+  outlook: Outlook;
+  confidence: Confidence;
+  targetCOD: string;
+  lastUpdated: string;
 }
 
 export const PIPELINE_STAGES: PipelineStage[] = [

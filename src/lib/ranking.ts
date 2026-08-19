@@ -14,6 +14,7 @@ const CONFIDENCE_SCORE: Record<Project["confidence"], number> = {
   High: 15,
   Medium: 8,
   Low: 3,
+  Unknown: 1,
 };
 
 const STAGE_SCORE: Record<Project["stage"], number> = {

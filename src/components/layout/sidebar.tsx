@@ -1,6 +1,8 @@
 "use client";
 
 import { CountBadge } from "@/components/ui/badges";
+import { signOut } from "@/lib/auth/actions";
+import type { CurrentUserProfile } from "@/lib/auth/current-user";
 import { cn } from "@/lib/cn";
 import { alertRepository } from "@/lib/repositories";
 import { useWorkspace } from "@/lib/workspace-state";
@@ -9,6 +11,7 @@ import {
   Briefcase,
   FileText,
   LayoutGrid,
+  LogOut,
   Map,
   PanelLeft,
   Radio,
@@ -34,11 +37,13 @@ export function Sidebar({
   onToggle,
   onNavigate,
   overlay = false,
+  user,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   onNavigate?: () => void;
   overlay?: boolean;
+  user: CurrentUserProfile | null;
 }) {
   const pathname = usePathname();
   const { overlays } = useWorkspace();
@@ -139,15 +144,31 @@ export function Sidebar({
       <div className={cn("mx-2 mb-3 rounded-md bg-sidebar-hover px-3 py-3", collapsed && "px-2")}>
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal text-[11px] font-semibold">
-            JP
+            {user?.initials ?? "?"}
           </div>
           {collapsed ? null : (
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-medium">Jesper Persson</p>
-              <p className="truncate text-[11px] text-sidebar-muted">Portfolio Manager</p>
+              <p className="truncate text-[13px] font-medium">{user?.fullName ?? "Account"}</p>
+              {user?.jobTitle ? (
+                <p className="truncate text-[11px] text-sidebar-muted">{user.jobTitle}</p>
+              ) : user?.email && user.email !== user.fullName ? (
+                <p className="truncate text-[11px] text-sidebar-muted">{user.email}</p>
+              ) : null}
             </div>
           )}
         </div>
+        <form action={signOut} className={cn("mt-2", collapsed && "flex justify-center")}>
+          <button
+            type="submit"
+            title="Sign out"
+            className={cn(
+              "rounded-md text-[11px] text-sidebar-muted hover:text-white",
+              collapsed ? "p-1.5 hover:bg-sidebar" : "px-0 py-0.5",
+            )}
+          >
+            {collapsed ? <LogOut size={14} strokeWidth={1.75} /> : "Sign out"}
+          </button>
+        </form>
       </div>
     </aside>
   );

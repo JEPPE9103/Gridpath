@@ -11,7 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Disclaimer, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { useToast } from "@/components/ui/toast-provider";
 import { cn } from "@/lib/cn";
+import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
+import type { ProjectDetailViewModel } from "@/lib/data/project-detail-types";
 import {
   canCompleteChecklist,
   formatCapacity,
@@ -19,13 +22,13 @@ import {
   formatHeaderDate,
   formatRelative,
 } from "@/lib/format";
-import { projectRepository } from "@/lib/repositories";
+import { markRequirementComplete } from "@/lib/requirements/actions";
 import { useWorkspace } from "@/lib/workspace-state";
-import { CONNECTION_STAGES, type ConnectionStage, type Project } from "@/types";
-import { Check, Circle } from "lucide-react";
+import type { Alert } from "@/types";
+import { AlertTriangle, Check, CheckCircle2, Circle, Info } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 
 const MiniMap = dynamic(() => import("@/features/map/mini-map").then((mod) => mod.MiniMap), {
@@ -47,15 +50,62 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-export function ProjectPage({ projectId }: { projectId: string }) {
-  const { overlays, setChecklistStatus, addToCompare, compareIds } = useWorkspace();
-  const project = useMemo(
-    () => projectRepository.getById(projectId, overlays),
-    [projectId, overlays],
-  );
+const SEVERITY_STYLES: Record<
+  Alert["severity"],
+  { wrap: string; icon: string; Icon: typeof AlertTriangle }
+> = {
+  critical: {
+    wrap: "border-l-critical bg-critical-bg/60",
+    icon: "text-critical",
+    Icon: AlertTriangle,
+  },
+  warning: {
+    wrap: "border-l-warning bg-warning-bg/70",
+    icon: "text-warning",
+    Icon: AlertTriangle,
+  },
+  info: {
+    wrap: "border-l-info bg-info-bg/70",
+    icon: "text-info",
+    Icon: Info,
+  },
+  positive: {
+    wrap: "border-l-success bg-success-bg/70",
+    icon: "text-success",
+    Icon: CheckCircle2,
+  },
+};
+
+export function ProjectPage({
+  project,
+  error,
+}: {
+  project: ProjectDetailViewModel | null;
+  error: string | null;
+}) {
+  const { addToCompare, compareIds } = useWorkspace();
   const searchParams = useSearchParams();
   const router = useRouter();
   const tab = (searchParams.get("tab") as TabId | null) ?? "overview";
+
+  if (error) {
+    return (
+      <>
+        <PageHeader title="Project" />
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
+          <EmptyState
+            title="Could not load project"
+            description="Try again from the portfolio. If the problem continues, sign in again."
+            action={
+              <Link href="/portfolio">
+                <Button>Open Portfolio</Button>
+              </Link>
+            }
+          />
+        </div>
+      </>
+    );
+  }
 
   if (!project) {
     return (
@@ -63,7 +113,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
         <PageHeader title="Project not found" />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
-            title="This project is not in the demo portfolio"
+            title="This project is not available"
             description="Return to the portfolio table and select a listed site."
             action={
               <Link href="/portfolio">
@@ -76,10 +126,30 @@ export function ProjectPage({ projectId }: { projectId: string }) {
     );
   }
 
-  function setTab(next: TabId) {
-    router.replace(`/projects/${projectId}?tab=${next}`);
-  }
+  return (
+    <LoadedProjectPage
+      project={project}
+      tab={tab}
+      compareIds={compareIds}
+      onAddToCompare={addToCompare}
+      onTabChange={(next) => router.replace(`/projects/${project.slug}?tab=${next}`)}
+    />
+  );
+}
 
+function LoadedProjectPage({
+  project,
+  tab,
+  compareIds,
+  onAddToCompare,
+  onTabChange,
+}: {
+  project: ProjectDetailViewModel;
+  tab: TabId;
+  compareIds: string[];
+  onAddToCompare: (id: string) => boolean;
+  onTabChange: (tab: TabId) => void;
+}) {
   return (
     <>
       <PageHeader
@@ -89,27 +159,27 @@ export function ProjectPage({ projectId }: { projectId: string }) {
           <>
             <Button
               variant="secondary"
-              onClick={() => addToCompare(project.id)}
-              disabled={compareIds.includes(project.id)}
+              onClick={() => onAddToCompare(project.slug)}
+              disabled={compareIds.includes(project.slug)}
             >
-              {compareIds.includes(project.id) ? "In compare" : "Add to compare"}
+              {compareIds.includes(project.slug) ? "In compare" : "Add to compare"}
             </Button>
             <BellButton />
-            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
+            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate(project.lastUpdated)}</span>
           </>
         }
       />
 
       <div className="border-b border-line bg-canvas px-4 pb-4 sm:px-6 lg:px-8">
         <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4 xl:grid-cols-8">
-          <Meta label="Grid operator" value={project.gridOperator} />
+          <Meta label="Grid operator" value={project.gridOperator || "—"} />
           <Meta label="Connection outlook" value={<OutlookBadge outlook={project.outlook} />} />
           <Meta label="Confidence" value={<ConfidenceBadge confidence={project.confidence} />} />
           <Meta label="Current stage" value={<StageBadge stage={project.stage} />} />
-          <Meta label="Target COD" value={project.targetCOD} />
+          <Meta label="Target COD" value={project.targetCOD || "—"} />
           <Meta label="Last updated" value={formatDate(project.lastUpdated)} />
-          <Meta label="Voltage" value={project.voltageLevel} />
-          <Meta label="Case ID" value={project.caseId ?? "Not opened"} mono />
+          <Meta label="Voltage" value={project.voltageLevel || "—"} />
+          <Meta label="Case ID" value={project.connectionCase?.caseId ?? "Not opened"} mono />
         </dl>
       </div>
 
@@ -119,7 +189,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
             <button
               key={item.id}
               type="button"
-              onClick={() => setTab(item.id)}
+              onClick={() => onTabChange(item.id)}
               className={cn(
                 "-mb-px border-b-2 px-3 py-2 text-sm",
                 tab === item.id
@@ -134,9 +204,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
       </div>
 
       <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-        {tab === "overview" ? (
-          <OverviewTab project={project} onComplete={(itemId) => setChecklistStatus(project.id, itemId, "Complete")} />
-        ) : null}
+        {tab === "overview" ? <OverviewTab project={project} /> : null}
         {tab === "grid" ? <GridTab project={project} /> : null}
         {tab === "connection" ? <ConnectionTab project={project} /> : null}
         {tab === "documents" ? <DocumentsTab project={project} /> : null}
@@ -163,13 +231,33 @@ function Meta({
   );
 }
 
-function OverviewTab({
-  project,
-  onComplete,
-}: {
-  project: Project;
-  onComplete: (itemId: string) => void;
-}) {
+function OverviewTab({ project }: { project: ProjectDetailViewModel }) {
+  const { pushToast } = useToast();
+  const router = useRouter();
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function onComplete(itemId: string) {
+    setPendingId(itemId);
+    startTransition(async () => {
+      const result = await markRequirementComplete(itemId, project.slug);
+      if (!result.ok) {
+        pushToast({
+          title: "Could not update requirement",
+          description: "The change was not saved.",
+          tone: "warning",
+        });
+        return;
+      }
+      router.refresh();
+      pushToast({
+        title: "Application readiness updated",
+        description: "Requirement marked complete.",
+        tone: "success",
+      });
+    });
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
       <section className="rounded-md border border-line bg-surface p-5">
@@ -179,113 +267,144 @@ function OverviewTab({
             <p className="mt-1 text-sm text-muted">Customer-side completeness for the current process.</p>
           </div>
           <p className="font-mono text-3xl font-semibold text-ink">
-            {project.applicationReadiness.percent}%
+            {project.readinessPercent}%
             <span className="ml-1 text-sm font-sans font-medium text-muted">Ready</span>
           </p>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-canvas">
-          <div
-            className="h-full bg-teal"
-            style={{ width: `${project.applicationReadiness.percent}%` }}
-          />
+          <div className="h-full bg-teal" style={{ width: `${project.readinessPercent}%` }} />
         </div>
-        <ul className="mt-4 divide-y divide-line">
-          {project.applicationReadiness.items.map((item) => {
-            const complete = item.status === "Complete";
-            const interactive = canCompleteChecklist(item.status);
-            return (
-              <li key={item.id} className="flex items-center justify-between gap-3 py-2.5">
-                <div className="flex items-center gap-2">
-                  {complete ? (
-                    <Check size={14} className="text-success" />
-                  ) : (
-                    <Circle size={14} className="text-muted" />
-                  )}
-                  <span className="text-sm">{item.label}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={item.status} />
-                  {interactive ? (
-                    <Button variant="ghost" onClick={() => onComplete(item.id)}>
-                      Mark complete
-                    </Button>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        {project.requirements.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">No requirements recorded for this project yet.</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-line">
+            {project.requirements.map((item) => {
+              const complete = item.status === "Complete";
+              const interactive =
+                project.canUpdateRequirements && canCompleteChecklist(item.status);
+              return (
+                <li key={item.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      {complete ? (
+                        <Check size={14} className="shrink-0 text-success" />
+                      ) : (
+                        <Circle size={14} className="shrink-0 text-muted" />
+                      )}
+                      <span className="text-sm">{item.label}</span>
+                    </div>
+                    {item.category || item.dueDate ? (
+                      <p className="mt-1 pl-6 text-xs text-muted">
+                        {[item.category, item.dueDate ? `Due ${formatDate(item.dueDate)}` : null]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={item.status} />
+                    {interactive ? (
+                      <Button
+                        variant="ghost"
+                        onClick={() => onComplete(item.id)}
+                        disabled={isPending && pendingId === item.id}
+                      >
+                        Mark complete
+                      </Button>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
       <div className="space-y-4">
+        {project.alerts.length > 0 ? (
+          <section className="overflow-hidden rounded-md border border-line bg-surface">
+            <div className="border-b border-line px-5 py-3">
+              <h2 className="text-base font-semibold">Project attention</h2>
+              <p className="text-sm text-muted">Open alerts linked to this project.</p>
+            </div>
+            <ul>
+              {project.alerts.map((alert) => {
+                const style = SEVERITY_STYLES[alert.severity];
+                const Icon = style.Icon;
+                return (
+                  <li
+                    key={alert.id}
+                    className={cn(
+                      "flex items-start gap-3 border-b border-line border-l-4 px-5 py-3.5 last:border-b-0",
+                      style.wrap,
+                    )}
+                  >
+                    <Icon size={16} className={cn("mt-0.5 shrink-0", style.icon)} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ink">{alert.title}</p>
+                      {alert.summary ? (
+                        <p className="mt-0.5 text-sm text-ink/80">{alert.summary}</p>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
         <section className="rounded-md border border-line bg-surface p-5">
           <h2 className="text-base font-semibold">Project</h2>
-          <p className="mt-2 text-sm leading-6 text-ink/90">{project.description}</p>
+          {project.description ? (
+            <p className="mt-2 text-sm leading-6 text-ink/90">{project.description}</p>
+          ) : (
+            <p className="mt-2 text-sm text-muted">No project description recorded.</p>
+          )}
           <Disclaimer className="mt-4" />
         </section>
         <section className="overflow-hidden rounded-md border border-line bg-surface">
           <div className="border-b border-line px-5 py-3">
             <h2 className="text-base font-semibold">Location</h2>
             <p className="text-sm text-muted">
-              {project.location}, {project.region}
+              {[project.location, project.region].filter(Boolean).join(", ") || "Location not set"}
             </p>
           </div>
-          <MiniMap latitude={project.latitude} longitude={project.longitude} outlook={project.outlook} />
+          {project.hasCoordinates ? (
+            <MiniMap latitude={project.latitude} longitude={project.longitude} outlook={project.outlook} />
+          ) : (
+            <p className="px-5 py-8 text-sm text-muted">No site coordinates recorded for this project.</p>
+          )}
         </section>
       </div>
     </div>
   );
 }
 
-function GridTab({ project }: { project: Project }) {
-  const grid = project.grid;
+function GridTab({ project }: { project: ProjectDetailViewModel }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       <section className="rounded-md border border-line bg-surface p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">Grid intelligence</h2>
-          <SourceBadge source={grid.source} />
         </div>
+        <p className="mt-2 text-sm text-muted">Live grid intelligence not connected yet.</p>
         <dl className="mt-4 grid grid-cols-1 gap-3 text-sm">
-          <Row label="Grid operator" value={grid.operator} />
-          <Row label="Network area" value={grid.networkArea} />
-          <Row label="Voltage level" value={grid.voltageLevel} />
-          <Row label="Public capacity signal" value={grid.publicCapacitySignal} />
-          <Row label="Source" value={grid.sourceName} />
-          <Row label="Publication date" value={formatDate(grid.publicationDate)} />
-          <Row label="Last retrieved" value={formatDate(grid.lastRetrieved)} />
-          <Row label="Confidence" value={<ConfidenceBadge confidence={grid.confidence} />} />
+          <Row label="Grid operator" value={project.gridOperator || "—"} />
+          <Row label="Location" value={project.location || "—"} />
+          <Row label="Technology" value={project.technology} />
+          <Row label="MW" value={formatCapacity(project)} />
+          <Row label="Outlook" value={<OutlookBadge outlook={project.outlook} />} />
+          <Row label="Confidence" value={<ConfidenceBadge confidence={project.confidence} />} />
         </dl>
-        {grid.previousIndication || grid.currentIndication ? (
-          <div className="mt-4 rounded-md border border-line bg-canvas p-3 text-sm">
-            {grid.previousIndication ? (
-              <p>
-                <span className="text-muted">Previous indication: </span>
-                {grid.previousIndication}
-              </p>
-            ) : null}
-            {grid.currentIndication ? (
-              <p className="mt-1">
-                <span className="text-muted">Current indication: </span>
-                {grid.currentIndication}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
         <Disclaimer className="mt-4" />
       </section>
       <div className="space-y-4">
         <section className="rounded-md border border-line bg-surface p-5">
           <h2 className="text-base font-semibold">Known constraints</h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm">
-            {project.knownConstraints.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
+          <p className="mt-2 text-sm text-muted">Live grid intelligence not connected yet.</p>
         </section>
         <section className="rounded-md border border-line bg-surface p-5">
           <h2 className="text-base font-semibold">Planned reinforcement</h2>
-          <p className="mt-2 text-sm leading-6">{project.reinforcementInfo}</p>
+          <p className="mt-2 text-sm text-muted">Live grid intelligence not connected yet.</p>
         </section>
         <section className="rounded-md border border-line bg-canvas p-5">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -308,16 +427,25 @@ function GridTab({ project }: { project: Project }) {
   );
 }
 
-function ConnectionTab({ project }: { project: Project }) {
-  const current = project.connectionStage;
+function ConnectionTab({ project }: { project: ProjectDetailViewModel }) {
+  const current = project.stage;
   const params = useSearchParams();
-  const selected = (params.get("stage") as ConnectionStage | null) ?? current;
+  const selected = (params.get("stage") as OverviewPipelineStage | null) ?? current;
   const router = useRouter();
-  const detail = project.stageDetails[selected] ?? project.stageDetails[current];
-  const currentIndex = CONNECTION_STAGES.indexOf(current);
+  const currentIndex = OVERVIEW_PIPELINE_STAGES.indexOf(current);
+  const connectionCase = project.connectionCase;
+  const submitted = project.requirements
+    .filter((item) => item.status === "Complete")
+    .map((item) => item.label);
+  const missing = project.requirements
+    .filter((item) => item.status === "Missing")
+    .map((item) => item.label);
+  const requirementLabels = project.requirements.map((item) => item.label);
 
-  function selectStage(stage: ConnectionStage) {
-    router.replace(`/projects/${project.id}?tab=connection&stage=${encodeURIComponent(stage)}`);
+  function selectStage(stage: OverviewPipelineStage) {
+    router.replace(
+      `/projects/${project.slug}?tab=connection&stage=${encodeURIComponent(stage)}`,
+    );
   }
 
   return (
@@ -325,7 +453,7 @@ function ConnectionTab({ project }: { project: Project }) {
       <section className="rounded-md border border-line bg-surface p-5">
         <h2 className="text-base font-semibold">Connection process</h2>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          {CONNECTION_STAGES.map((stage, index) => {
+          {OVERVIEW_PIPELINE_STAGES.map((stage, index) => {
             const state =
               index < currentIndex ? "complete" : index === currentIndex ? "current" : "future";
             return (
@@ -351,30 +479,51 @@ function ConnectionTab({ project }: { project: Project }) {
         </div>
       </section>
 
-      <section className="rounded-md border border-line bg-surface p-5">
-        <h3 className="text-base font-semibold">{detail.stage}</h3>
-        <dl className="mt-3 grid gap-3 text-sm md:grid-cols-3">
-          <Row label="Responsible owner" value={detail.owner} />
-          <Row label="Deadline" value={detail.deadline ? formatDate(detail.deadline) : "Not set"} />
-          <Row label="Project stage" value={project.stage} />
-        </dl>
-        <p className="mt-3 text-sm leading-6 text-muted">{detail.notes}</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <ListBlock title="Requirements" items={detail.requirements} />
-          <ListBlock title="Submitted" items={detail.submitted} />
-          <ListBlock title="Missing" items={detail.missing} empty="None outstanding" />
-        </div>
-      </section>
+      {connectionCase ? (
+        <section className="rounded-md border border-line bg-surface p-5">
+          <h3 className="text-base font-semibold">{current}</h3>
+          <dl className="mt-3 grid gap-3 text-sm md:grid-cols-3">
+            <Row label="Case reference" value={connectionCase.caseId ?? "—"} />
+            <Row label="Status" value={<StatusBadge status={connectionCase.status} />} />
+            {connectionCase.submittedAt ? (
+              <Row label="Submitted" value={formatDate(connectionCase.submittedAt)} />
+            ) : null}
+            {connectionCase.nextMilestone ? (
+              <Row label="Next milestone" value={connectionCase.nextMilestone} />
+            ) : null}
+            {connectionCase.deadline ? (
+              <Row label="Deadline" value={formatDate(connectionCase.deadline)} />
+            ) : null}
+            {connectionCase.ownerName ? (
+              <Row label="Responsible owner" value={connectionCase.ownerName} />
+            ) : null}
+            <Row label="Project stage" value={project.stage} />
+          </dl>
+          {connectionCase.notes ? (
+            <p className="mt-3 text-sm leading-6 text-muted">{connectionCase.notes}</p>
+          ) : null}
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <ListBlock title="Requirements" items={requirementLabels} />
+            <ListBlock title="Submitted" items={submitted} />
+            <ListBlock title="Missing" items={missing} empty="None outstanding" />
+          </div>
+        </section>
+      ) : (
+        <EmptyState
+          title="No connection case yet"
+          description="A connection case has not been opened for this project."
+        />
+      )}
     </div>
   );
 }
 
-function DocumentsTab({ project }: { project: Project }) {
+function DocumentsTab({ project }: { project: ProjectDetailViewModel }) {
   if (project.documents.length === 0) {
     return (
       <EmptyState
         title="No documents on this project yet"
-        description="Portfolio-wide documents can be added from the Documents workspace."
+        description="Document files are not stored yet. Metadata will appear here when records exist."
       />
     );
   }
@@ -387,6 +536,7 @@ function DocumentsTab({ project }: { project: Project }) {
             <th className="px-4 py-2 font-medium">Document</th>
             <th className="px-4 py-2 font-medium">Category</th>
             <th className="px-4 py-2 font-medium">Status</th>
+            <th className="px-4 py-2 font-medium">Created</th>
             <th className="px-4 py-2 font-medium">Updated</th>
             <th className="px-4 py-2 font-medium">Owner</th>
           </tr>
@@ -399,8 +549,9 @@ function DocumentsTab({ project }: { project: Project }) {
               <td className="px-4 py-3">
                 <StatusBadge status={doc.status} />
               </td>
+              <td className="px-4 py-3 text-muted">{formatDate(doc.createdAt)}</td>
               <td className="px-4 py-3 text-muted">{formatDate(doc.updatedAt)}</td>
-              <td className="px-4 py-3">{doc.owner}</td>
+              <td className="px-4 py-3">{doc.owner ?? "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -409,23 +560,36 @@ function DocumentsTab({ project }: { project: Project }) {
   );
 }
 
-function ActivityTab({ project }: { project: Project }) {
-  const events = [...project.connectionHistory].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  );
+function ActivityTab({ project }: { project: ProjectDetailViewModel }) {
+  const now = useMemo(() => new Date(), []);
+
+  if (project.events.length === 0) {
+    return (
+      <EmptyState
+        title="No activity recorded"
+        description="Project events will appear here as the connection process moves."
+      />
+    );
+  }
 
   return (
     <ol className="space-y-3">
-      {events.map((event) => (
+      {project.events.map((event) => (
         <li key={event.id} className="rounded-md border border-line bg-surface px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-medium">{event.title}</p>
             <div className="flex items-center gap-2">
-              {event.source ? <SourceBadge source={event.source} /> : null}
-              <span className="text-xs text-muted">{formatRelative(event.date)}</span>
+              {event.source ? (
+                <SourceBadge source={event.source} />
+              ) : event.eventType ? (
+                <span className="text-xs text-muted">{event.eventType}</span>
+              ) : null}
+              <span className="text-xs text-muted">{formatRelative(event.occurredAt, now)}</span>
             </div>
           </div>
-          <p className="mt-1 text-sm leading-6 text-muted">{event.detail}</p>
+          {event.detail ? (
+            <p className="mt-1 text-sm leading-6 text-muted">{event.detail}</p>
+          ) : null}
         </li>
       ))}
     </ol>

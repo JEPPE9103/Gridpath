@@ -3,12 +3,19 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { ToastViewport } from "@/components/ui/toast-viewport";
+import type { CurrentUserProfile } from "@/lib/auth/current-user";
 import { WorkspaceProvider } from "@/lib/workspace-state";
 import { Bell, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
-function ShellFrame({ children }: { children: ReactNode }) {
+function ShellFrame({
+  children,
+  user,
+}: {
+  children: ReactNode;
+  user: CurrentUserProfile | null;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -65,6 +72,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
         <Sidebar
           collapsed={collapsed}
           overlay={mobileOpen}
+          user={user}
           onToggle={() => setCollapsed((value) => !value)}
           onNavigate={() => setMobileOpen(false)}
         />
@@ -82,7 +90,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
           </button>
           <p className="text-[13px] font-semibold tracking-[0.18em]">NOXHEIM</p>
           <span className="ml-auto flex h-7 w-7 items-center justify-center rounded-full bg-teal text-[10px] font-semibold">
-            JP
+            {user?.initials ?? "?"}
           </span>
         </div>
         {children}
@@ -91,11 +99,17 @@ function ShellFrame({ children }: { children: ReactNode }) {
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  user = null,
+}: {
+  children: ReactNode;
+  user?: CurrentUserProfile | null;
+}) {
   return (
     <ToastProvider>
       <WorkspaceProvider>
-        <ShellFrame>{children}</ShellFrame>
+        <ShellFrame user={user}>{children}</ShellFrame>
         <ToastViewport />
       </WorkspaceProvider>
     </ToastProvider>

@@ -1,0 +1,11 @@
+# Supabase
+.branches
+.temp
+
+# Local Supabase Studio scratch queries
+snippets/
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
