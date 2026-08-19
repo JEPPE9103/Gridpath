@@ -1,5 +1,6 @@
 import { AppFrame } from "@/components/marketing/app-frame";
 import { CtaLink } from "@/components/marketing/cta-link";
+import { MarketingMap } from "@/components/marketing/marketing-map";
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 import { ConfidenceBadge, OutlookBadge, SourceBadge, StageBadge } from "@/components/ui/badges";
@@ -16,19 +17,13 @@ const mapProjects = projects.filter((project) =>
   ),
 );
 const gavle = projects.find((project) => project.id === "gavle-bess")!;
-
-function pos(lat: number, lng: number) {
-  return {
-    left: `${((lng - 11) / 13) * 100}%`,
-    top: `${((69.2 - lat) / 14.5) * 100}%`,
-  };
-}
-
-function markerColor(outlook: string) {
-  if (outlook === "Favourable") return "#176C4A";
-  if (outlook === "Possible") return "#B54708";
-  return "#B42318";
-}
+const mapSites = mapProjects.map((project) => ({
+  id: project.id,
+  name: project.name,
+  latitude: project.latitude,
+  longitude: project.longitude,
+  outlook: project.outlook,
+}));
 
 export function ProductPillars() {
   return (
@@ -59,33 +54,10 @@ function ScreenPillar() {
             </CtaLink>
           </div>
         </Reveal>
-        <Reveal delay={80}>
+        <Reveal delay={80} fade>
           <AppFrame url="app.noxheim.com/map">
             <div className="grid bg-canvas md:grid-cols-[1fr_240px]">
-              <div className="relative h-[340px] overflow-hidden">
-                <div className="marketing-grid absolute inset-0" />
-                <svg viewBox="0 0 120 220" className="absolute inset-4 h-[calc(100%-32px)] w-auto opacity-80">
-                  <path
-                    d="M52 10C68 8 82 20 84 36C90 54 98 74 92 96C100 118 108 138 98 158C90 176 78 192 62 198C46 204 34 192 32 174C24 156 14 140 18 120C12 98 20 78 24 58C28 36 38 14 52 10Z"
-                    fill="#e7f1ef"
-                    stroke="#cfd8d5"
-                    strokeWidth="1.2"
-                  />
-                </svg>
-                {mapProjects.map((project) => (
-                  <span
-                    key={project.id}
-                    className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
-                    style={{
-                      ...pos(project.latitude, project.longitude),
-                      background: markerColor(project.outlook),
-                      boxShadow:
-                        project.id === "gavle-bess" ? "0 0 0 4px rgba(42,122,111,0.28)" : undefined,
-                    }}
-                    title={project.name}
-                  />
-                ))}
-              </div>
+              <MarketingMap selectedId="gavle-bess" sites={mapSites} />
               <aside className="border-t border-line bg-surface p-4 md:border-t-0 md:border-l">
                 <p className="text-sm font-semibold">{gavle.name}</p>
                 <p className="text-xs text-muted">{gavle.location}</p>

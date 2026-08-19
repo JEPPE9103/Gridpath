@@ -7,10 +7,12 @@ export function Reveal({
   children,
   className,
   delay = 0,
+  fade = false,
 }: {
   children: ReactNode;
   className?: string;
   delay?: number;
+  fade?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -38,7 +40,7 @@ export function Reveal({
       ref={ref}
       className={cn(
         "marketing-reveal transition-[opacity,transform] duration-700 ease-out",
-        visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
+        visible ? "translate-y-0 opacity-100" : fade ? "opacity-0" : "translate-y-4 opacity-0",
         className,
       )}
       style={{ transitionDelay: visible ? `${delay}ms` : "0ms" }}
