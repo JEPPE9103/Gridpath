@@ -1,0 +1,135 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+:root {
+  --background: #f2f1ef;
+  --foreground: #1a1e24;
+}
+
+@theme inline {
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
+  --color-canvas: #f2f1ef;
+  --color-surface: #ffffff;
+  --color-ink: #1a1e24;
+  --color-muted: #5c6169;
+  --color-sidebar: #1a1e24;
+  --color-sidebar-muted: #8b9098;
+  --color-sidebar-hover: #242a33;
+  --color-teal: #2a7a6f;
+  --color-teal-dark: #24685f;
+  --color-teal-soft: #e7f1ef;
+  --color-line: #e3e1dd;
+  --color-critical: #b42318;
+  --color-critical-bg: #fdecea;
+  --color-warning: #b54708;
+  --color-warning-bg: #fef4e6;
+  --color-success: #176c4a;
+  --color-success-bg: #e7f5ee;
+  --color-info: #175cd3;
+  --color-info-bg: #e8f1fc;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: #d7ebe7;
+}
+
+.maplibregl-popup-content {
+  font-family: var(--font-sans);
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: none;
+  border: 1px solid #e3e1dd;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+}
+
+.marketing-grid {
+  background-image:
+    linear-gradient(to right, rgba(26, 30, 36, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(26, 30, 36, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.marketing-grid-dark {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+@keyframes marketing-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes marketing-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.marketing-enter {
+  animation: marketing-enter 0.8s ease-out both;
+}
+
+.marketing-pulse {
+  animation: marketing-pulse 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-enter,
+  .marketing-pulse {
+    animation: none;
+  }
+
+  .marketing-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  html.marketing-scroll {
+    scroll-behavior: auto;
+  }
+}
+
+html.marketing-scroll {
+  scroll-behavior: smooth;
+}
