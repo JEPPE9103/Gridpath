@@ -29,7 +29,7 @@ export function KpiCard({
           <Icon size={16} strokeWidth={1.75} />
         </span>
       </div>
-      <p className="mt-3 font-mono text-[32px] font-semibold leading-none tracking-tight text-ink">
+      <p className="mt-3 text-[32px] font-semibold leading-none tracking-tight text-ink tabular-nums">
         {value}
       </p>
       <p className="mt-2 text-sm text-muted">{hint}</p>

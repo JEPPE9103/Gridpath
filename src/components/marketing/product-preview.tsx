@@ -140,7 +140,9 @@ function MiniKpi({
         <p className="text-[9px] uppercase tracking-wide text-muted">{label}</p>
         <Icon size={12} className={critical ? "marketing-pulse text-critical" : "text-teal"} />
       </div>
-      <p className="mt-1 font-mono text-lg font-semibold leading-none">{value}</p>
+      <p className="mt-1 text-xl font-semibold leading-none tracking-tight tabular-nums">
+        {value}
+      </p>
     </div>
   );
 }
