@@ -1,6 +1,9 @@
 import type { DataSourceKind } from "@/types";
 
 export const OFFICIAL_EI_NETWORK_AREA_SOURCE_SLUG = "ei-network-area-concessions";
+export const OFFICIAL_EI_NUP_SOURCE_SLUG = "ei-network-development-plans";
+
+export const NUP_FORECAST_TRANSFER_CAPACITY_NEED = "forecast_transfer_capacity_need";
 
 export function isOfficialEiNetworkAreaSource(input: {
   sourceSlug?: string | null;
@@ -8,6 +11,16 @@ export function isOfficialEiNetworkAreaSource(input: {
 }): boolean {
   return (
     input.sourceSlug === OFFICIAL_EI_NETWORK_AREA_SOURCE_SLUG &&
+    (input.authorityLevel === "official" || input.authorityLevel === "regulator")
+  );
+}
+
+export function isOfficialEiNupSource(input: {
+  sourceSlug?: string | null;
+  authorityLevel?: GridAuthorityLevel | null;
+}): boolean {
+  return (
+    input.sourceSlug === OFFICIAL_EI_NUP_SOURCE_SLUG &&
     (input.authorityLevel === "official" || input.authorityLevel === "regulator")
   );
 }
@@ -245,6 +258,81 @@ export type OfficialGridAreaContext = {
     message: string;
   };
 };
+
+export type NupForecastRepresentation = "numeric_mw" | "source_text";
+
+export type OfficialNupForecastNeed = {
+  year: number;
+  valueNumeric: number | null;
+  valueText: string | null;
+  unit: string | null;
+  representation: NupForecastRepresentation | null;
+  semantic: typeof NUP_FORECAST_TRANSFER_CAPACITY_NEED;
+};
+
+export type OfficialNupQualitativeObservation = {
+  valueText: string | null;
+  semantic: string | null;
+};
+
+export type OfficialNupFlexibilityNeed = {
+  horizon: string | null;
+  valueNumeric: number | null;
+  valueText: string | null;
+  unit: string | null;
+  semantic: string | null;
+};
+
+export type OfficialNupPlanningAreaMatch = {
+  id: string;
+  name: string;
+  areaType: GridAreaType;
+  officialOperatorName: string | null;
+  organizationNumber: string | null;
+  accountingUnit: string | null;
+  delomrade: string | null;
+  externalId: string | null;
+  planSourceUrl: string | null;
+  observations: {
+    forecastTransferCapacityNeed: OfficialNupForecastNeed[];
+    plannedInvestments: OfficialNupQualitativeObservation | null;
+    flexibilityNeed: OfficialNupFlexibilityNeed[];
+    plannedMeasuresMeetOwnNetworkNeed: OfficialNupQualitativeObservation | null;
+    overlyingNetworkLimitation: OfficialNupQualitativeObservation | null;
+  };
+};
+
+export type OfficialNupContext = {
+  project: {
+    id: string;
+    name: string;
+    slug: string;
+    gridOperatorName: string | null;
+  };
+  coordinate: {
+    latitude: number;
+    longitude: number;
+  } | null;
+  planningAreas: OfficialNupPlanningAreaMatch[];
+  provenance: (GridProvenance & {
+    planningPeriod: string | null;
+    datasetUpdate: string | null;
+  }) | null;
+  matchStatus: "matched" | "no_official_planning_area" | "no_coordinate";
+};
+
+export function isNumericMwForecastSeries(values: OfficialNupForecastNeed[]): boolean {
+  if (values.length === 0) {
+    return false;
+  }
+  return values.every(
+    (item) =>
+      item.representation === "numeric_mw" &&
+      item.valueNumeric != null &&
+      Number.isFinite(item.valueNumeric) &&
+      item.unit === "MW",
+  );
+}
 
 export function officialGridAreaOperatorReview(input: {
   projectOperatorName: string | null;

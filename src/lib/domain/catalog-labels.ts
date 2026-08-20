@@ -251,3 +251,49 @@ export function dataSourceLabel(value: string | null | undefined): DataSourceKin
   }
   return DATA_SOURCE_LABELS[value] ?? null;
 }
+
+export const NUP_DATASET_LABEL = "Elnätsföretagens nätutvecklingsplaner";
+
+const NUP_SIMPLE_ANSWERS: Record<string, string> = {
+  Ja: "Yes",
+  Nej: "No",
+  Delvis: "Partly",
+  "N/A": "N/A",
+};
+
+const NUP_HORIZON_LABELS: Record<string, string> = {
+  "0-2": "0–2 years",
+  "3-5": "3–5 years",
+  "6-10": "6–10 years",
+};
+
+export function nupPlanningScopeLabel(delomrade: string | null | undefined): string {
+  const value = delomrade?.trim() ?? "";
+  if (!value || value === "whole-unit") {
+    return "Whole reporting unit";
+  }
+  return value;
+}
+
+export function nupHorizonLabel(horizon: string | null | undefined): string {
+  if (!horizon) {
+    return "—";
+  }
+  return NUP_HORIZON_LABELS[horizon] ?? horizon;
+}
+
+export function nupPublishedAnswerLabel(value: string | null | undefined): {
+  display: string;
+  missing: boolean;
+  mapped: boolean;
+} {
+  const trimmed = (value ?? "").replace(/\r\n/g, "\n").trim();
+  if (!trimmed) {
+    return { display: "Not published", missing: true, mapped: false };
+  }
+  const mapped = NUP_SIMPLE_ANSWERS[trimmed];
+  if (mapped) {
+    return { display: mapped, missing: false, mapped: true };
+  }
+  return { display: trimmed, missing: false, mapped: false };
+}

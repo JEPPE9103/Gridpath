@@ -19,9 +19,16 @@ import {
   type GridSourceType,
   type OfficialGridAreaContext,
   type OfficialGridAreaMatch,
+  type OfficialNupContext,
+  type OfficialNupFlexibilityNeed,
+  type OfficialNupForecastNeed,
+  type OfficialNupPlanningAreaMatch,
+  type OfficialNupQualitativeObservation,
   type SourceSnapshot,
   type SourceSnapshotStatus,
+  NUP_FORECAST_TRANSFER_CAPACITY_NEED,
   isOfficialEiNetworkAreaSource,
+  isOfficialEiNupSource,
   officialGridAreaOperatorReview,
 } from "@/lib/domain/grid-intelligence";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -33,6 +40,7 @@ export type {
   GridObservation,
   GridSource,
   OfficialGridAreaContext,
+  OfficialNupContext,
   SourceSnapshot,
 } from "@/lib/domain/grid-intelligence";
 
@@ -529,3 +537,279 @@ export const getOfficialGridAreaContextForProject = cache(
     };
   },
 );
+
+type NupContextRpc = {
+  project?: {
+    id?: unknown;
+    name?: unknown;
+    slug?: unknown;
+    gridOperatorName?: unknown;
+  };
+  coordinate?: {
+    latitude?: unknown;
+    longitude?: unknown;
+  } | null;
+  planningAreas?: unknown;
+  provenance?: {
+    sourceId?: unknown;
+    sourceName?: unknown;
+    sourceSlug?: unknown;
+    publisher?: unknown;
+    sourceUrl?: unknown;
+    publishedAt?: unknown;
+    retrievedAt?: unknown;
+    authorityLevel?: unknown;
+    confidence?: unknown;
+    dataType?: unknown;
+    sourceType?: unknown;
+    planningPeriod?: unknown;
+    datasetUpdate?: unknown;
+  } | null;
+};
+
+function mapQualitativeObservation(value: unknown): OfficialNupQualitativeObservation | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const row = value as Record<string, unknown>;
+  return {
+    valueText: asStringOrNull(row.valueText),
+    semantic: asStringOrNull(row.semantic),
+  };
+}
+
+function mapForecastNeed(value: unknown): OfficialNupForecastNeed | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const row = value as Record<string, unknown>;
+  const year = toNumberOrNull(
+    typeof row.year === "number" || typeof row.year === "string" ? row.year : null,
+  );
+  if (year == null) {
+    return null;
+  }
+  const representation = asStringOrNull(row.representation);
+  return {
+    year,
+    valueNumeric: toNumberOrNull(
+      typeof row.valueNumeric === "number" || typeof row.valueNumeric === "string"
+        ? row.valueNumeric
+        : null,
+    ),
+    valueText: asStringOrNull(row.valueText),
+    unit: asStringOrNull(row.unit),
+    representation:
+      representation === "numeric_mw" || representation === "source_text" ? representation : null,
+    semantic: NUP_FORECAST_TRANSFER_CAPACITY_NEED,
+  };
+}
+
+function mapFlexibilityNeed(value: unknown): OfficialNupFlexibilityNeed | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const row = value as Record<string, unknown>;
+  return {
+    horizon: asStringOrNull(row.horizon),
+    valueNumeric: toNumberOrNull(
+      typeof row.valueNumeric === "number" || typeof row.valueNumeric === "string"
+        ? row.valueNumeric
+        : null,
+    ),
+    valueText: asStringOrNull(row.valueText),
+    unit: asStringOrNull(row.unit),
+    semantic: asStringOrNull(row.semantic),
+  };
+}
+
+function mapNupPlanningArea(value: unknown): OfficialNupPlanningAreaMatch | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const row = value as Record<string, unknown>;
+  const id = asStringOrNull(row.id);
+  const name = asStringOrNull(row.name);
+  if (!id || !name) {
+    return null;
+  }
+  const observations =
+    row.observations && typeof row.observations === "object" && !Array.isArray(row.observations)
+      ? (row.observations as Record<string, unknown>)
+      : {};
+  return {
+    id,
+    name,
+    areaType: (asStringOrNull(row.areaType) ?? "planning_area") as GridAreaType,
+    officialOperatorName: asStringOrNull(row.officialOperatorName),
+    organizationNumber: asStringOrNull(row.organizationNumber),
+    accountingUnit: asStringOrNull(row.accountingUnit),
+    delomrade: asStringOrNull(row.delomrade),
+    externalId: asStringOrNull(row.externalId),
+    planSourceUrl: asStringOrNull(row.planSourceUrl),
+    observations: {
+      forecastTransferCapacityNeed: Array.isArray(observations.forecastTransferCapacityNeed)
+        ? observations.forecastTransferCapacityNeed
+            .map(mapForecastNeed)
+            .filter((item): item is OfficialNupForecastNeed => item != null)
+        : [],
+      plannedInvestments: mapQualitativeObservation(observations.plannedInvestments),
+      flexibilityNeed: Array.isArray(observations.flexibilityNeed)
+        ? observations.flexibilityNeed
+            .map(mapFlexibilityNeed)
+            .filter((item): item is OfficialNupFlexibilityNeed => item != null)
+        : [],
+      plannedMeasuresMeetOwnNetworkNeed: mapQualitativeObservation(
+        observations.plannedMeasuresMeetOwnNetworkNeed,
+      ),
+      overlyingNetworkLimitation: mapQualitativeObservation(
+        observations.overlyingNetworkLimitation,
+      ),
+    },
+  };
+}
+
+export const getOfficialNetworkDevelopmentPlanContextForProject = cache(
+  async (projectId: string): Promise<OfficialNupContext | null> => {
+    const trimmed = projectId.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const organization = await getCurrentOrganization();
+    if (!organization) {
+      return null;
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc(
+      "get_official_network_development_plan_context_for_project",
+      { p_project_id: trimmed },
+    );
+
+    if (error) {
+      console.error("getOfficialNetworkDevelopmentPlanContextForProject failed", error.message);
+      return null;
+    }
+
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      return null;
+    }
+
+    const payload = data as NupContextRpc;
+    const projectIdValue = asStringOrNull(payload.project?.id);
+    const projectName = asStringOrNull(payload.project?.name);
+    const projectSlug = asStringOrNull(payload.project?.slug);
+    if (!projectIdValue || !projectName || !projectSlug) {
+      return null;
+    }
+
+    const latitude = toNumberOrNull(
+      typeof payload.coordinate?.latitude === "number" ||
+        typeof payload.coordinate?.latitude === "string"
+        ? payload.coordinate.latitude
+        : null,
+    );
+    const longitude = toNumberOrNull(
+      typeof payload.coordinate?.longitude === "number" ||
+        typeof payload.coordinate?.longitude === "string"
+        ? payload.coordinate.longitude
+        : null,
+    );
+    const coordinate =
+      latitude != null && longitude != null ? { latitude, longitude } : null;
+    const provenanceRecord = payload.provenance;
+    const sourceSlug = asStringOrNull(provenanceRecord?.sourceSlug);
+    const authorityLevel = (asStringOrNull(provenanceRecord?.authorityLevel) ??
+      "official") as GridAuthorityLevel;
+    const officialNup = isOfficialEiNupSource({ sourceSlug, authorityLevel });
+    const planningAreas = officialNup
+      ? Array.isArray(payload.planningAreas)
+        ? payload.planningAreas
+            .map(mapNupPlanningArea)
+            .filter((area): area is OfficialNupPlanningAreaMatch => area != null)
+        : []
+      : [];
+
+    const provenance =
+      officialNup && provenanceRecord && asStringOrNull(provenanceRecord.sourceId)
+        ? {
+            sourceId: asStringOrNull(provenanceRecord.sourceId) ?? "",
+            sourceName: asStringOrNull(provenanceRecord.sourceName) ?? "",
+            sourceSlug: sourceSlug ?? "",
+            publisher: asStringOrNull(provenanceRecord.publisher),
+            sourceUrl: asStringOrNull(provenanceRecord.sourceUrl),
+            publishedAt: asStringOrNull(provenanceRecord.publishedAt),
+            retrievedAt: asStringOrNull(provenanceRecord.retrievedAt) ?? "",
+            authorityLevel,
+            confidence: (asStringOrNull(provenanceRecord.confidence) ?? "high") as GridConfidence,
+            sourceType: (asStringOrNull(provenanceRecord.sourceType) as GridSourceType | null) ??
+              "excel",
+            dataType:
+              asStringOrNull(provenanceRecord.dataType) ??
+              "Network development plan (forecast need, not available capacity)",
+            planningPeriod: asStringOrNull(provenanceRecord.planningPeriod),
+            datasetUpdate: asStringOrNull(provenanceRecord.datasetUpdate),
+          }
+        : null;
+
+    const matchStatus = !coordinate
+      ? "no_coordinate"
+      : planningAreas.length === 0
+        ? "no_official_planning_area"
+        : "matched";
+
+    return {
+      project: {
+        id: projectIdValue,
+        name: projectName,
+        slug: projectSlug,
+        gridOperatorName: asStringOrNull(payload.project?.gridOperatorName),
+      },
+      coordinate,
+      planningAreas: await attachNupPlanSourceUrls(supabase, planningAreas),
+      provenance,
+      matchStatus,
+    };
+  },
+);
+
+async function attachNupPlanSourceUrls(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  areas: OfficialNupPlanningAreaMatch[],
+): Promise<OfficialNupPlanningAreaMatch[]> {
+  if (areas.length === 0) {
+    return areas;
+  }
+
+  const { data, error } = await supabase
+    .from("grid_observations")
+    .select("grid_area_id, source_url")
+    .in(
+      "grid_area_id",
+      areas.map((area) => area.id),
+    );
+
+  if (error) {
+    console.error("NUP plan source URL lookup failed", error.message);
+    return areas;
+  }
+
+  const urlByArea = new Map<string, string>();
+  for (const row of data ?? []) {
+    const areaId = asStringOrNull(row.grid_area_id);
+    const sourceUrl = asStringOrNull(row.source_url);
+    if (!areaId || !sourceUrl || sourceUrl === "N/A" || urlByArea.has(areaId)) {
+      continue;
+    }
+    if (!/^https?:\/\//i.test(sourceUrl)) {
+      continue;
+    }
+    urlByArea.set(areaId, sourceUrl);
+  }
+
+  return areas.map((area) => ({
+    ...area,
+    planSourceUrl: area.planSourceUrl ?? urlByArea.get(area.id) ?? null,
+  }));
+}

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Disclaimer, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast-provider";
+import { OfficialNetworkDevelopmentPlanSection } from "@/features/projects/network-development-plan-section";
 import { cn } from "@/lib/cn";
 import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
 import type { ProjectDetailViewModel } from "@/lib/data/project-detail-types";
@@ -34,8 +35,8 @@ import type { Alert } from "@/types";
 import { AlertTriangle, Check, CheckCircle2, Circle, Info } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState, useTransition, type ReactNode } from "react";
 import dynamic from "next/dynamic";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 
 const MiniMap = dynamic(() => import("@/features/map/mini-map").then((mod) => mod.MiniMap), {
   ssr: false,
@@ -409,7 +410,8 @@ function GridTab({ project }: { project: ProjectDetailViewModel }) {
       : null;
 
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4">
         <section className="rounded-md border border-line bg-surface p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -522,32 +524,39 @@ function GridTab({ project }: { project: ProjectDetailViewModel }) {
             </p>
           )}
         </section>
-
-        <section className="rounded-md border border-line bg-canvas p-5">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-            How to read this
-          </h3>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
-            <li>
-              <span className="font-medium text-ink">Project data</span>
-              {" · "}Stored in NOXHEIM
-            </li>
-            <li>
-              <span className="font-medium text-ink">Official source</span>
-              {" · "}
-              {provenance?.publisher || "Official regulator source"}
-            </li>
-            <li>
-              <span className="font-medium text-ink">NOXHEIM derived</span>
-              {" · "}Geographic project-to-area match
-            </li>
-          </ul>
-          <p className="mt-4 text-xs leading-5 text-muted">
-            Official network-area geography does not indicate available grid capacity or guarantee
-            connection feasibility. Formal assessment by the relevant grid operator is required.
-          </p>
-        </section>
       </div>
+      </div>
+
+      <OfficialNetworkDevelopmentPlanSection
+        nup={project.officialNetworkDevelopmentPlanContext}
+        localNetwork={context}
+      />
+
+      <section className="rounded-md border border-line bg-canvas p-5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+          How to read this
+        </h3>
+        <ul className="mt-3 space-y-2 text-sm text-muted">
+          <li>
+            <span className="font-medium text-ink">Project data</span>
+            {" · "}Customer/project workflow information stored in NOXHEIM
+          </li>
+          <li>
+            <span className="font-medium text-ink">Official source</span>
+            {" · "}Ei local-network concession geography and Ei network development plans
+          </li>
+          <li>
+            <span className="font-medium text-ink">NOXHEIM derived</span>
+            {" · "}Spatial project-to-area matching
+          </li>
+        </ul>
+        <p className="mt-4 text-xs leading-5 text-muted">
+          Official network-area and network-development-plan information provides geographic
+          and planning context. Forecast transfer needs, planned investments and planning
+          assessments do not indicate available grid capacity or guarantee connection
+          feasibility. Formal assessment by the relevant grid operator is required.
+        </p>
+      </section>
     </div>
   );
 }

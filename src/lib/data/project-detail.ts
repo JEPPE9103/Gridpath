@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { getOfficialGridAreaContextForProject } from "@/lib/data/grid-intelligence";
+import { getOfficialGridAreaContextForProject, getOfficialNetworkDevelopmentPlanContextForProject } from "@/lib/data/grid-intelligence";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import type {
   ProjectAlertItem,
@@ -12,7 +12,7 @@ import type {
 } from "@/lib/data/project-detail-types";
 import { asSingle, parsePoint, toNumber } from "@/lib/data/row-utils";
 import { applicationReadinessFromRequirements } from "@/lib/domain/application-readiness";
-import type { OfficialGridAreaContext } from "@/lib/domain/grid-intelligence";
+import type { OfficialGridAreaContext, OfficialNupContext } from "@/lib/domain/grid-intelligence";
 import {
   checklistStatusLabel,
   confidenceLabel,
@@ -199,6 +199,7 @@ function mapProject(
   },
   canUpdateRequirements: boolean,
   officialGridAreaContext: OfficialGridAreaContext | null,
+  officialNetworkDevelopmentPlanContext: OfficialNupContext | null,
 ): ProjectDetailViewModel {
   const operator = asSingle(row.grid_operators);
   const site =
@@ -237,6 +238,7 @@ function mapProject(
     alerts: mapAlerts(related.alerts),
     canUpdateRequirements,
     officialGridAreaContext,
+    officialNetworkDevelopmentPlanContext,
   };
 }
 
@@ -291,7 +293,15 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
   const project = data as ProjectRow;
   const projectId = project.id;
 
-  const [casesResult, requirementsResult, documentsResult, eventsResult, alertsResult, officialContext] =
+  const [
+    casesResult,
+    requirementsResult,
+    documentsResult,
+    eventsResult,
+    alertsResult,
+    officialContext,
+    officialNupContext,
+  ] =
     await Promise.all([
       supabase
         .from("connection_cases")
@@ -320,6 +330,7 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
         .eq("project_id", projectId)
         .eq("status", "open"),
       getOfficialGridAreaContextForProject(projectId),
+      getOfficialNetworkDevelopmentPlanContextForProject(projectId),
     ]);
 
   const relatedError =
@@ -371,6 +382,7 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
       },
       writableRole(organization.role),
       officialContext,
+      officialNupContext,
     ),
   };
 }

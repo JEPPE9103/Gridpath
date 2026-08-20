@@ -1,5 +1,8 @@
 import type { OverviewPipelineStage } from "@/lib/data/overview-types";
-import type { OfficialGridAreaContext } from "@/lib/domain/grid-intelligence";
+import type {
+  OfficialGridAreaContext,
+  OfficialNupContext,
+} from "@/lib/domain/grid-intelligence";
 import type {
   AlertSeverity,
   ChecklistStatus,
@@ -88,6 +91,7 @@ export type ProjectDetailViewModel = {
   alerts: ProjectAlertItem[];
   canUpdateRequirements: boolean;
   officialGridAreaContext: OfficialGridAreaContext | null;
+  officialNetworkDevelopmentPlanContext: OfficialNupContext | null;
 };
 
 export type ProjectDetailResult =
