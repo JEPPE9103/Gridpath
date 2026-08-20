@@ -39,6 +39,9 @@ export type {
   GridArea,
   GridObservation,
   GridSource,
+  ObservationChangeKind,
+  ObservationDiff,
+  ObservationVersion,
   OfficialGridAreaContext,
   OfficialNupContext,
   SourceSnapshot,
@@ -150,6 +153,7 @@ type ChangeRow = {
   before_value: unknown;
   after_value: unknown;
   metadata: unknown;
+  observation_external_id?: string | null;
   created_at: string;
 };
 
@@ -276,6 +280,7 @@ function mapChange(row: ChangeRow): ExternalChange {
     beforeValue: asRecordOrNull(row.before_value),
     afterValue: asRecordOrNull(row.after_value),
     metadata: asRecord(row.metadata),
+    observationExternalId: row.observation_external_id ?? asStringOrNull(asRecord(row.metadata).observation_external_id),
     createdAt: row.created_at,
   };
 }
@@ -321,7 +326,7 @@ export async function listExternalChanges(): Promise<ExternalChange[]> {
   const { data, error } = await supabase
     .from("external_changes")
     .select(
-      "id, source_id, previous_snapshot_id, current_snapshot_id, change_type, title, summary, severity, grid_area_id, detected_at, published_at, confidence, source_url, before_value, after_value, metadata, created_at",
+      "id, source_id, previous_snapshot_id, current_snapshot_id, change_type, title, summary, severity, grid_area_id, detected_at, published_at, confidence, source_url, before_value, after_value, metadata, observation_external_id, created_at",
     )
     .order("detected_at", { ascending: false });
 

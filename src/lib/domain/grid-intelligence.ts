@@ -161,6 +161,46 @@ export type GridObservation = {
   createdAt: string;
 };
 
+export type ObservationVersion = {
+  id: string;
+  sourceSnapshotId: string;
+  sourceId: string;
+  externalId: string;
+  gridAreaId: string | null;
+  operatorId: string | null;
+  observationType: GridObservationType;
+  valueNumeric: number | null;
+  valueText: string | null;
+  unit: string | null;
+  technology: string | null;
+  direction: GridObservationDirection | null;
+  voltageKv: number | null;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  publishedAt: string | null;
+  retrievedAt: string;
+  confidence: GridConfidence;
+  authorityLevel: GridAuthorityLevel;
+  sourceUrl: string | null;
+  rawMetadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type ObservationChangeKind = "added" | "removed" | "changed";
+
+export type ObservationDiff = {
+  kind: ObservationChangeKind;
+  externalId: string;
+  sourceId: string;
+  gridAreaId: string | null;
+  semantic: string | null;
+  observationType: GridObservationType | null;
+  previous: ObservationVersion | null;
+  current: ObservationVersion | null;
+  beforeValue: Record<string, unknown> | null;
+  afterValue: Record<string, unknown> | null;
+};
+
 export type SourceSnapshot = {
   id: string;
   sourceId: string;
@@ -191,6 +231,7 @@ export type ExternalChange = {
   beforeValue: Record<string, unknown> | null;
   afterValue: Record<string, unknown> | null;
   metadata: Record<string, unknown>;
+  observationExternalId: string | null;
   createdAt: string;
 };
 

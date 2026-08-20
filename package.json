@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:bootstrap-auth": "node scripts/bootstrap-local-auth.mjs",
     "dev:test-grid-intelligence": "node scripts/test-grid-intelligence.mjs",
+    "dev:test-nup-change-detection": "node scripts/test-nup-change-detection.mjs",
     "dev:ingest-ei-network-areas": "node scripts/ingest-ei-network-areas.mjs",
     "dev:ingest-ei-nup": "node scripts/ingest-ei-network-development-plans.mjs",
     "build": "next build",

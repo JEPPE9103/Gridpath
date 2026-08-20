@@ -7,8 +7,12 @@
  * (EPSG:3006 → EPSG:4326), and grid_observations.
  *
  * Forecast MW is FORECAST TRANSFER-CAPACITY NEED, never available capacity.
- * First successful import is a BASELINE: no external_changes, alerts, or
- * project mutations.
+ * First successful import is a BASELINE: copies observation versions, creates
+ * no external_changes, and does not generate alerts.
+ *
+ * A later NEW workbook hash stores versions, diffs against the previous
+ * snapshot, and may create external_changes + geographic change_impacts.
+ * It still does not create customer alerts.
  *
  * Refuses any non-localhost Supabase target.
  *
@@ -52,6 +56,8 @@ const SEMANTIC_INVESTMENT = "planned_investments_reported";
 const SEMANTIC_FLEX = "flexibility_need";
 const SEMANTIC_MEETS = "planned_measures_meet_own_network_need";
 const SEMANTIC_OVERLYING = "overlying_network_limitation";
+const NUP_IMPACT_REASON =
+  "Project site's primary coordinate intersects the NUP planning area associated with this published change.";
 const USER_AGENT = "NOXHEIM-local-ingest/1.0 (official public NUP retrieval)";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -1426,6 +1432,92 @@ select
   }
   process.stdout.write("\n");
 
+  const existingVersionCount = requireRow(
+    queryLocal(`
+select count(*)::int as count
+from public.grid_observation_versions
+where source_snapshot_id = ${quoteSql(snapshotId)}::uuid;
+`),
+    "observation version count",
+  );
+  let versionsInserted = 0;
+  if (Number(existingVersionCount.count ?? 0) === 0) {
+    const copied = requireRow(
+      queryLocal(`
+select private.copy_grid_observations_to_versions(${quoteSql(snapshotId)}::uuid) as inserted;
+`),
+      "copy observation versions",
+    );
+    versionsInserted = Number(copied.inserted ?? 0);
+  }
+  const versionTotal = requireRow(
+    queryLocal(`
+select count(*)::int as count
+from public.grid_observation_versions
+where source_snapshot_id = ${quoteSql(snapshotId)}::uuid;
+`),
+    "observation version total",
+  );
+
+  let changeDetection = {
+    skipped: true,
+    reason: "identical content hash",
+    previousSnapshotId: null,
+    added: 0,
+    removed: 0,
+    changed: 0,
+    insertedChanges: 0,
+    impactRows: 0,
+  };
+
+  if (snapshotStatus !== "UNCHANGED") {
+    const previous = queryLocal(`
+select id
+from public.source_snapshots
+where source_id = ${quoteSql(source.id)}::uuid
+  and id <> ${quoteSql(snapshotId)}::uuid
+  and status in ('success', 'unchanged')
+order by retrieved_at desc
+limit 1;
+`);
+    if (!previous[0]) {
+      changeDetection = {
+        skipped: true,
+        reason: "baseline snapshot; no previous successful snapshot",
+        previousSnapshotId: null,
+        added: 0,
+        removed: 0,
+        changed: 0,
+        insertedChanges: 0,
+        impactRows: 0,
+      };
+    } else {
+      const applied = queryLocal(`
+select
+  change_kind,
+  inserted,
+  impact_count
+from private.apply_observation_snapshot_changes(
+  ${quoteSql(previous[0].id)}::uuid,
+  ${quoteSql(snapshotId)}::uuid,
+  false,
+  ${quoteSql(NUP_IMPACT_REASON)},
+  'high'
+);
+`);
+      changeDetection = {
+        skipped: false,
+        reason: null,
+        previousSnapshotId: previous[0].id,
+        added: applied.filter((row) => row.change_kind === "added").length,
+        removed: applied.filter((row) => row.change_kind === "removed").length,
+        changed: applied.filter((row) => row.change_kind === "changed").length,
+        insertedChanges: applied.filter((row) => row.inserted === true || row.inserted === "t").length,
+        impactRows: applied.reduce((sum, row) => sum + Number(row.impact_count ?? 0), 0),
+      };
+    }
+  }
+
   const semanticCounts = requireRow(
     queryLocal(`
 select
@@ -1448,6 +1540,17 @@ from public.external_changes
 where source_id = ${quoteSql(source.id)}::uuid;
 `),
     "external_changes count",
+  );
+
+  const alertCount = requireRow(
+    queryLocal(`
+select count(*)::int as count
+from public.alerts as a
+inner join public.external_changes as ec
+  on a.metadata ->> 'external_change_id' = ec.id::text
+where ec.source_id = ${quoteSql(source.id)}::uuid;
+`),
+    "NUP alert count",
   );
 
   const relJoin = requireRow(
@@ -1627,6 +1730,18 @@ where source_id = ${quoteSql(source.id)}::uuid
   console.log(`Observations updated: ${obsStats.updated}`);
   console.log(`Observations unchanged: ${obsStats.unchanged}`);
   console.log(`Observations invalid: ${obsStats.invalid}`);
+  console.log(`Observation versions inserted this run: ${versionsInserted}`);
+  console.log(`Observation versions for this snapshot: ${versionTotal.count}`);
+  if (changeDetection.skipped) {
+    console.log(`Change detection: skipped (${changeDetection.reason})`);
+  } else {
+    console.log(`Change detection previous snapshot: ${changeDetection.previousSnapshotId}`);
+    console.log(`Change detection added: ${changeDetection.added}`);
+    console.log(`Change detection removed: ${changeDetection.removed}`);
+    console.log(`Change detection changed: ${changeDetection.changed}`);
+    console.log(`external_changes inserted this run: ${changeDetection.insertedChanges}`);
+    console.log(`change_impacts returned this run: ${changeDetection.impactRows}`);
+  }
   console.log(`Observation counts by semantic:`);
   console.log(`  forecast_transfer_capacity_need: ${semanticCounts.forecast}`);
   console.log(`  planned_investments_reported: ${semanticCounts.investment}`);
@@ -1649,7 +1764,8 @@ where source_id = ${quoteSql(source.id)}::uuid
   console.log(`Source parsing warnings: ${warnings.length}`);
   console.log(`CRS transformation: ${SOURCE_CRS_LABEL} → ${TARGET_CRS} via PostGIS ST_Transform`);
   console.log(`FeatureServer: ${featureServer.url}`);
-  console.log(`external_changes for this source: ${changeCount.count} (baseline import creates none)`);
+  console.log(`external_changes for this source: ${changeCount.count}`);
+  console.log(`alerts for this source: ${alertCount.count} (official NUP ingest does not create alerts)`);
   console.log(
     `Supporting REL overlap with Ei concession unit_id: ${relJoin.rel_also_in_concessions} of ${relJoin.nup_rel_tokens} NUP REL tokens (identity context only; not used for site matching)`,
   );
