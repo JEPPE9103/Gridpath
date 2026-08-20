@@ -21,6 +21,20 @@ export function formatCapacity(project: Pick<Project, "importMW" | "exportMW">):
   return `${capacityMW(project)} MW`;
 }
 
+export function formatImportExport(project: Pick<Project, "importMW" | "exportMW">): string {
+  const parts: string[] = [];
+  if (project.importMW > 0) {
+    parts.push(`${project.importMW} MW import`);
+  }
+  if (project.exportMW > 0) {
+    parts.push(`${project.exportMW} MW export`);
+  }
+  if (parts.length === 0) {
+    return "—";
+  }
+  return parts.join(" / ");
+}
+
 export function formatCapacityShort(
   project: Pick<Project, "importMW" | "exportMW">,
 ): string {

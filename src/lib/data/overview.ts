@@ -7,6 +7,7 @@ import {
   type PortfolioOverview,
 } from "@/lib/data/overview-types";
 import { listProjects } from "@/lib/data/projects";
+import { countProjectsNeedingAttention } from "@/lib/domain/attention";
 import { totalPortfolioMW } from "@/lib/domain/portfolio-capacity";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AlertSeverity } from "@/types";
@@ -108,30 +109,6 @@ function emptyOverview(
     impact: EMPTY_IMPACT,
     error: error ?? "Could not load overview.",
   };
-}
-
-function needsAttentionCount(
-  cases: ConnectionCaseRow[],
-  alerts: AlertRow[],
-): number {
-  const projectIds = new Set<string>();
-
-  for (const row of alerts) {
-    if (
-      row.project_id &&
-      (row.severity === "critical" || row.severity === "warning")
-    ) {
-      projectIds.add(row.project_id);
-    }
-  }
-
-  for (const row of cases) {
-    if (row.status === "at_risk" || row.status === "overdue") {
-      projectIds.add(row.project_id);
-    }
-  }
-
-  return projectIds.size;
 }
 
 function mapAlert(row: AlertRow): OverviewAlertItem | null {
@@ -244,7 +221,7 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
       totalMW: totalPortfolioMW(projects),
       connectionEnquiries,
       gridStudiesOpen,
-      needsAttention: needsAttentionCount(cases, alertRows),
+      needsAttention: countProjectsNeedingAttention(cases, alertRows),
     },
     alerts,
     projects,

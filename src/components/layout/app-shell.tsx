@@ -12,9 +12,11 @@ import { useEffect, useState, type ReactNode } from "react";
 function ShellFrame({
   children,
   user,
+  criticalAlertCount,
 }: {
   children: ReactNode;
   user: CurrentUserProfile | null;
+  criticalAlertCount: number;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -73,6 +75,7 @@ function ShellFrame({
           collapsed={collapsed}
           overlay={mobileOpen}
           user={user}
+          criticalAlertCount={criticalAlertCount}
           onToggle={() => setCollapsed((value) => !value)}
           onNavigate={() => setMobileOpen(false)}
         />
@@ -102,14 +105,18 @@ function ShellFrame({
 export function AppShell({
   children,
   user = null,
+  criticalAlertCount = 0,
 }: {
   children: ReactNode;
   user?: CurrentUserProfile | null;
+  criticalAlertCount?: number;
 }) {
   return (
     <ToastProvider>
       <WorkspaceProvider>
-        <ShellFrame user={user}>{children}</ShellFrame>
+        <ShellFrame user={user} criticalAlertCount={criticalAlertCount}>
+          {children}
+        </ShellFrame>
         <ToastViewport />
       </WorkspaceProvider>
     </ToastProvider>

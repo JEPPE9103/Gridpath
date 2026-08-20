@@ -1,18 +1,17 @@
 "use client";
 
 import { BellButton } from "@/components/layout/app-shell";
-import { OutlookBadge } from "@/components/ui/badges";
+import { OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
-import { Disclaimer, EstimateNote } from "@/components/ui/empty-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Tooltip } from "@/components/ui/tooltip";
-import { useToast } from "@/components/ui/toast-provider";
-import { formatHeaderDate, formatMWTotal, isAttentionOutlook } from "@/lib/format";
-import { impactRepository, projectRepository } from "@/lib/repositories";
-import { averageReadiness, countByOutlook, countByStage, kpis, mwByOperator } from "@/lib/stats";
-import { useWorkspace } from "@/lib/workspace-state";
-import { PIPELINE_STAGES, type Outlook } from "@/types";
-import { FileBarChart, Sparkles } from "lucide-react";
+import type {
+  PortfolioReportResult,
+  PortfolioReportViewModel,
+  ReportExportRow,
+} from "@/lib/data/report-types";
+import { formatHeaderDate, formatMWTotal } from "@/lib/format";
+import type { Outlook } from "@/types";
 import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
 import {
@@ -25,47 +24,79 @@ import {
   YAxis,
 } from "recharts";
 
-export function ReportsPage() {
-  const { overlays } = useWorkspace();
-  const { pushToast } = useToast();
-  const projects = useMemo(() => projectRepository.list(overlays), [overlays]);
-  const metrics = kpis(projects);
-  const impact = impactRepository.get();
-  const stageData = PIPELINE_STAGES.map((stage) => ({
-    stage,
-    count: countByStage(projects)[stage],
-  }));
-  const outlookData = countByOutlook(projects);
-  const operatorData = mwByOperator(projects);
-  const attention = projects.filter((project) => isAttentionOutlook(project.outlook));
-  const avgReady = averageReadiness(projects);
-
-  function generate(name: string) {
-    pushToast({
-      title: "Report generated",
-      description: `${name} prepared for download in this demo. No file is stored.`,
-      tone: "success",
-    });
+export function ReportsPage({ result }: { result: PortfolioReportResult }) {
+  if (result.kind === "no_organization") {
+    return (
+      <>
+        <PageHeader title="Reports" subtitle="Portfolio reporting" />
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
+          <EmptyState
+            title="No workspace yet"
+            description="This account is not a member of an organisation. Create or join a workspace to see portfolio reports."
+          />
+        </div>
+      </>
+    );
   }
+
+  if (result.kind === "error") {
+    return (
+      <>
+        <PageHeader title="Reports" subtitle="Portfolio reporting" />
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
+          <EmptyState
+            title="Could not load reports"
+            description="Try again in a moment. If the problem continues, sign in again."
+          />
+        </div>
+      </>
+    );
+  }
+
+  return <LoadedReportsPage report={result.report} />;
+}
+
+function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
+  const { summary, readiness } = report;
+  const stageData = useMemo(
+    () => report.stageCounts.map((row) => ({ stage: row.label, count: row.count })),
+    [report.stageCounts],
+  );
+  const operatorData = useMemo(
+    () => report.operatorMW.map((row) => ({ operator: row.operator, mw: row.mw })),
+    [report.operatorMW],
+  );
 
   return (
     <>
       <PageHeader
         title="Reports"
-        subtitle="Portfolio reporting for development and grid process review"
+        subtitle={`${report.organizationName} · portfolio reporting for development and grid process review`}
         actions={
           <>
+            <Button variant="secondary" onClick={() => downloadPortfolioCsv(report.exportRows)}>
+              Export CSV
+            </Button>
             <BellButton />
-            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
+            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate()}</span>
           </>
         }
       />
       <div className="space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <Stat label="Sites" value={metrics.activeSites} />
-          <Stat label="Portfolio capacity" value={formatMWTotal(metrics.totalMW)} />
-          <Stat label="Needs attention" value={metrics.needsAttention} />
-          <Stat label="Avg. application readiness" value={`${avgReady}%`} />
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <Stat label="Projects" value={summary.projectCount} />
+          <Stat label="Portfolio MW" value={formatMWTotal(summary.portfolioMW)} />
+          <Stat label="Active connection cases" value={summary.activeConnectionCases} />
+          <Stat label="Projects needing attention" value={summary.needsAttention} />
+          <Stat label="Open alerts" value={summary.openAlerts} />
+          <Stat
+            label="Average application readiness"
+            value={
+              summary.averageReadinessPercent == null
+                ? "Not available"
+                : `${summary.averageReadinessPercent}%`
+            }
+          />
         </section>
 
         <section className="grid gap-4 xl:grid-cols-2">
@@ -73,14 +104,21 @@ export function ReportsPage() {
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={stageData} barSize={18}>
                 <CartesianGrid stroke="#E3E1DD" vertical={false} />
-                <XAxis dataKey="stage" tick={{ fontSize: 11, fill: "#5C6169" }} interval={0} angle={-20} textAnchor="end" height={50} />
+                <XAxis
+                  dataKey="stage"
+                  tick={{ fontSize: 11, fill: "#5C6169" }}
+                  interval={0}
+                  angle={-20}
+                  textAnchor="end"
+                  height={50}
+                />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#5C6169" }} />
                 <RechartsTooltip />
                 <Bar dataKey="count" fill="#2A7A6F" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
-          <ChartCard title="MW by operator">
+          <ChartCard title="Portfolio MW by grid operator">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={operatorData} layout="vertical" barSize={14} margin={{ left: 16 }}>
                 <CartesianGrid stroke="#E3E1DD" horizontal={false} />
@@ -98,82 +136,264 @@ export function ReportsPage() {
           </ChartCard>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+        <section className="grid gap-4 xl:grid-cols-2">
           <div className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Projects by outlook</h2>
+            <h2 className="text-base font-semibold">Current project outlook</h2>
+            <p className="mt-1 text-xs text-muted">Stored project assessment — not live grid capacity.</p>
             <ul className="mt-3 space-y-2">
-              {outlookData.map((row) => (
-                <li key={row.outlook} className="flex items-center justify-between text-sm">
-                  <OutlookBadge outlook={row.outlook as Outlook} />
-                  <span className="font-mono">{row.count}</span>
+              {report.outlookCounts.map((row) => (
+                <li key={row.label} className="flex items-center justify-between text-sm">
+                  <OutlookBadge outlook={row.label as Outlook} />
+                  <span className="tabular-nums">{row.count}</span>
                 </li>
               ))}
             </ul>
           </div>
           <div className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Projects requiring attention</h2>
-            <ul className="mt-3 divide-y divide-line">
-              {attention.map((project) => (
-                <li key={project.id} className="flex items-center justify-between py-2 text-sm">
-                  <Link href={`/projects/${project.id}`} className="font-medium hover:text-teal">
-                    {project.name}
-                  </Link>
-                  <OutlookBadge outlook={project.outlook} />
+            <h2 className="text-base font-semibold">Technology mix</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {report.technologyMix.map((row) => (
+                <li key={row.technology} className="flex items-center justify-between gap-3">
+                  <span>{row.technology}</span>
+                  <span className="tabular-nums text-muted">
+                    {row.count} · {formatMWTotal(row.mw)}
+                  </span>
                 </li>
               ))}
             </ul>
           </div>
         </section>
 
-        <section className="grid gap-3 md:grid-cols-3">
-          <ReportCard
-            title="Portfolio Grid Development Report"
-            body="Summary of sites, outlook, confidence and indicative capacity signals."
-            onGenerate={() => generate("Portfolio Grid Development Report")}
-          />
-          <ReportCard
-            title="Connection Pipeline"
-            body="Cases by stage, deadlines and outstanding application items."
-            onGenerate={() => generate("Connection Pipeline")}
-          />
-          <ReportCard
-            title="Risk & Change Summary"
-            body="External grid changes mapped to affected projects."
-            onGenerate={() => generate("Risk & Change Summary")}
-          />
+        <section className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-md border border-line bg-surface p-5">
+            <h2 className="text-base font-semibold">Connection health</h2>
+            <p className="mt-1 text-xs text-muted">Active cases only. Complete and cancelled are excluded.</p>
+            <ul className="mt-3 space-y-2 text-sm">
+              <CountLine label="On Track" value={report.connectionHealth.onTrack} />
+              <CountLine label="Waiting" value={report.connectionHealth.waiting} />
+              <CountLine label="At Risk" value={report.connectionHealth.atRisk} />
+              <CountLine label="Overdue" value={report.connectionHealth.overdue} />
+            </ul>
+            <p className="mt-3 text-sm text-muted">
+              {report.connectionHealth.upcomingDeadlines === 0
+                ? "No active case deadlines in the next 14 days."
+                : `${report.connectionHealth.upcomingDeadlines} upcoming deadline${report.connectionHealth.upcomingDeadlines === 1 ? "" : "s"} within 14 days.`}
+            </p>
+          </div>
+          <div className="rounded-md border border-line bg-surface p-5">
+            <h2 className="text-base font-semibold">Application readiness</h2>
+            <p className="mt-1 text-xs text-muted">
+              Required requirements only. Same formula as Project Detail and Map.
+            </p>
+            <ul className="mt-3 space-y-2 text-sm">
+              <CountLine
+                label="Portfolio average"
+                value={
+                  readiness.averagePercent == null ? "Not available" : `${readiness.averagePercent}%`
+                }
+              />
+              <CountLine label="≥ 80%" value={readiness.atLeast80} />
+              <CountLine label="50–79%" value={readiness.from50to79} />
+              <CountLine label="< 50%" value={readiness.below50} />
+            </ul>
+            <p className="mt-3 text-sm text-muted">
+              {readiness.notAvailable === 0
+                ? `${readiness.scoredCount} projects have required requirements.`
+                : `${readiness.notAvailable} project${readiness.notAvailable === 1 ? "" : "s"} with no required requirements — not available.`}
+            </p>
+          </div>
         </section>
 
         <section className="rounded-md border border-line bg-surface p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold">Development impact</h2>
-              <EstimateNote className="mt-1" />
+          <h2 className="text-base font-semibold">Projects requiring attention</h2>
+          <p className="mt-1 text-xs text-muted">
+            Open critical or warning alerts, or connection cases that are at risk or overdue.
+          </p>
+          {report.attentionProjects.length === 0 ? (
+            <p className="mt-4 text-sm text-muted">No projects currently require attention.</p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
+                    <th className="py-2 pr-4 font-medium">Project</th>
+                    <th className="py-2 pr-4 font-medium">Stage</th>
+                    <th className="py-2 pr-4 font-medium">Outlook</th>
+                    <th className="py-2 pr-4 font-medium">Readiness</th>
+                    <th className="py-2 pr-4 font-medium">Open alerts</th>
+                    <th className="py-2 pr-4 font-medium">Connection</th>
+                    <th className="py-2 font-medium">Next milestone / deadline</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.attentionProjects.map((project) => (
+                    <tr key={project.slug} className="border-b border-line align-top last:border-b-0">
+                      <td className="py-2 pr-4">
+                        <Link href={`/projects/${project.slug}`} className="font-medium hover:text-teal">
+                          {project.name}
+                        </Link>
+                      </td>
+                      <td className="py-2 pr-4">
+                        <StageBadge stage={project.stage} />
+                      </td>
+                      <td className="py-2 pr-4">
+                        <OutlookBadge outlook={project.outlook} />
+                      </td>
+                      <td className="py-2 pr-4 tabular-nums">
+                        {project.readinessPercent == null ? "Not available" : `${project.readinessPercent}%`}
+                      </td>
+                      <td className="py-2 pr-4 text-muted">
+                        {alertSummary(project.openCriticalAlerts, project.openWarningAlerts)}
+                      </td>
+                      <td className="py-2 pr-4">{project.connectionStatus ?? "No connection case"}</td>
+                      <td className="py-2 text-muted">
+                        {milestoneDeadline(project.nextMilestone, project.deadline)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <Tooltip content="Estimates use customer-defined assumptions and workflow activity.">
-              <span className="inline-flex items-center gap-1 text-xs text-muted">
-                <Sparkles size={12} /> Estimated
-              </span>
-            </Tooltip>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
-            <Stat label="Sites deprioritised before detailed engineering" value={impact.sitesDeprioritised} />
-            <Stat label="Projects monitored automatically" value={impact.projectsMonitored} />
-            <Stat label="Grid / operator changes detected" value={impact.changesDetected} />
-            <Stat label="Estimated engineering review hours avoided" value={impact.estimatedHoursAvoided} />
-          </div>
-          <Disclaimer className="mt-4" />
+          )}
         </section>
+
+        <section className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-md border border-line bg-surface p-5">
+            <h2 className="text-base font-semibold">Document health</h2>
+            <p className="mt-1 text-xs text-muted">
+              Document records stored in NOXHEIM. File storage is not connected.
+            </p>
+            <ul className="mt-3 space-y-2 text-sm">
+              <CountLine label="Complete" value={report.documentHealth.complete} />
+              <CountLine label="In Progress" value={report.documentHealth.inProgress} />
+              <CountLine label="Draft" value={report.documentHealth.draft} />
+              <CountLine label="Missing" value={report.documentHealth.missing} />
+            </ul>
+          </div>
+          <div className="rounded-md border border-line bg-surface p-5">
+            <h2 className="text-base font-semibold">Operational activity</h2>
+            <p className="mt-1 text-xs text-muted">Counts from current workspace records.</p>
+            <ul className="mt-3 space-y-2 text-sm">
+              <CountLine label="Projects monitored" value={report.operational.projectsMonitored} />
+              <CountLine label="Open issues detected" value={report.operational.openIssues} />
+              <CountLine
+                label="Connection cases managed"
+                value={report.operational.connectionCasesManaged}
+              />
+              <CountLine label="Requirements tracked" value={report.operational.requirementsTracked} />
+              <CountLine label="Documents tracked" value={report.operational.documentsTracked} />
+            </ul>
+          </div>
+        </section>
+
+        <p className="text-xs leading-5 text-muted">
+          Portfolio reporting is based on project and workflow data stored in NOXHEIM. Live external
+          grid intelligence is not yet connected.
+        </p>
       </div>
     </>
   );
 }
 
+function alertSummary(critical: number, warning: number): string {
+  if (critical === 0 && warning === 0) {
+    return "None";
+  }
+  const parts: string[] = [];
+  if (critical > 0) {
+    parts.push(`${critical} critical`);
+  }
+  if (warning > 0) {
+    parts.push(`${warning} warning`);
+  }
+  return parts.join(" · ");
+}
+
+function milestoneDeadline(milestone: string | null, deadline: string | null): string {
+  const next = milestone?.trim() || "—";
+  if (!deadline) {
+    return next;
+  }
+  return `${next} · ${deadline}`;
+}
+
+function downloadPortfolioCsv(rows: ReportExportRow[]) {
+  const headers = [
+    "slug",
+    "name",
+    "location",
+    "technology",
+    "import_mw",
+    "export_mw",
+    "portfolio_mw",
+    "grid_operator",
+    "stage",
+    "outlook",
+    "confidence",
+    "target_cod",
+    "readiness",
+    "connection_status",
+    "next_milestone",
+    "deadline",
+  ] as const;
+
+  const lines = [
+    headers.join(","),
+    ...rows.map((row) =>
+      [
+        row.slug,
+        row.name,
+        row.location,
+        row.technology,
+        String(row.importMW),
+        String(row.exportMW),
+        String(row.portfolioMW),
+        row.gridOperator,
+        row.stage,
+        row.outlook,
+        row.confidence,
+        row.targetCOD,
+        row.readiness,
+        row.connectionStatus,
+        row.nextMilestone,
+        row.deadline,
+      ]
+        .map(csvCell)
+        .join(","),
+    ),
+  ];
+
+  const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "noxheim-portfolio-report.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value: string): string {
+  if (/[",\n]/.test(value)) {
+    return `"${value.replaceAll('"', '""')}"`;
+  }
+  return value;
+}
+
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-md border border-line bg-surface p-4">
-      <p className="font-mono text-2xl font-semibold">{value}</p>
+      <p className="text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
       <p className="mt-1 text-xs text-muted">{label}</p>
     </div>
+  );
+}
+
+function CountLine({ label, value }: { label: string; value: string | number }) {
+  return (
+    <li className="flex items-center justify-between gap-3">
+      <span>{label}</span>
+      <span className="tabular-nums text-muted">{value}</span>
+    </li>
   );
 }
 
@@ -183,26 +403,5 @@ function ChartCard({ title, children }: { title: string; children: ReactNode }) 
       <h2 className="mb-3 text-base font-semibold">{title}</h2>
       <div className="min-w-0">{children}</div>
     </div>
-  );
-}
-
-function ReportCard({
-  title,
-  body,
-  onGenerate,
-}: {
-  title: string;
-  body: string;
-  onGenerate: () => void;
-}) {
-  return (
-    <article className="rounded-md border border-line bg-surface p-5">
-      <FileBarChart size={18} className="text-teal" />
-      <h3 className="mt-3 text-base font-semibold">{title}</h3>
-      <p className="mt-1 text-sm text-muted">{body}</p>
-      <Button className="mt-4" onClick={onGenerate}>
-        Generate report
-      </Button>
-    </article>
   );
 }

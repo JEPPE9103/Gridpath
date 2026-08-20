@@ -4,16 +4,28 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-export const metadata: Metadata = { title: "Project" };
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const result = await getProjectDetailBySlug(slug);
+  if (result.kind !== "ok") {
+    return { title: "Project" };
+  }
+  return { title: result.project.name };
+}
 
 export default async function Page({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = await params;
-  const result = await getProjectDetailBySlug(id);
+  const { slug } = await params;
+  const result = await getProjectDetailBySlug(slug);
 
   if (result.kind === "not_found") {
     notFound();

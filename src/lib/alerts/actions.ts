@@ -30,5 +30,6 @@ export async function dismissOrganizationAlert(
   }
 
   revalidatePath("/overview");
+  revalidatePath("/", "layout");
   return { ok: true };
 }

@@ -50,6 +50,15 @@ export type DocumentCategory =
   | "Grid"
   | "Commercial";
 
+export type RequirementCategory =
+  | "Technical"
+  | "Land"
+  | "Permit"
+  | "Grid"
+  | "Commercial"
+  | "Environmental"
+  | "Other";
+
 export type DocumentStatus = "Complete" | "In Progress" | "Missing" | "Draft";
 
 export type ChecklistStatus =

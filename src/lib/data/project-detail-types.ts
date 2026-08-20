@@ -1,4 +1,5 @@
 import type { OverviewPipelineStage } from "@/lib/data/overview-types";
+import type { OfficialGridAreaContext } from "@/lib/domain/grid-intelligence";
 import type {
   AlertSeverity,
   ChecklistStatus,
@@ -8,6 +9,7 @@ import type {
   DocumentCategory,
   DocumentStatus,
   Outlook,
+  RequirementCategory,
   Technology,
 } from "@/types";
 
@@ -16,7 +18,7 @@ export type ProjectRequirementItem = {
   label: string;
   status: ChecklistStatus;
   required: boolean;
-  category: string | null;
+  category: RequirementCategory;
   dueDate: string | null;
 };
 
@@ -76,13 +78,16 @@ export type ProjectDetailViewModel = {
   confidence: Confidence;
   targetCOD: string;
   lastUpdated: string;
-  readinessPercent: number;
+  readinessPercent: number | null;
+  readinessCompleteCount: number;
+  readinessRequiredCount: number;
   requirements: ProjectRequirementItem[];
   connectionCase: ProjectConnectionCase | null;
   documents: ProjectDocumentItem[];
   events: ProjectEventItem[];
   alerts: ProjectAlertItem[];
   canUpdateRequirements: boolean;
+  officialGridAreaContext: OfficialGridAreaContext | null;
 };
 
 export type ProjectDetailResult =

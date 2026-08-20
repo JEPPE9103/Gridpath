@@ -4,8 +4,6 @@ import { CountBadge } from "@/components/ui/badges";
 import { signOut } from "@/lib/auth/actions";
 import type { CurrentUserProfile } from "@/lib/auth/current-user";
 import { cn } from "@/lib/cn";
-import { alertRepository } from "@/lib/repositories";
-import { useWorkspace } from "@/lib/workspace-state";
 import {
   BarChart3,
   Briefcase,
@@ -38,18 +36,16 @@ export function Sidebar({
   onNavigate,
   overlay = false,
   user,
+  criticalAlertCount = 0,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   onNavigate?: () => void;
   overlay?: boolean;
   user: CurrentUserProfile | null;
+  criticalAlertCount?: number;
 }) {
   const pathname = usePathname();
-  const { overlays } = useWorkspace();
-  const criticalCount = alertRepository
-    .list(overlays)
-    .filter((alert) => alert.severity === "critical").length;
 
   return (
     <aside
@@ -115,8 +111,8 @@ export function Sidebar({
               {collapsed ? null : (
                 <>
                   <span className={cn("flex-1", active && "text-white")}>{item.label}</span>
-                  {item.href === "/overview" && criticalCount > 0 ? (
-                    <CountBadge tone="critical">{criticalCount}</CountBadge>
+                  {item.href === "/overview" && criticalAlertCount > 0 ? (
+                    <CountBadge tone="critical">{criticalAlertCount}</CountBadge>
                   ) : null}
                 </>
               )}

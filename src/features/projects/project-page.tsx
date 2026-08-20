@@ -16,10 +16,16 @@ import { cn } from "@/lib/cn";
 import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
 import type { ProjectDetailViewModel } from "@/lib/data/project-detail-types";
 import {
+  confidenceLabel,
+  gridAreaTypeLabel,
+  gridAuthorityLabel,
+  gridSourceTypeLabel,
+} from "@/lib/domain/catalog-labels";
+import {
   canCompleteChecklist,
-  formatCapacity,
   formatDate,
   formatHeaderDate,
+  formatImportExport,
   formatRelative,
 } from "@/lib/format";
 import { markRequirementComplete } from "@/lib/requirements/actions";
@@ -147,19 +153,19 @@ function LoadedProjectPage({
   project: ProjectDetailViewModel;
   tab: TabId;
   compareIds: string[];
-  onAddToCompare: (id: string) => boolean;
+  onAddToCompare: (id: string, name?: string) => boolean;
   onTabChange: (tab: TabId) => void;
 }) {
   return (
     <>
       <PageHeader
         title={project.name}
-        subtitle={`${project.technology} · ${formatCapacity(project)} · ${project.location}`}
+        subtitle={`${project.technology} · ${formatImportExport(project)} · ${project.location}`}
         actions={
           <>
             <Button
               variant="secondary"
-              onClick={() => onAddToCompare(project.slug)}
+              onClick={() => onAddToCompare(project.slug, project.name)}
               disabled={compareIds.includes(project.slug)}
             >
               {compareIds.includes(project.slug) ? "In compare" : "Add to compare"}
@@ -173,12 +179,12 @@ function LoadedProjectPage({
       <div className="border-b border-line bg-canvas px-4 pb-4 sm:px-6 lg:px-8">
         <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4 xl:grid-cols-8">
           <Meta label="Grid operator" value={project.gridOperator || "—"} />
+          <Meta label="Connection stage" value={<StageBadge stage={project.stage} />} />
           <Meta label="Connection outlook" value={<OutlookBadge outlook={project.outlook} />} />
-          <Meta label="Confidence" value={<ConfidenceBadge confidence={project.confidence} />} />
-          <Meta label="Current stage" value={<StageBadge stage={project.stage} />} />
+          <Meta label="Confidence" value={`${project.confidence} confidence`} />
+          <Meta label="Import / export" value={formatImportExport(project)} />
           <Meta label="Target COD" value={project.targetCOD || "—"} />
           <Meta label="Last updated" value={formatDate(project.lastUpdated)} />
-          <Meta label="Voltage" value={project.voltageLevel || "—"} />
           <Meta label="Case ID" value={project.connectionCase?.caseId ?? "Not opened"} mono />
         </dl>
       </div>
@@ -267,12 +273,21 @@ function OverviewTab({ project }: { project: ProjectDetailViewModel }) {
             <p className="mt-1 text-sm text-muted">Customer-side completeness for the current process.</p>
           </div>
           <p className="font-mono text-3xl font-semibold text-ink">
-            {project.readinessPercent}%
-            <span className="ml-1 text-sm font-sans font-medium text-muted">Ready</span>
+            {project.readinessPercent == null ? (
+              <span className="text-lg font-sans font-medium text-muted">Not available</span>
+            ) : (
+              <>
+                {project.readinessPercent}%
+                <span className="ml-1 text-sm font-sans font-medium text-muted">Ready</span>
+              </>
+            )}
           </p>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-canvas">
-          <div className="h-full bg-teal" style={{ width: `${project.readinessPercent}%` }} />
+          <div
+            className="h-full bg-teal"
+            style={{ width: `${project.readinessPercent ?? 0}%` }}
+          />
         </div>
         {project.requirements.length === 0 ? (
           <p className="mt-4 text-sm text-muted">No requirements recorded for this project yet.</p>
@@ -380,50 +395,168 @@ function OverviewTab({ project }: { project: ProjectDetailViewModel }) {
 }
 
 function GridTab({ project }: { project: ProjectDetailViewModel }) {
+  const context = project.officialGridAreaContext;
+  const area = context?.areas[0] ?? null;
+  const provenance = context?.provenance ?? null;
+  const officialCompany = area?.officialOperatorName ?? null;
+  const operatorsDiffer =
+    Boolean(project.gridOperator) &&
+    Boolean(officialCompany) &&
+    project.gridOperator !== officialCompany;
+  const permittedVoltage =
+    area?.permittedVoltageKv != null && Number.isFinite(area.permittedVoltageKv)
+      ? `${Number.isInteger(area.permittedVoltageKv) ? String(area.permittedVoltageKv) : area.permittedVoltageKv.toString()} kV`
+      : null;
+
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      <section className="rounded-md border border-line bg-surface p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">Grid intelligence</h2>
-        </div>
-        <p className="mt-2 text-sm text-muted">Live grid intelligence not connected yet.</p>
-        <dl className="mt-4 grid grid-cols-1 gap-3 text-sm">
-          <Row label="Grid operator" value={project.gridOperator || "—"} />
-          <Row label="Location" value={project.location || "—"} />
-          <Row label="Technology" value={project.technology} />
-          <Row label="MW" value={formatCapacity(project)} />
-          <Row label="Outlook" value={<OutlookBadge outlook={project.outlook} />} />
-          <Row label="Confidence" value={<ConfidenceBadge confidence={project.confidence} />} />
-        </dl>
-        <Disclaimer className="mt-4" />
-      </section>
       <div className="space-y-4">
         <section className="rounded-md border border-line bg-surface p-5">
-          <h2 className="text-base font-semibold">Known constraints</h2>
-          <p className="mt-2 text-sm text-muted">Live grid intelligence not connected yet.</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold">Project connection</h2>
+            <QuietTag>Project data · Stored in NOXHEIM</QuietTag>
+          </div>
+          <dl className="mt-4 grid grid-cols-1 gap-3 text-sm">
+            <Row label="Project connection operator" value={project.gridOperator || "—"} />
+            <Row label="Connection stage" value={<StageBadge stage={project.stage} />} />
+            <Row label="Import" value={project.importMW > 0 ? `${project.importMW} MW` : "—"} />
+            <Row label="Export" value={project.exportMW > 0 ? `${project.exportMW} MW` : "—"} />
+            <Row label="Current project outlook" value={<OutlookBadge outlook={project.outlook} />} />
+            <Row label="Confidence" value={<ConfidenceBadge confidence={project.confidence} />} />
+          </dl>
         </section>
+
         <section className="rounded-md border border-line bg-surface p-5">
-          <h2 className="text-base font-semibold">Planned reinforcement</h2>
-          <p className="mt-2 text-sm text-muted">Live grid intelligence not connected yet.</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold">Official local network context</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <SourceBadge source="Official" />
+              <QuietTag>Official source</QuietTag>
+            </div>
+          </div>
+          {area ? (
+            <>
+              <dl className="mt-4 grid grid-cols-1 gap-3 text-sm">
+                <Row label="Official local network company" value={officialCompany || "—"} />
+                <Row label="Area / concession name" value={area.name || "—"} />
+                <Row
+                  label="Concession ID"
+                  value={
+                    area.concessionId ? (
+                      <span className="font-mono text-[13px]">{area.concessionId}</span>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+                <Row label="Area type" value={gridAreaTypeLabel(area.areaType)} />
+                {permittedVoltage ? (
+                  <Row label="Permitted voltage" value={permittedVoltage} />
+                ) : null}
+              </dl>
+              {operatorsDiffer ? (
+                <p className="mt-4 text-sm leading-6 text-muted">
+                  The project&apos;s connection operator and the local network area operator differ.
+                  This can be expected where a project connects at another voltage or network level.
+                </p>
+              ) : null}
+              <p className="mt-3">
+                <QuietTag>NOXHEIM derived · Geographic project-to-area match</QuietTag>
+              </p>
+            </>
+          ) : (
+            <p className="mt-3 text-sm text-muted">
+              No official local network area match is currently available for this project location.
+            </p>
+          )}
         </section>
+      </div>
+
+      <div className="space-y-4">
+        <section className="rounded-md border border-line bg-surface p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold">Source</h2>
+            {provenance?.publisher ? (
+              <QuietTag>Official source · {provenance.publisher}</QuietTag>
+            ) : null}
+          </div>
+          {provenance ? (
+            <>
+              <dl className="mt-4 grid grid-cols-1 gap-3 text-sm">
+                <Row label="Publisher" value={provenance.publisher || "—"} />
+                <Row label="Source type" value={gridSourceTypeLabel(provenance.sourceType)} />
+                <Row label="Authority" value={gridAuthorityLabel(provenance.authorityLevel)} />
+                <Row
+                  label="Dataset"
+                  value={provenance.dataType || "Network area concession geography"}
+                />
+                <Row
+                  label="Dataset updated"
+                  value={provenance.publishedAt ? formatDate(provenance.publishedAt) : "—"}
+                />
+                <Row
+                  label="Retrieved by NOXHEIM"
+                  value={provenance.retrievedAt ? formatDate(provenance.retrievedAt) : "—"}
+                />
+                <Row
+                  label="Confidence"
+                  value={<ConfidenceBadge confidence={confidenceLabel(provenance.confidence)} />}
+                />
+              </dl>
+              {provenance.sourceUrl ? (
+                <p className="mt-4">
+                  <a
+                    href={provenance.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-teal hover:underline"
+                  >
+                    View source
+                  </a>
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-3 text-sm text-muted">
+              Official source provenance is not available for this project yet.
+            </p>
+          )}
+        </section>
+
         <section className="rounded-md border border-line bg-canvas p-5">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
             How to read this
           </h3>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <SourceBadge source="Official" />
-            <SourceBadge source="Indicative" />
-            <SourceBadge source="Customer Data" />
-            <SourceBadge source="NOXHEIM Analysis" />
-          </div>
-          <p className="mt-3 text-sm text-muted">
-            Official documents and operator correspondence are primary. Public maps and capacity
-            signals are indicative. Customer files are labelled separately. NOXHEIM analysis is a
-            working judgement, not a capacity guarantee.
+          <ul className="mt-3 space-y-2 text-sm text-muted">
+            <li>
+              <span className="font-medium text-ink">Project data</span>
+              {" · "}Stored in NOXHEIM
+            </li>
+            <li>
+              <span className="font-medium text-ink">Official source</span>
+              {" · "}
+              {provenance?.publisher || "Official regulator source"}
+            </li>
+            <li>
+              <span className="font-medium text-ink">NOXHEIM derived</span>
+              {" · "}Geographic project-to-area match
+            </li>
+          </ul>
+          <p className="mt-4 text-xs leading-5 text-muted">
+            Official network-area geography does not indicate available grid capacity or guarantee
+            connection feasibility. Formal assessment by the relevant grid operator is required.
           </p>
         </section>
       </div>
     </div>
+  );
+}
+
+function QuietTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">
+      {children}
+    </span>
   );
 }
 
@@ -455,7 +588,7 @@ function ConnectionTab({ project }: { project: ProjectDetailViewModel }) {
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
           {OVERVIEW_PIPELINE_STAGES.map((stage, index) => {
             const state =
-              index < currentIndex ? "complete" : index === currentIndex ? "current" : "future";
+              index < currentIndex ? "completed" : index === currentIndex ? "active" : "pending";
             return (
               <button
                 key={stage}
@@ -464,13 +597,13 @@ function ConnectionTab({ project }: { project: ProjectDetailViewModel }) {
                 className={cn(
                   "min-w-[120px] flex-1 rounded-md border px-3 py-2 text-left text-sm",
                   selected === stage && "ring-1 ring-teal",
-                  state === "complete" && "border-success bg-success-bg text-success",
-                  state === "current" && "border-teal bg-teal-soft text-teal",
-                  state === "future" && "border-line bg-canvas text-muted",
+                  state === "completed" && "border-success bg-success-bg text-success",
+                  state === "active" && "border-teal bg-teal-soft text-teal",
+                  state === "pending" && "border-line bg-canvas text-muted",
                 )}
               >
                 <p className="text-[10px] uppercase tracking-wide opacity-80">
-                  {state === "complete" ? "Complete" : state === "current" ? "Current" : "Future"}
+                  {state === "completed" ? "Completed" : state === "active" ? "Active" : "Pending"}
                 </p>
                 <p className="mt-1 font-medium">{stage}</p>
               </button>
@@ -529,33 +662,39 @@ function DocumentsTab({ project }: { project: ProjectDetailViewModel }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-line bg-surface">
-      <table className="w-full min-w-[720px] text-left text-sm">
-        <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
-          <tr>
-            <th className="px-4 py-2 font-medium">Document</th>
-            <th className="px-4 py-2 font-medium">Category</th>
-            <th className="px-4 py-2 font-medium">Status</th>
-            <th className="px-4 py-2 font-medium">Created</th>
-            <th className="px-4 py-2 font-medium">Updated</th>
-            <th className="px-4 py-2 font-medium">Owner</th>
-          </tr>
-        </thead>
-        <tbody>
-          {project.documents.map((doc) => (
-            <tr key={doc.id} className="border-b border-line last:border-0">
-              <td className="px-4 py-3 font-medium">{doc.name}</td>
-              <td className="px-4 py-3">{doc.category}</td>
-              <td className="px-4 py-3">
-                <StatusBadge status={doc.status} />
-              </td>
-              <td className="px-4 py-3 text-muted">{formatDate(doc.createdAt)}</td>
-              <td className="px-4 py-3 text-muted">{formatDate(doc.updatedAt)}</td>
-              <td className="px-4 py-3">{doc.owner ?? "—"}</td>
+    <div className="space-y-3">
+      <p className="text-sm text-muted">
+        Document metadata only. Files are not stored yet. Upload is unavailable until storage
+        integration.
+      </p>
+      <div className="overflow-x-auto rounded-md border border-line bg-surface">
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
+            <tr>
+              <th className="px-4 py-2 font-medium">Document</th>
+              <th className="px-4 py-2 font-medium">Category</th>
+              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium">Created</th>
+              <th className="px-4 py-2 font-medium">Updated</th>
+              <th className="px-4 py-2 font-medium">Owner</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {project.documents.map((doc) => (
+              <tr key={doc.id} className="border-b border-line last:border-0">
+                <td className="px-4 py-3 font-medium">{doc.name}</td>
+                <td className="px-4 py-3">{doc.category}</td>
+                <td className="px-4 py-3">
+                  <StatusBadge status={doc.status} />
+                </td>
+                <td className="px-4 py-3 text-muted">{formatDate(doc.createdAt)}</td>
+                <td className="px-4 py-3 text-muted">{formatDate(doc.updatedAt)}</td>
+                <td className="px-4 py-3">{doc.owner ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

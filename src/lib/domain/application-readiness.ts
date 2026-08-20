@@ -6,23 +6,23 @@ export type ReadinessRequirement = {
 };
 
 export type ApplicationReadinessSummary = {
-  percent: number;
+  percent: number | null;
   completeCount: number;
   requiredCount: number;
 };
 
 /**
  * Application readiness from project_requirements.
- * complete counts as complete; every other status is incomplete.
- * Only required items are in the denominator. When `required` is omitted,
- * the item is treated as required (the current schema has no required flag).
+ * Only rows with required = true are counted. Optional rows never affect
+ * the percentage. A required row is complete only when status is Complete.
+ * Zero required rows → not available (null), never 100% or 0%.
  */
 export function applicationReadinessFromRequirements(
   items: ReadinessRequirement[],
 ): ApplicationReadinessSummary {
-  const required = items.filter((item) => item.required !== false);
+  const required = items.filter((item) => item.required === true);
   if (required.length === 0) {
-    return { percent: 0, completeCount: 0, requiredCount: 0 };
+    return { percent: null, completeCount: 0, requiredCount: 0 };
   }
 
   const completeCount = required.filter((item) => item.status === "Complete").length;

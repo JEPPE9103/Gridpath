@@ -29,7 +29,7 @@ interface WorkspaceContextValue {
     category: DocumentCategory;
   }) => void;
   setDocumentStatus: (id: string, status: DocumentStatus) => void;
-  addToCompare: (id: string) => boolean;
+  addToCompare: (id: string, name?: string) => boolean;
   removeFromCompare: (id: string) => void;
   clearCompare: () => void;
 }
@@ -125,7 +125,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   );
 
   const addToCompare = useCallback(
-    (id: string) => {
+    (id: string, name?: string) => {
       const current = compareStore.getSnapshot();
       if (current.includes(id)) return false;
       if (current.length >= MAX_COMPARE) {
@@ -137,10 +137,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return false;
       }
       compareStore.set([...current, id]);
-      const project = projectRepository.getById(id);
       pushToast({
         title: "Added to compare",
-        description: project?.name,
+        description: name ?? projectRepository.getById(id)?.name,
         tone: "success",
       });
       return true;
