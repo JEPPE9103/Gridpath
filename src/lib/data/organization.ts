@@ -39,6 +39,7 @@ export async function getCurrentOrganization(): Promise<CurrentOrganization | nu
     .from("organization_members")
     .select("role, organizations ( id, name, slug )")
     .eq("profile_id", user.id)
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 

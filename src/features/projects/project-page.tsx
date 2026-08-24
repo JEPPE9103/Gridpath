@@ -8,11 +8,12 @@ import {
   StageBadge,
   StatusBadge,
 } from "@/components/ui/badges";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { Disclaimer, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast-provider";
 import { OfficialNetworkDevelopmentPlanSection } from "@/features/projects/network-development-plan-section";
+import { DeleteProjectButton } from "@/features/projects/delete-project-button";
 import { cn } from "@/lib/cn";
 import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
 import type { ProjectDetailViewModel } from "@/lib/data/project-detail-types";
@@ -164,6 +165,17 @@ function LoadedProjectPage({
         subtitle={`${project.technology} · ${formatImportExport(project)} · ${project.location}`}
         actions={
           <>
+            {project.canEdit ? (
+              <Link
+                href={`/projects/${project.slug}/edit`}
+                className={buttonClassName("secondary")}
+              >
+                Edit project
+              </Link>
+            ) : null}
+            {project.canDelete ? (
+              <DeleteProjectButton projectId={project.id} projectName={project.name} />
+            ) : null}
             <Button
               variant="secondary"
               onClick={() => onAddToCompare(project.slug, project.name)}

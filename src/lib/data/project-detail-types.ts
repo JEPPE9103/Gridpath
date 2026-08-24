@@ -90,6 +90,8 @@ export type ProjectDetailViewModel = {
   events: ProjectEventItem[];
   alerts: ProjectAlertItem[];
   canUpdateRequirements: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
   officialGridAreaContext: OfficialGridAreaContext | null;
   officialNetworkDevelopmentPlanContext: OfficialNupContext | null;
 };

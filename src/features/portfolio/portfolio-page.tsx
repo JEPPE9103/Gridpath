@@ -2,6 +2,7 @@
 
 import { BellButton } from "@/components/layout/app-shell";
 import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badges";
+import { buttonClassName } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatCapacity, formatDate, formatHeaderDate } from "@/lib/format";
@@ -14,8 +15,9 @@ import {
   type ProjectListItem,
   type Technology,
 } from "@/types";
-import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 
 type SortKey =
   | "name"
@@ -32,10 +34,12 @@ export function PortfolioPage({
   projects,
   blockedByRls,
   error,
+  canCreate,
 }: {
   projects: ProjectListItem[];
   blockedByRls: boolean;
   error: string | null;
+  canCreate: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -88,6 +92,11 @@ export function PortfolioPage({
         subtitle={`${filtered.length} of ${projects.length} sites`}
         actions={
           <>
+            {canCreate ? (
+              <Link href="/projects/new" className={buttonClassName()}>
+                Add project
+              </Link>
+            ) : null}
             <BellButton />
             <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
           </>
@@ -129,13 +138,25 @@ export function PortfolioPage({
 
         {blockedByRls ? (
           <EmptyState
-            title="Projects require a signed-in workspace user"
-            description="Row-level security is blocking anonymous reads of the seeded NorthGrid organization. Authentication is not enabled yet, so the Portfolio cannot load local Supabase data until a seed user and organization membership exist."
+            title="Could not load projects"
+            description="Sign in to a workspace to view the organization portfolio."
           />
         ) : error ? (
           <EmptyState
             title="Could not load projects"
             description={error}
+          />
+        ) : projects.length === 0 ? (
+          <EmptyState
+            title="No projects yet"
+            description="Add your first development project to start building your portfolio."
+            action={
+              canCreate ? (
+                <Link href="/projects/new" className={buttonClassName()}>
+                  Add project
+                </Link>
+              ) : undefined
+            }
           />
         ) : filtered.length === 0 ? (
           <EmptyState

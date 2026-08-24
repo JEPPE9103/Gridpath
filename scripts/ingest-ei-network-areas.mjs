@@ -510,7 +510,7 @@ async function main() {
   const publishedAt = parsed.publishedDate ? `${parsed.publishedDate}T00:00:00+00:00` : null;
 
   console.log(`Layer: ${parsed.layerName}`);
-  console.log(`Source CRS: ${SOURCE_CRS_LABEL}`);
+  console.log(`Source CRS: ${SOURCE_CRS} (${SOURCE_CRS_LABEL})`);
   console.log(`Fields: ${parsed.fieldNames.join(", ")}`);
   console.log(`DBF records: ${parsed.dbf.recordCount}`);
   console.log(`Shapefile polygons read: ${parsed.shp.geometries.length}`);

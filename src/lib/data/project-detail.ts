@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { getOfficialGridAreaContextForProject, getOfficialNetworkDevelopmentPlanContextForProject } from "@/lib/data/grid-intelligence";
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { canCreateOrEditProjects, canDeleteProjects } from "@/lib/projects/authorization";
 import type {
   ProjectAlertItem,
   ProjectConnectionCase,
@@ -108,10 +109,6 @@ function isAlertSeverity(value: string): value is AlertSeverity {
   return value === "critical" || value === "warning" || value === "info" || value === "positive";
 }
 
-function writableRole(role: string): boolean {
-  return role === "owner" || role === "admin" || role === "member";
-}
-
 function profileName(profiles: ProfileRow[], id: string | null): string | null {
   if (!id) {
     return null;
@@ -198,6 +195,8 @@ function mapProject(
     profiles: ProfileRow[];
   },
   canUpdateRequirements: boolean,
+  canEdit: boolean,
+  canDelete: boolean,
   officialGridAreaContext: OfficialGridAreaContext | null,
   officialNetworkDevelopmentPlanContext: OfficialNupContext | null,
 ): ProjectDetailViewModel {
@@ -237,6 +236,8 @@ function mapProject(
     events: mapEvents(related.events),
     alerts: mapAlerts(related.alerts),
     canUpdateRequirements,
+    canEdit,
+    canDelete,
     officialGridAreaContext,
     officialNetworkDevelopmentPlanContext,
   };
@@ -380,7 +381,9 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
         alerts: (alertsResult.data ?? []) as AlertRow[],
         profiles,
       },
-      writableRole(organization.role),
+      canCreateOrEditProjects(organization.role),
+      canCreateOrEditProjects(organization.role),
+      canDeleteProjects(organization.role),
       officialContext,
       officialNupContext,
     ),

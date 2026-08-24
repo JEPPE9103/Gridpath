@@ -17,7 +17,44 @@ const TECHNOLOGY_LABELS: Record<string, Technology> = {
   wind: "Wind",
   ev_infrastructure: "EV Charging",
   industrial: "Industrial",
+  other: "Other",
 };
+
+export const PROJECT_TECHNOLOGY_VALUES = [
+  "battery_storage",
+  "solar",
+  "wind",
+  "ev_infrastructure",
+  "industrial",
+  "other",
+] as const;
+
+export const PROJECT_STAGE_VALUES = [
+  "prospect",
+  "screened",
+  "enquiry",
+  "application",
+  "grid_study",
+  "offer",
+  "agreement",
+  "construction",
+  "energisation",
+] as const;
+
+export const PROJECT_OUTLOOK_VALUES = [
+  "favourable",
+  "possible",
+  "at_risk",
+  "weak",
+  "unknown",
+] as const;
+
+export const PROJECT_CONFIDENCE_VALUES = [
+  "high",
+  "medium",
+  "low",
+  "unknown",
+] as const;
 
 const STAGE_LABELS: Record<string, PipelineStage | "Energisation"> = {
   prospect: "Prospect",
@@ -113,6 +150,41 @@ function labelFromMap<T extends string>(
 
 export function technologyLabel(value: string | null | undefined): Technology {
   return labelFromMap(value, TECHNOLOGY_LABELS, "Industrial");
+}
+
+function dbValueFromLabel<T extends string>(
+  labels: Record<string, string>,
+  label: string | null | undefined,
+  allowed: readonly T[],
+): T | null {
+  if (!label) {
+    return null;
+  }
+  const trimmed = label.trim();
+  if ((allowed as readonly string[]).includes(trimmed)) {
+    return trimmed as T;
+  }
+  const match = Object.entries(labels).find(([, display]) => display === trimmed);
+  if (match && (allowed as readonly string[]).includes(match[0])) {
+    return match[0] as T;
+  }
+  return null;
+}
+
+export function technologyToDb(value: string | null | undefined) {
+  return dbValueFromLabel(TECHNOLOGY_LABELS, value, PROJECT_TECHNOLOGY_VALUES);
+}
+
+export function pipelineStageToDb(value: string | null | undefined) {
+  return dbValueFromLabel(STAGE_LABELS, value, PROJECT_STAGE_VALUES);
+}
+
+export function outlookToDb(value: string | null | undefined) {
+  return dbValueFromLabel(OUTLOOK_LABELS, value, PROJECT_OUTLOOK_VALUES);
+}
+
+export function confidenceToDb(value: string | null | undefined) {
+  return dbValueFromLabel(CONFIDENCE_LABELS, value, PROJECT_CONFIDENCE_VALUES);
 }
 
 export function pipelineStageLabel(

@@ -3,7 +3,8 @@ export type Technology =
   | "Solar"
   | "Wind"
   | "EV Charging"
-  | "Industrial";
+  | "Industrial"
+  | "Other";
 
 export type PipelineStage =
   | "Prospect"
@@ -256,6 +257,7 @@ export const TECHNOLOGIES: Technology[] = [
   "Wind",
   "EV Charging",
   "Industrial",
+  "Other",
 ];
 
 export const OUTLOOKS: Outlook[] = [
