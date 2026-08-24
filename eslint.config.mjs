@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "noxheim-app/**",
+    "supabase/.temp/**",
+    "supabase/.branches/**",
   ]),
 ]);
 
