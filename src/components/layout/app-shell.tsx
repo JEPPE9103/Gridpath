@@ -20,7 +20,8 @@ function ShellFrame({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
+  const mobileOpen = mobileNavPath === pathname;
 
   useEffect(() => {
     const mobile = window.matchMedia("(max-width: 767px)");
@@ -31,20 +32,22 @@ function ShellFrame({
         return;
       }
       setCollapsed(!desktop.matches);
-      setMobileOpen(false);
     };
     apply();
+    const closeMobileOnDesktop = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        setMobileNavPath(null);
+      }
+    };
     mobile.addEventListener("change", apply);
     desktop.addEventListener("change", apply);
+    desktop.addEventListener("change", closeMobileOnDesktop);
     return () => {
       mobile.removeEventListener("change", apply);
       desktop.removeEventListener("change", apply);
+      desktop.removeEventListener("change", closeMobileOnDesktop);
     };
   }, []);
-
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -60,7 +63,7 @@ function ShellFrame({
           type="button"
           className="fixed inset-0 z-40 bg-ink/45 md:hidden"
           aria-label="Close menu"
-          onClick={() => setMobileOpen(false)}
+          onClick={() => setMobileNavPath(null)}
         />
       ) : null}
 
@@ -77,7 +80,7 @@ function ShellFrame({
           user={user}
           criticalAlertCount={criticalAlertCount}
           onToggle={() => setCollapsed((value) => !value)}
-          onNavigate={() => setMobileOpen(false)}
+          onNavigate={() => setMobileNavPath(null)}
         />
       </div>
 
@@ -87,7 +90,7 @@ function ShellFrame({
             type="button"
             className="rounded-md p-1.5 text-white hover:bg-sidebar-hover"
             aria-label="Open menu"
-            onClick={() => setMobileOpen(true)}
+            onClick={() => setMobileNavPath(pathname)}
           >
             <Menu size={18} />
           </button>

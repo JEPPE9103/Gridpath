@@ -177,6 +177,117 @@ function requireRow(rows, label) {
   return row;
 }
 
+function digestExternalIds(ids) {
+  return createHash("md5")
+    .update(
+      [...ids]
+        .map((id) => String(id))
+        .sort()
+        .join("\n"),
+    )
+    .digest("hex");
+}
+
+function isTransientDbError(error) {
+  const message = String(error?.message ?? error);
+  return /connection terminated|econnreset|failed to connect to postgres|LegacyDbConnectError|the database system is|timeout expired|could not connect/i.test(
+    message,
+  );
+}
+
+function sleepSync(ms) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    // Bound busy-wait for CLI retry only.
+  }
+}
+
+function queryLocalRetry(sql, { attempts = 4, label = "query" } = {}) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return queryLocal(sql);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientDbError(error) || attempt === attempts) {
+        throw error;
+      }
+      console.warn(
+        `Transient database error during ${label} (attempt ${attempt}/${attempts}); retrying.`,
+      );
+      sleepSync(400 * attempt);
+    }
+  }
+  throw lastError;
+}
+
+function snapshotCompleteness(snapshotId, sourceId, expected) {
+  const observationIds = queryLocalRetry(
+    `
+select external_id
+from public.grid_observations
+where source_id = ${quoteSql(sourceId)}::uuid;
+`,
+    { label: "observation ids" },
+  ).map((row) => row.external_id);
+  const versionIds = queryLocalRetry(
+    `
+select external_id
+from public.grid_observation_versions
+where source_snapshot_id = ${quoteSql(snapshotId)}::uuid;
+`,
+    { label: "observation version ids" },
+  ).map((row) => row.external_id);
+  const areaRow = requireRow(
+    queryLocalRetry(
+      `
+select count(*)::int as area_count
+from public.grid_areas
+where source_id = ${quoteSql(sourceId)}::uuid
+  and area_type = ${quoteSql(AREA_TYPE)};
+`,
+      { label: "planning area count" },
+    ),
+    "planning area count",
+  );
+
+  const observationCount = observationIds.length;
+  const versionCount = versionIds.length;
+  const areaCount = Number(areaRow.area_count ?? 0);
+  const observationDigest = digestExternalIds(observationIds);
+  const versionDigest = digestExternalIds(versionIds);
+  const complete =
+    observationCount === expected.expected_observation_count &&
+    versionCount === expected.expected_observation_version_count &&
+    areaCount === expected.expected_planning_area_count &&
+    observationDigest === expected.observation_id_digest &&
+    versionDigest === expected.observation_id_digest;
+
+  return {
+    complete,
+    observationCount,
+    versionCount,
+    areaCount,
+    missingObservations: Math.max(0, expected.expected_observation_count - observationCount),
+    missingVersions: Math.max(0, expected.expected_observation_version_count - versionCount),
+    observationDigest,
+    versionDigest,
+  };
+}
+
+function mergeSnapshotMetadata(snapshotId, patch, status = null) {
+  const statusSql = status == null ? "" : `, status = ${quoteSql(status)}`;
+  queryLocalRetry(
+    `
+update public.source_snapshots
+set metadata = coalesce(metadata, '{}'::jsonb) || ${quoteSql(JSON.stringify(patch))}::jsonb
+    ${statusSql}
+where id = ${quoteSql(snapshotId)}::uuid;
+`,
+    { label: "source_snapshots metadata" },
+  );
+}
+
 function stripTags(html) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -959,35 +1070,41 @@ where source_id = ${quoteSql(source.id)}::uuid
 
   let snapshotId;
   let snapshotStatus;
+  let reusedExistingHash = false;
   const sheetCounts = Object.fromEntries(
     workbook.sheets.map((sheet) => [sheet.name, sheet.dataRows.length]),
   );
+  const snapshotMeta = {
+    original_filename: downloaded.filename,
+    content_length: downloaded.bytes.length,
+    workbook_modified: workbook.modified,
+    workbook_created: workbook.created,
+    planning_period: PLANNING_PERIOD,
+    reporting_vintage: "2024 first statutory cycle",
+    sheet_names: workbook.sheets.map((sheet) => sheet.name),
+    row_counts: sheetCounts,
+    landing_page_url: LANDING_URL,
+    download_url: downloadUrl,
+    distribution: "official_xlsx",
+    geography_source: "official_arcgis_featureserver",
+    feature_server_url: featureServer.url,
+    feature_server_discovery: featureServer.discovered ? "runtime" : "official_fallback",
+    source_crs: SOURCE_CRS_LABEL,
+    source_crs_epsg: SOURCE_CRS,
+    target_crs: TARGET_CRS,
+    excel_identity_count: identities.size,
+    planning_polygon_count: gisByIdentity.size,
+    content_hash_means: "source_bytes_unchanged",
+  };
   if (existingSnapshot[0]) {
     snapshotId = existingSnapshot[0].id;
-    snapshotStatus = "UNCHANGED";
+    reusedExistingHash = true;
+    snapshotStatus = existingSnapshot[0].status || "partial";
+    mergeSnapshotMetadata(snapshotId, snapshotMeta);
   } else {
-    const snapshotMeta = {
-      original_filename: downloaded.filename,
-      content_length: downloaded.bytes.length,
-      workbook_modified: workbook.modified,
-      workbook_created: workbook.created,
-      planning_period: PLANNING_PERIOD,
-      reporting_vintage: "2024 first statutory cycle",
-      sheet_names: workbook.sheets.map((sheet) => sheet.name),
-      row_counts: sheetCounts,
-      landing_page_url: LANDING_URL,
-      download_url: downloadUrl,
-      distribution: "official_xlsx",
-      geography_source: "official_arcgis_featureserver",
-      feature_server_url: featureServer.url,
-      feature_server_discovery: featureServer.discovered ? "runtime" : "official_fallback",
-      source_crs: SOURCE_CRS_LABEL,
-      target_crs: TARGET_CRS,
-      excel_identity_count: identities.size,
-      planning_polygon_count: gisByIdentity.size,
-    };
     const inserted = requireRow(
-      queryLocal(`
+      queryLocalRetry(
+        `
 insert into public.source_snapshots (
   source_id, retrieved_at, published_at, content_hash, raw_content, storage_path, status, metadata
 ) values (
@@ -997,15 +1114,17 @@ insert into public.source_snapshots (
   ${quoteSql(contentHash)},
   null,
   null,
-  'success',
+  'partial',
   ${quoteSql(JSON.stringify(snapshotMeta))}::jsonb
 )
 returning id, status;
-`),
+`,
+        { label: "source_snapshots insert" },
+      ),
       "source_snapshots insert",
     );
     snapshotId = inserted.id;
-    snapshotStatus = "success";
+    snapshotStatus = "partial";
   }
 
   const operators = queryLocal(`select id, name from public.grid_operators;`);
@@ -1410,9 +1529,14 @@ select
 
   function upsertObservationBatch(batch) {
     try {
-      const rows = queryLocal(upsertObservationSql(batch));
+      const rows = queryLocalRetry(upsertObservationSql(batch), {
+        label: `observation batch (${batch.length})`,
+      });
       applyUpsertStats(obsStats, rows[0] ?? {});
     } catch (error) {
+      if (isTransientDbError(error)) {
+        throw error;
+      }
       if (batch.length === 1) {
         obsStats.invalid += 1;
         console.warn(
@@ -1426,42 +1550,112 @@ select
     }
   }
 
-  for (let i = 0; i < observations.length; i += OBS_BATCH) {
-    upsertObservationBatch(observations.slice(i, i + OBS_BATCH));
-    process.stdout.write(`  observations ${Math.min(i + OBS_BATCH, observations.length)}/${observations.length}\r`);
-  }
-  process.stdout.write("\n");
+  const expectedManifest = {
+    excel_identity_count: identities.size,
+    expected_planning_area_count: areas.length,
+    expected_observation_count: observations.length,
+    expected_observation_version_count: observations.length,
+    parse_warning_count: warnings.length,
+    invalid_observation_count: 0,
+    observation_id_digest: digestExternalIds(observations.map((obs) => obs.externalId)),
+    row_counts: sheetCounts,
+    content_hash_means: "source_bytes_unchanged",
+  };
+  mergeSnapshotMetadata(snapshotId, { normalization_manifest: expectedManifest });
 
-  const existingVersionCount = requireRow(
-    queryLocal(`
-select count(*)::int as count
-from public.grid_observation_versions
-where source_snapshot_id = ${quoteSql(snapshotId)}::uuid;
-`),
-    "observation version count",
-  );
+  let completeness = snapshotCompleteness(snapshotId, source.id, expectedManifest);
+  const alreadyComplete = completeness.complete && reusedExistingHash;
   let versionsInserted = 0;
-  if (Number(existingVersionCount.count ?? 0) === 0) {
+
+  if (alreadyComplete) {
+    snapshotStatus = ["success", "unchanged"].includes(String(existingSnapshot[0]?.status ?? ""))
+      ? "unchanged"
+      : "success";
+    mergeSnapshotMetadata(
+      snapshotId,
+      {
+        normalization_complete: true,
+        last_run: snapshotStatus === "unchanged" ? "unchanged_complete" : "reconciled_status_only",
+      },
+      snapshotStatus,
+    );
+    console.log(
+      snapshotStatus === "unchanged"
+        ? "Source bytes unchanged and normalized snapshot is complete; skipping observation writes and change detection."
+        : "Normalized rows already match the workbook; marking snapshot complete without rewriting rows.",
+    );
+  } else {
+    mergeSnapshotMetadata(
+      snapshotId,
+      {
+        normalization_complete: false,
+        last_run: reusedExistingHash ? "reconcile_incomplete_hash" : "new_hash",
+      },
+      "partial",
+    );
+    snapshotStatus = "partial";
+    for (let i = 0; i < observations.length; i += OBS_BATCH) {
+      upsertObservationBatch(observations.slice(i, i + OBS_BATCH));
+      process.stdout.write(
+        `  observations ${Math.min(i + OBS_BATCH, observations.length)}/${observations.length}\r`,
+      );
+    }
+    process.stdout.write("\n");
+    expectedManifest.invalid_observation_count = obsStats.invalid;
+    mergeSnapshotMetadata(snapshotId, { normalization_manifest: expectedManifest });
+
     const copied = requireRow(
-      queryLocal(`
+      queryLocalRetry(
+        `
 select private.copy_grid_observations_to_versions(${quoteSql(snapshotId)}::uuid) as inserted;
-`),
+`,
+        { label: "copy observation versions" },
+      ),
       "copy observation versions",
     );
     versionsInserted = Number(copied.inserted ?? 0);
+
+    completeness = snapshotCompleteness(snapshotId, source.id, expectedManifest);
+    if (completeness.complete && obsStats.invalid === 0) {
+      snapshotStatus = "success";
+      mergeSnapshotMetadata(
+        snapshotId,
+        { normalization_complete: true, last_run: reusedExistingHash ? "reconciled" : "normalized" },
+        "success",
+      );
+    } else {
+      snapshotStatus = completeness.observationCount === 0 ? "failed" : "partial";
+      mergeSnapshotMetadata(
+        snapshotId,
+        {
+          normalization_complete: false,
+          missing_observations: completeness.missingObservations,
+          missing_versions: completeness.missingVersions,
+        },
+        snapshotStatus,
+      );
+    }
   }
+
   const versionTotal = requireRow(
-    queryLocal(`
+    queryLocalRetry(
+      `
 select count(*)::int as count
 from public.grid_observation_versions
 where source_snapshot_id = ${quoteSql(snapshotId)}::uuid;
-`),
+`,
+      { label: "observation version total" },
+    ),
     "observation version total",
   );
 
   let changeDetection = {
     skipped: true,
-    reason: "identical content hash",
+    reason: reusedExistingHash
+      ? completeness.complete
+        ? "identical complete content hash"
+        : "refusing change detection from incomplete snapshot"
+      : "not eligible",
     previousSnapshotId: null,
     added: 0,
     removed: 0,
@@ -1470,16 +1664,19 @@ where source_snapshot_id = ${quoteSql(snapshotId)}::uuid;
     impactRows: 0,
   };
 
-  if (snapshotStatus !== "UNCHANGED") {
-    const previous = queryLocal(`
-select id
+  if (snapshotStatus === "success" && completeness.complete && !reusedExistingHash) {
+    const previous = queryLocalRetry(
+      `
+select id, status
 from public.source_snapshots
 where source_id = ${quoteSql(source.id)}::uuid
   and id <> ${quoteSql(snapshotId)}::uuid
   and status in ('success', 'unchanged')
 order by retrieved_at desc
 limit 1;
-`);
+`,
+      { label: "previous complete snapshot" },
+    );
     if (!previous[0]) {
       changeDetection = {
         skipped: true,
@@ -1492,7 +1689,8 @@ limit 1;
         impactRows: 0,
       };
     } else {
-      const applied = queryLocal(`
+      const applied = queryLocalRetry(
+        `
 select
   change_kind,
   inserted,
@@ -1504,7 +1702,9 @@ from private.apply_observation_snapshot_changes(
   ${quoteSql(NUP_IMPACT_REASON)},
   'high'
 );
-`);
+`,
+        { label: "apply observation snapshot changes" },
+      );
       changeDetection = {
         skipped: false,
         reason: null,
@@ -1516,6 +1716,17 @@ from private.apply_observation_snapshot_changes(
         impactRows: applied.reduce((sum, row) => sum + Number(row.impact_count ?? 0), 0),
       };
     }
+  } else if (!completeness.complete) {
+    changeDetection = {
+      skipped: true,
+      reason: "normalized snapshot is incomplete",
+      previousSnapshotId: null,
+      added: 0,
+      removed: 0,
+      changed: 0,
+      insertedChanges: 0,
+      impactRows: 0,
+    };
   }
 
   const semanticCounts = requireRow(
@@ -1709,6 +1920,26 @@ where source_id = ${quoteSql(source.id)}::uuid
   console.log(`Workbook modified: ${workbook.modified ?? "(not exposed)"}`);
   console.log(`Snapshot ID: ${snapshotId}`);
   console.log(`Snapshot status: ${snapshotStatus}`);
+  console.log(
+    `Normalization completeness: ${completeness.complete ? "COMPLETE" : "INCOMPLETE"}`,
+  );
+  if (snapshotStatus === "unchanged" && completeness.complete) {
+    console.log("Result: UNCHANGED / COMPLETE");
+  } else if (reusedExistingHash && completeness.complete) {
+    console.log("Result: RECONCILED / COMPLETE");
+  } else if (completeness.complete) {
+    console.log("Result: SUCCESS / COMPLETE");
+  } else {
+    console.log(
+      `Result: ${String(snapshotStatus).toUpperCase()} / INCOMPLETE (missing observations=${completeness.missingObservations}, missing versions=${completeness.missingVersions})`,
+    );
+  }
+  console.log(`Expected observations from workbook: ${expectedManifest.expected_observation_count}`);
+  console.log(`Expected observation versions from workbook: ${expectedManifest.expected_observation_version_count}`);
+  console.log(`Expected planning areas from workbook: ${expectedManifest.expected_planning_area_count}`);
+  console.log(`Stored observations: ${completeness.observationCount}`);
+  console.log(`Stored observation versions: ${completeness.versionCount}`);
+  console.log(`Stored planning areas: ${completeness.areaCount}`);
   console.log(`Snapshots with this hash: ${snapshotCount.count}`);
   for (const [name, count] of Object.entries(sheetCounts)) {
     console.log(`Excel rows (${name}): ${count}`);
@@ -1835,6 +2066,10 @@ where source_id = ${quoteSql(source.id)}::uuid
   console.log("\nSemantics: this is official network-development-plan context.");
   console.log("It does not prove available MW, connection capacity, headroom, or time-to-power.");
   console.log("Customer project rows were not modified.");
+
+  if (!completeness.complete) {
+    process.exitCode = 1;
+  }
 }
 
 try {

@@ -109,16 +109,14 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
   );
   const geocodedCount = useMemo(() => projects.filter(isPlottable).length, [projects]);
 
-  const selected = projects.find((project) => project.slug === selectedSlug) ?? null;
+  const visibleSelectedSlug =
+    selectedSlug && filtered.some((project) => project.slug === selectedSlug) ? selectedSlug : null;
+  const selected = visibleSelectedSlug
+    ? (projects.find((project) => project.slug === visibleSelectedSlug) ?? null)
+    : null;
   const compared = projects.filter((project) => compareIds.includes(project.slug));
   const strongest = strongestDevelopmentProfile(compared);
   const filtersActive = hasActiveFilters(filters);
-
-  useEffect(() => {
-    if (selectedSlug && !filtered.some((project) => project.slug === selectedSlug)) {
-      setSelectedSlug(null);
-    }
-  }, [filtered, selectedSlug]);
 
   return (
     <>
@@ -194,7 +192,7 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
         </div>
 
         <div className="relative h-[calc(100dvh-14.5rem)] min-h-[360px] overflow-hidden rounded-md border border-line bg-surface sm:h-[calc(100vh-220px)] sm:min-h-[520px]">
-          <SwedenMap projects={mapped} selectedId={selectedSlug} onSelect={setSelectedSlug} />
+          <SwedenMap projects={mapped} selectedId={visibleSelectedSlug} onSelect={setSelectedSlug} />
 
           {mapped.length === 0 ? (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
@@ -262,7 +260,7 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
                         }}
                         className={cn(
                           "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-canvas",
-                          selectedSlug === project.slug && "bg-canvas",
+                          visibleSelectedSlug === project.slug && "bg-canvas",
                         )}
                       >
                         <span
