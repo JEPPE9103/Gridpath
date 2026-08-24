@@ -2,6 +2,8 @@ import type { DataSourceKind } from "@/types";
 
 export const OFFICIAL_EI_NETWORK_AREA_SOURCE_SLUG = "ei-network-area-concessions";
 export const OFFICIAL_EI_NUP_SOURCE_SLUG = "ei-network-development-plans";
+export const NOXHEIM_LOCAL_NUP_CHANGE_FIXTURE_SOURCE_SLUG =
+  "noxheim-local-nup-change-fixture";
 
 export const NUP_FORECAST_TRANSFER_CAPACITY_NEED = "forecast_transfer_capacity_need";
 
@@ -23,6 +25,12 @@ export function isOfficialEiNupSource(input: {
     input.sourceSlug === OFFICIAL_EI_NUP_SOURCE_SLUG &&
     (input.authorityLevel === "official" || input.authorityLevel === "regulator")
   );
+}
+
+export function isNoxheimDevelopmentFixtureSource(input: {
+  sourceSlug?: string | null;
+}): boolean {
+  return input.sourceSlug === NOXHEIM_LOCAL_NUP_CHANGE_FIXTURE_SOURCE_SLUG;
 }
 
 export type GridSourceType =
