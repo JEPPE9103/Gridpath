@@ -135,12 +135,17 @@ function MiniKpi({
   critical?: boolean;
 }) {
   return (
-    <div className="rounded-md border border-line bg-surface px-2.5 py-2">
-      <div className="flex items-center justify-between">
-        <p className="text-[9px] uppercase tracking-wide text-muted">{label}</p>
-        <Icon size={12} className={critical ? "marketing-pulse text-critical" : "text-teal"} />
+    <div className="flex h-full flex-col rounded-md border border-line bg-surface px-2.5 py-2">
+      <div className="flex min-h-[26px] items-start justify-between gap-1">
+        <p className="text-[9px] leading-tight uppercase tracking-wide text-muted">{label}</p>
+        <Icon
+          size={12}
+          className={
+            critical ? "marketing-pulse shrink-0 text-critical" : "shrink-0 text-teal"
+          }
+        />
       </div>
-      <p className="mt-1 text-xl font-semibold leading-none tracking-tight tabular-nums">
+      <p className="mt-auto pt-1 text-xl font-semibold leading-none tracking-tight tabular-nums">
         {value}
       </p>
     </div>
