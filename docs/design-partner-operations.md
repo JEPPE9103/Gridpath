@@ -82,6 +82,22 @@ Expect: two **official** sources; **0** external_changes on baseline; **0** Nort
 4. Re-run the same `cloud:ingest-*` command after fixing network/CLI auth.
 5. If NUP completeness is incomplete, treat snapshot as failed — do not tell the customer data is current.
 
+## Auth dashboard (required for hosted signup)
+
+CLI cannot safely inspect/change Cloud Auth. Configure in Supabase Dashboard → Authentication → URL Configuration / Providers → Email:
+
+| Setting | Design Partner Cloud value |
+|---------|----------------------------|
+| Site URL | `https://gridpath-henna.vercel.app` |
+| Redirect URLs | `https://gridpath-henna.vercel.app/**` (and exact login/signup callbacks if listed separately) |
+| Enable email signup | ON |
+| Confirm email | OFF for tightly supervised pilot smoke (acceptable); if ON, SMTP must work before relying on signup |
+| Minimum password length | ≥ 8 (app validates 8+) |
+
+Do **not** use `.local` emails — GoTrue rejects them as invalid. Use a normal domain for smoke identities.
+
+Do **not** run `supabase config push` from this repo without first changing `site_url` away from localhost — local `config.toml` is for local Stack.
+
 ## Absolute prohibitions
 
 - **NEVER** `supabase db reset --linked`
