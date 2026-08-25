@@ -1,4 +1,5 @@
 import { LoginForm } from "@/app/login/login-form";
+import { getPostAuthPath } from "@/lib/auth/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -12,7 +13,7 @@ export default async function LoginPage() {
   } = await supabase.auth.getUser();
 
   if (user) {
-    redirect("/portfolio");
+    redirect(await getPostAuthPath());
   }
 
   return (

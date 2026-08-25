@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const WORKSPACE_PREFIXES = [
   "/overview",
@@ -18,6 +19,29 @@ function isWorkspacePath(pathname: string): boolean {
   return WORKSPACE_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
+}
+
+function isAuthEntryPath(pathname: string): boolean {
+  return pathname === "/login" || pathname === "/signup";
+}
+
+async function userHasOrganization(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("profile_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("userHasOrganization failed", error.message);
+    return false;
+  }
+
+  return Boolean(data);
 }
 
 function applyCookies(from: NextResponse, to: NextResponse): NextResponse {
@@ -64,15 +88,33 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const hasOrganization = user
+    && (isWorkspacePath(pathname) || isAuthEntryPath(pathname) || pathname === "/onboarding")
+    ? await userHasOrganization(supabase, user.id)
+    : false;
 
-  if (!user && isWorkspacePath(pathname)) {
+  if (!user && (isWorkspacePath(pathname) || pathname === "/onboarding")) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";
     return applyCookies(supabaseResponse, NextResponse.redirect(loginUrl));
   }
 
-  if (user && pathname === "/login") {
+  if (user && isAuthEntryPath(pathname)) {
+    const nextUrl = request.nextUrl.clone();
+    nextUrl.pathname = hasOrganization ? "/portfolio" : "/onboarding";
+    nextUrl.search = "";
+    return applyCookies(supabaseResponse, NextResponse.redirect(nextUrl));
+  }
+
+  if (user && isWorkspacePath(pathname) && !hasOrganization) {
+    const onboardingUrl = request.nextUrl.clone();
+    onboardingUrl.pathname = "/onboarding";
+    onboardingUrl.search = "";
+    return applyCookies(supabaseResponse, NextResponse.redirect(onboardingUrl));
+  }
+
+  if (user && pathname === "/onboarding" && hasOrganization) {
     const portfolioUrl = request.nextUrl.clone();
     portfolioUrl.pathname = "/portfolio";
     portfolioUrl.search = "";

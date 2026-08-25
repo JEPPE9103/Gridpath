@@ -1,4 +1,7 @@
+import { organizationRoleLabel } from "@/lib/data/organization-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export { organizationRoleLabel };
 
 export type CurrentOrganization = {
   id: string;
@@ -35,6 +38,7 @@ export async function getCurrentOrganization(): Promise<CurrentOrganization | nu
     return null;
   }
 
+  // Multiple memberships are allowed; use the earliest. Workspace switching is not built.
   const { data, error } = await supabase
     .from("organization_members")
     .select("role, organizations ( id, name, slug )")
