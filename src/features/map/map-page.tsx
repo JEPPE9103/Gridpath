@@ -13,7 +13,7 @@ import {
   rankingExplanation,
   strongestDevelopmentProfile,
 } from "@/lib/domain/development-profile";
-import { formatHeaderDate } from "@/lib/format";
+import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { useWorkspace } from "@/lib/workspace-state";
 import {
   OUTLOOKS,
@@ -129,7 +129,7 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
               Compare ({compared.length}/4)
             </Button>
             <BellButton />
-            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
+            <ClientHeaderDate />
           </>
         }
       />
@@ -350,7 +350,7 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
           </p>
           <p className="text-xs leading-5 text-muted">
             Current comparison uses project and workflow data stored in NOXHEIM. Live external grid
-            intelligence will be added separately.
+            intelligence is not connected yet.
           </p>
         </div>
       </div>
@@ -361,6 +361,9 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
             <div>
               <h2 className="text-base font-semibold">Compare sites ({compared.length}/4)</h2>
               <p className="text-xs text-muted">{rankingExplanation()}</p>
+              <p className="mt-1 text-xs text-muted">
+                Compare selection is saved in this browser only — not shared with your team.
+              </p>
             </div>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={clearCompare} disabled={compared.length === 0}>

@@ -41,12 +41,12 @@ export function ProductProof() {
       <Reveal>
         <Eyebrow>Inside the workspace</Eyebrow>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-[40px] sm:leading-[1.15]">
-          One portfolio. Every grid connection.
+          One portfolio. Grid connections in one place.
         </h2>
       </Reveal>
       <Reveal delay={70}>
         <div className="mt-10 grid gap-4 lg:grid-cols-[1fr_280px]">
-          <AppFrame url="app.noxheim.com/portfolio">
+          <AppFrame path="/portfolio">
             <div className="overflow-x-auto bg-surface">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="border-b border-line bg-canvas text-[11px] uppercase tracking-wide text-muted">

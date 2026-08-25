@@ -5,7 +5,8 @@ import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badge
 import { buttonClassName } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { formatCapacity, formatDate, formatHeaderDate } from "@/lib/format";
+import { ClientHeaderDate } from "@/components/ui/client-header-date";
+import { formatCapacity, formatDate } from "@/lib/format";
 import {
   OUTLOOKS,
   PIPELINE_STAGES,
@@ -98,7 +99,7 @@ export function PortfolioPage({
               </Link>
             ) : null}
             <BellButton />
-            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate("2026-08-18")}</span>
+            <ClientHeaderDate />
           </>
         }
       />
@@ -161,7 +162,7 @@ export function PortfolioPage({
         ) : filtered.length === 0 ? (
           <EmptyState
             title="No projects match these filters"
-            description="Clear search or filters to see the full Sweden portfolio."
+            description="Clear search or filters to see all projects in this workspace."
           />
         ) : (
           <div className="overflow-x-auto rounded-md border border-line bg-surface">

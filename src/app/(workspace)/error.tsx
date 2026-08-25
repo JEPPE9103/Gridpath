@@ -16,7 +16,7 @@ export default function Error({
       <div className="px-4 py-8 sm:px-6 lg:px-8">
         <div className="max-w-lg rounded-md border border-line bg-surface p-6">
           <p className="text-sm text-muted">
-            Try again, or return to Overview. Demo data is local to this browser.
+            Try again, or return to Overview. If the problem continues, contact NOXHEIM support.
           </p>
           <div className="mt-4 flex gap-2">
             <Button onClick={reset}>Try again</Button>

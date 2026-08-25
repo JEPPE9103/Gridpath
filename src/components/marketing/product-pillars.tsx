@@ -55,7 +55,7 @@ function ScreenPillar() {
           </div>
         </Reveal>
         <Reveal delay={80} fade>
-          <AppFrame url="app.noxheim.com/map">
+          <AppFrame path="/map">
             <div className="grid bg-canvas md:grid-cols-[1fr_240px]">
               <MarketingMap selectedId="gavle-bess" sites={mapSites} />
               <aside className="border-t border-line bg-surface p-4 md:border-t-0 md:border-l">
@@ -86,7 +86,7 @@ function ManagePillar() {
     <MarketingSection>
       <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_0.9fr]">
         <Reveal>
-          <AppFrame url="app.noxheim.com/projects/gavle-bess">
+          <AppFrame path="/projects/gavle-bess">
             <div className="bg-canvas p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -125,7 +125,7 @@ function ManagePillar() {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                     Case VF-GS-2025-1842
                   </p>
-                  <p className="mt-2 text-xs text-muted">Owner: Jesper Persson</p>
+                  <p className="mt-2 text-xs text-muted">Owner: Portfolio manager</p>
                   <p className="mt-1 text-xs text-muted">Next: study workshop · 30 Sep 2026</p>
                 </div>
               </div>
@@ -135,7 +135,7 @@ function ManagePillar() {
         <Reveal delay={80}>
           <Eyebrow>Manage</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Run every connection process in one workspace.
+            Run connection processes in one workspace.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
             Track enquiries, applications, studies, offers, documents, deadlines and
@@ -162,12 +162,13 @@ function MonitorPillar() {
             Know when the grid changes around your projects.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            NOXHEIM tracks relevant external grid and operator changes and maps them to the
-            projects that may be affected.
+            NOXHEIM surfaces published grid and operator changes and links them to projects that may
+            be affected. Refresh cadence for the pilot is supervised by NOXHEIM operations — not
+            continuous live monitoring.
           </p>
         </Reveal>
         <Reveal delay={80}>
-          <AppFrame url="app.noxheim.com/changes">
+          <AppFrame path="/changes">
             <div className="bg-canvas p-4 sm:p-5">
               <p className="text-[11px] uppercase tracking-wide text-muted">Capacity</p>
               <h3 className="mt-1 text-xl font-semibold tracking-tight">

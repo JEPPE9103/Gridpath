@@ -2,10 +2,9 @@
 
 import { BellButton } from "@/components/layout/app-shell";
 import { CountBadge, OutlookBadge } from "@/components/ui/badges";
-import { Disclaimer, EmptyState, EstimateNote } from "@/components/ui/empty-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { PageHeader } from "@/components/ui/page-header";
-import { Tooltip } from "@/components/ui/tooltip";
 import { dismissOrganizationAlert } from "@/lib/alerts/actions";
 import { cn } from "@/lib/cn";
 import {
@@ -26,7 +25,6 @@ import {
   CheckCircle2,
   Hexagon,
   Info,
-  Sparkles,
   X,
   Zap,
 } from "lucide-react";
@@ -66,7 +64,7 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
   const [isPending, startTransition] = useTransition();
   const [techFilter, setTechFilter] = useState<Technology | "All">("All");
 
-  const { kpis, alerts, projects, recentProjects, impact } = overview;
+  const { kpis, alerts, projects, recentProjects } = overview;
   const criticalCount = alerts.filter((alert) => alert.severity === "critical").length;
   const now = useMemo(() => new Date(), []);
 
@@ -339,51 +337,9 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
                 </div>
               )}
             </section>
-
-            <section className="rounded-md border border-line bg-surface p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-semibold">Development impact</h2>
-                  <EstimateNote className="mt-1" />
-                </div>
-                <Tooltip content="Estimates use customer-defined assumptions and workflow activity.">
-                  <span className="inline-flex items-center gap-1 text-xs text-muted">
-                    <Sparkles size={12} /> Estimated
-                  </span>
-                </Tooltip>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
-                <ImpactStat
-                  label="Sites deprioritised before detailed engineering"
-                  value={impact.sitesDeprioritisedLabel}
-                />
-                <ImpactStat
-                  label="Projects monitored automatically"
-                  value={impact.projectsMonitored}
-                />
-                <ImpactStat
-                  label="Grid / operator changes detected"
-                  value={impact.changesDetectedLabel}
-                />
-                <ImpactStat
-                  label="Estimated engineering review hours avoided"
-                  value={impact.hoursAvoidedLabel}
-                />
-              </div>
-              <Disclaimer className="mt-4" />
-            </section>
           </>
         )}
       </div>
     </>
-  );
-}
-
-function ImpactStat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-md border border-line bg-canvas px-3 py-3">
-      <p className="font-mono text-2xl font-semibold text-ink">{value}</p>
-      <p className="mt-1 text-xs leading-4 text-muted">{label}</p>
-    </div>
   );
 }

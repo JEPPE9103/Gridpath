@@ -143,11 +143,12 @@ export async function listProjects(): Promise<ListProjectsResult> {
     .order("updated_at", { ascending: false });
 
   if (error) {
+    console.error("listProjects failed", error.message);
     const anonymous = !user;
     return {
       projects: [],
       blockedByRls: anonymous,
-      error: error.message,
+      error: "Could not load projects. Try again in a moment.",
     };
   }
 

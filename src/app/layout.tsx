@@ -1,3 +1,4 @@
+import { getPublicSiteUrl } from "@/lib/site-url";
 import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
@@ -19,21 +20,25 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = getPublicSiteUrl();
+const siteDescription =
+  "Screen sites, manage grid connection processes and monitor published grid changes across your energy development portfolio.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "NOXHEIM — Grid Development Intelligence",
     template: "%s · NOXHEIM",
   },
-  description:
-    "Screen sites, manage grid connection processes and monitor grid changes across your energy development portfolio.",
+  description: siteDescription,
   icons: { icon: "/favicon.svg" },
   openGraph: {
     title: "NOXHEIM — Grid Development Intelligence",
-    description:
-      "Screen sites, manage grid connection processes and monitor grid changes across your energy development portfolio.",
+    description: siteDescription,
     type: "website",
     locale: "en_GB",
     siteName: "NOXHEIM",
+    url: siteUrl,
   },
 };
 

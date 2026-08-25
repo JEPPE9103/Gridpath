@@ -1,15 +1,17 @@
 import { cn } from "@/lib/cn";
+import { MARKETING_APP_HOST } from "@/lib/site-url";
 import type { ReactNode } from "react";
 
 export function AppFrame({
   children,
-  url = "app.noxheim.com/overview",
+  path = "/overview",
   className,
 }: {
   children: ReactNode;
-  url?: string;
+  path?: string;
   className?: string;
 }) {
+  const url = `${MARKETING_APP_HOST}${path.startsWith("/") ? path : `/${path}`}`;
   return (
     <div
       className={cn(
@@ -22,6 +24,9 @@ export function AppFrame({
         <span className="h-2 w-2 rounded-full bg-[#d8d4ce]" />
         <span className="h-2 w-2 rounded-full bg-[#d8d4ce]" />
         <span className="ml-2 truncate font-mono text-[11px] text-muted">{url}</span>
+        <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wide text-muted">
+          Sample
+        </span>
       </div>
       {children}
     </div>

@@ -95,6 +95,16 @@ export function publicAuthError(
   kind: "signup" | "workspace" | "generic" = "generic",
 ): string {
   const text = (message ?? "").toLowerCase();
+  if (
+    text.includes("rate") ||
+    text.includes("too many") ||
+    text.includes("over_email") ||
+    text.includes("email rate")
+  ) {
+    return kind === "signup"
+      ? "Too many signup attempts. Please wait before trying again."
+      : "Too many attempts. Please wait before trying again.";
+  }
   if (kind === "signup") {
     if (
       text.includes("already registered") ||
@@ -103,7 +113,11 @@ export function publicAuthError(
     ) {
       return "An account with this email already exists.";
     }
-    if (text.includes("invalid email") || text.includes("unable to validate email")) {
+    if (
+      text.includes("invalid email") ||
+      text.includes("unable to validate email") ||
+      (text.includes("email address") && text.includes("invalid"))
+    ) {
       return "Enter a valid work email.";
     }
     if (
@@ -112,9 +126,6 @@ export function publicAuthError(
     ) {
       return "Choose a stronger password.";
     }
-  }
-  if (text.includes("rate") || text.includes("too many")) {
-    return "Too many attempts. Try again in a moment.";
   }
   if (text.includes("not authenticated") || text.includes("session")) {
     return "Sign in to continue.";

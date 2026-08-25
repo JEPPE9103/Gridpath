@@ -32,8 +32,8 @@ export function DataTrustSection() {
           Grid intelligence you can interrogate, not blindly trust.
         </h2>
         <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-          NOXHEIM does not guarantee grid capacity. Every important datapoint can show its source,
-          publication date, last retrieved time and confidence.
+          NOXHEIM does not guarantee grid capacity. Important datapoints are intended to show
+          source, publication date, last retrieved time and confidence where available.
         </p>
       </Reveal>
       <div className="mt-12 grid gap-3 sm:grid-cols-2">

@@ -13,13 +13,13 @@ export function Hero() {
             className="marketing-enter mt-4 max-w-xl text-[32px] font-semibold leading-[1.1] tracking-tight text-ink sm:text-[40px] md:text-[52px] lg:text-[56px]"
             style={{ animationDelay: "80ms" }}
           >
-            Run every grid connection from one place.
+            Run grid connections from one place.
           </h1>
           <p
             className="marketing-enter mt-5 max-w-md text-[15px] leading-7 text-muted sm:text-base"
             style={{ animationDelay: "160ms" }}
           >
-            Screen sites, manage connection processes and monitor grid changes across your entire
+            Screen sites, manage connection processes and monitor published grid changes across your
             development portfolio.
           </p>
           <div

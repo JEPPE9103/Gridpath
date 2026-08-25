@@ -132,7 +132,8 @@ export function RequirementsManager({ project }: { project: ProjectDetailViewMod
         <div>
           <h2 className="text-base font-semibold">Application readiness</h2>
           <p className="mt-1 text-sm text-muted">
-            Required requirements only. Optional items do not reduce readiness.
+            Required requirements only. Optional items do not reduce readiness. Requirements are
+            customer workflow data — not an official grid-operator assessment.
           </p>
         </div>
         <p className="font-mono text-3xl font-semibold text-ink">

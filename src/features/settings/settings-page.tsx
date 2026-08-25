@@ -55,27 +55,20 @@ export function SettingsPage({
           </dl>
         </section>
         <section className="max-w-xl rounded-md border border-line bg-surface p-5">
-          <h2 className="text-base font-semibold">Browser-only state</h2>
+          <h2 className="text-base font-semibold">Browser preferences</h2>
           <p className="mt-2 text-sm text-muted">
-            Dismissed alerts, checklist updates, documents and compare selections are stored in
-            this browser only. They are not workspace settings and do not change your organization
-            data.
+            Map &amp; Compare selections are saved in this browser only. They are not shared with
+            your team and do not change organization data.
           </p>
           <Button
             className="mt-4"
             variant="secondary"
             onClick={() => {
-              writeJson("overlays", {
-                dismissedAlertIds: [],
-                readinessOverrides: {},
-                extraDocuments: [],
-                documentStatusOverrides: {},
-              });
               writeJson("compareIds", []);
               window.location.reload();
             }}
           >
-            Reset local browser state
+            Clear compare selection
           </Button>
         </section>
       </div>

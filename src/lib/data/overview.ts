@@ -1,7 +1,6 @@
 import { getCurrentOrganization } from "@/lib/data/organization";
 import {
   type OverviewAlertItem,
-  type OverviewImpact,
   type OverviewKpis,
   type OverviewProject,
   type PortfolioOverview,
@@ -14,7 +13,6 @@ import type { AlertSeverity } from "@/types";
 
 export type {
   OverviewAlertItem,
-  OverviewImpact,
   OverviewKpis,
   OverviewPipelineStage,
   OverviewProject,
@@ -64,13 +62,6 @@ const EMPTY_KPIS: OverviewKpis = {
   needsAttention: 0,
 };
 
-const EMPTY_IMPACT: OverviewImpact = {
-  projectsMonitored: 0,
-  sitesDeprioritisedLabel: "—",
-  changesDetectedLabel: "—",
-  hoursAvoidedLabel: "—",
-};
-
 function asSingle<T>(value: T | T[] | null | undefined): T | null {
   if (!value) {
     return null;
@@ -95,7 +86,6 @@ function emptyOverview(
       alerts: [],
       projects: [],
       recentProjects: [],
-      impact: EMPTY_IMPACT,
       error: null,
     };
   }
@@ -106,7 +96,6 @@ function emptyOverview(
     alerts: [],
     projects: [],
     recentProjects: [],
-    impact: EMPTY_IMPACT,
     error: error ?? "Could not load overview.",
   };
 }
@@ -226,12 +215,6 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
     alerts,
     projects,
     recentProjects: projects.slice(0, 6),
-    impact: {
-      projectsMonitored: projects.length,
-      sitesDeprioritisedLabel: "—",
-      changesDetectedLabel: "—",
-      hoursAvoidedLabel: "—",
-    },
     error: null,
   };
 }

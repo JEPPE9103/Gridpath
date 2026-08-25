@@ -38,13 +38,6 @@ export type OverviewKpis = {
   needsAttention: number;
 };
 
-export type OverviewImpact = {
-  projectsMonitored: number;
-  sitesDeprioritisedLabel: string;
-  changesDetectedLabel: string;
-  hoursAvoidedLabel: string;
-};
-
 export type PortfolioOverview =
   | {
       kind: "ok";
@@ -53,7 +46,6 @@ export type PortfolioOverview =
       alerts: OverviewAlertItem[];
       projects: OverviewProject[];
       recentProjects: OverviewProject[];
-      impact: OverviewImpact;
       error: null;
     }
   | {
@@ -63,7 +55,6 @@ export type PortfolioOverview =
       alerts: OverviewAlertItem[];
       projects: OverviewProject[];
       recentProjects: OverviewProject[];
-      impact: OverviewImpact;
       error: null;
     }
   | {
@@ -73,6 +64,5 @@ export type PortfolioOverview =
       alerts: OverviewAlertItem[];
       projects: OverviewProject[];
       recentProjects: OverviewProject[];
-      impact: OverviewImpact;
       error: string;
     };

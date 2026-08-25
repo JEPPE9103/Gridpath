@@ -41,7 +41,7 @@ export function ChangesPage({
       <>
         <PageHeader
           title="Changes"
-          subtitle="External grid and network-planning updates mapped to your development portfolio."
+          subtitle="Published grid and network-planning updates mapped to your development portfolio. Official layers are refreshed by NOXHEIM operations for this pilot."
           actions={<span className="hidden text-sm text-muted sm:inline">{headerDate}</span>}
         />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
@@ -59,7 +59,7 @@ export function ChangesPage({
       <>
         <PageHeader
           title="Changes"
-          subtitle="External grid and network-planning updates mapped to your development portfolio."
+          subtitle="Published grid and network-planning updates mapped to your development portfolio. Official layers are refreshed by NOXHEIM operations for this pilot."
           actions={<span className="hidden text-sm text-muted sm:inline">{headerDate}</span>}
         />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
@@ -160,7 +160,7 @@ function LoadedChangesPage({
     <>
       <PageHeader
         title="Changes"
-        subtitle="External grid and network-planning updates mapped to your development portfolio."
+        subtitle="Published grid and network-planning updates mapped to your development portfolio. Official layers are refreshed by NOXHEIM operations for this pilot."
         actions={
           <>
             <BellButton />

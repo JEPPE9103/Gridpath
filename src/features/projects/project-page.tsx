@@ -587,7 +587,7 @@ function DocumentsTab({ project }: { project: ProjectDetailViewModel }) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">
-        Document metadata only. Files are not stored yet. Upload is unavailable until storage
+        Document records only. Files are not stored yet. Upload is unavailable until storage
         integration.
       </p>
       <div className="overflow-x-auto rounded-md border border-line bg-surface">

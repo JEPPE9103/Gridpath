@@ -155,7 +155,7 @@ function LoadedDocumentsPage({
     <>
       <PageHeader
         title="Documents"
-        subtitle={`${documents.length} documents across ${projects.length} projects`}
+        subtitle={`${documents.length} document records across ${projects.length} projects`}
         actions={
           <>
             <BellButton />
@@ -224,7 +224,7 @@ function LoadedDocumentsPage({
               Add document record
             </Button>
             <p className="text-xs text-muted">
-              File storage is not connected in this development build.
+              Metadata register only — file storage/upload is not connected.
             </p>
           </form>
         ) : null}
