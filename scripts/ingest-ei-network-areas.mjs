@@ -9,10 +9,12 @@
  * First successful import is a BASELINE: source + snapshot + grid_areas only.
  * Does not create external_changes, alerts, capacity claims, or mutate projects.
  *
- * Refuses any non-localhost Supabase target.
+ * Default: refuses any non-localhost Supabase target.
+ * Design Partner Cloud: requires explicit remote opt-in (see scripts/lib/ingest-target.mjs).
  *
  * Usage:
  *   npm run dev:ingest-ei-network-areas
+ *   npm run cloud:ingest-ei-network-areas
  */
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -27,6 +29,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { queryIngestSql, resolveIngestTarget } from "./lib/ingest-target.mjs";
 
 const LANDING_URL =
   "https://ei.se/bransch/koncessioner/ansokan-natkoncession-for-omrade";
@@ -39,80 +42,9 @@ const TARGET_CRS = "EPSG:4326";
 const AREA_TYPE = "local_network";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const supabaseCli = path.join(repoRoot, "node_modules", "supabase", "dist", "supabase.js");
 
-function isLocalHostname(hostname) {
-  return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1";
-}
-
-function assertLocalUrl(rawUrl) {
-  let parsed;
-  try {
-    parsed = new URL(rawUrl);
-  } catch {
-    throw new Error(`Invalid Supabase URL: ${rawUrl}`);
-  }
-  if (!isLocalHostname(parsed.hostname)) {
-    throw new Error(
-      `Refusing to run: this ingest is local-only. URL must be localhost or 127.0.0.1, got ${parsed.hostname}.`,
-    );
-  }
-  return parsed.origin;
-}
-
-function parseEnvOutput(text) {
-  const values = {};
-  for (const line of text.split(/\r?\n/)) {
-    const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
-    if (!match) continue;
-    let value = match[2];
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    values[match[1]] = value;
-  }
-  return values;
-}
-
-function runSupabase(args) {
-  if (!existsSync(supabaseCli)) {
-    throw new Error("Local supabase CLI is missing. Run npm install first.");
-  }
-  try {
-    return execFileSync(process.execPath, [supabaseCli, ...args], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      maxBuffer: 32 * 1024 * 1024,
-    });
-  } catch (error) {
-    const detail = [error.stderr, error.stdout, error.message]
-      .map((value) => String(value ?? "").trim())
-      .filter(Boolean)
-      .join("\n");
-    throw new Error(detail || "supabase CLI command failed");
-  }
-}
-
-function loadLocalConfig() {
-  let status = {};
-  try {
-    status = parseEnvOutput(runSupabase(["status", "-o", "env"]));
-  } catch (error) {
-    throw new Error(
-      `Could not read local Supabase status. Start it with \`npx supabase start\`.\n${error.message}`,
-    );
-  }
-  const envUrl = process.env.SUPABASE_URL?.trim();
-  const url = assertLocalUrl(envUrl || status.API_URL || "http://127.0.0.1:54321");
-  if (envUrl) {
-    assertLocalUrl(envUrl);
-  }
-  return { url };
-}
+/** @type {{ mode: string, url: string, projectRef: string | null, dbFlag: string } | null} */
+let ingestTarget = null;
 
 function quoteSql(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
@@ -123,28 +55,10 @@ function quoteSqlNullable(value) {
 }
 
 function queryLocal(sql) {
-  const dir = mkdtempSync(path.join(tmpdir(), "noxheim-ei-ingest-"));
-  const file = path.join(dir, "query.sql");
-  writeFileSync(file, sql, "utf8");
-  try {
-    const raw = runSupabase([
-      "--output-format",
-      "json",
-      "db",
-      "query",
-      "--local",
-      "-f",
-      file,
-    ]);
-    const jsonStart = raw.indexOf("{");
-    if (jsonStart === -1) {
-      return [];
-    }
-    const parsed = JSON.parse(raw.slice(jsonStart));
-    return parsed.rows ?? [];
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
+  if (!ingestTarget) {
+    throw new Error("Ingest target not resolved.");
   }
+  return queryIngestSql(ingestTarget, sql);
 }
 
 function requireRow(rows, label) {
@@ -448,8 +362,9 @@ function pad(value, width) {
 }
 
 async function main() {
-  const { url } = loadLocalConfig();
-  console.log(`Ei local-network ingest against ${url}`);
+  ingestTarget = resolveIngestTarget();
+  const { url, mode } = ingestTarget;
+  console.log(`Ei local-network ingest against ${url} (mode=${mode})`);
   console.log("Source class: official regulator GIS (not a NOXHEIM fixture)");
 
   console.log(`\nDiscovering current distribution from:\n  ${LANDING_URL}`);

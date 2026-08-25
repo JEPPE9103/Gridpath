@@ -9,6 +9,8 @@
     "dev:test-nup-change-detection": "node scripts/test-nup-change-detection.mjs",
     "dev:ingest-ei-network-areas": "node scripts/ingest-ei-network-areas.mjs",
     "dev:ingest-ei-nup": "node scripts/ingest-ei-network-development-plans.mjs",
+    "cloud:ingest-ei-network-areas": "node scripts/cloud-ingest-ei-network-areas.mjs",
+    "cloud:ingest-ei-nup": "node scripts/cloud-ingest-ei-nup.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
