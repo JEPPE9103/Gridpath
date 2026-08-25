@@ -46,6 +46,16 @@ export function formatMWTotal(mw: number): string {
 }
 
 export function formatDate(iso: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [year, month, day] = iso.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
   const date = new Date(iso);
   return date.toLocaleDateString("en-GB", {
     day: "numeric",

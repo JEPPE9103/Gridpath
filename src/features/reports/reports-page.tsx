@@ -10,7 +10,8 @@ import type {
   PortfolioReportViewModel,
   ReportExportRow,
 } from "@/lib/data/report-types";
-import { formatHeaderDate, formatMWTotal } from "@/lib/format";
+import { ClientHeaderDate } from "@/components/ui/client-header-date";
+import { formatMWTotal } from "@/lib/format";
 import type { Outlook } from "@/types";
 import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
@@ -78,7 +79,7 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
               Export CSV
             </Button>
             <BellButton />
-            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate()}</span>
+            <ClientHeaderDate />
           </>
         }
       />

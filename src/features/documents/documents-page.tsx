@@ -15,7 +15,8 @@ import {
   type DocumentsResult,
 } from "@/lib/data/documents-types";
 import { createDocumentRecord, updateDocumentStatus } from "@/lib/documents/actions";
-import { formatDate, formatHeaderDate } from "@/lib/format";
+import { ClientHeaderDate } from "@/components/ui/client-header-date";
+import { formatDate } from "@/lib/format";
 import type { DocumentStatus } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -158,7 +159,7 @@ function LoadedDocumentsPage({
         actions={
           <>
             <BellButton />
-            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate()}</span>
+            <ClientHeaderDate />
           </>
         }
       />

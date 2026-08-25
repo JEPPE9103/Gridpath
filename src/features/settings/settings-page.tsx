@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProfileForm } from "@/features/settings/profile-form";
 import type { CurrentUserProfile } from "@/lib/auth/current-user";
 import { organizationRoleLabel } from "@/lib/data/organization-role";
-import { formatHeaderDate } from "@/lib/format";
+import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { writeJson } from "@/lib/persistence";
 
 export function SettingsPage({
@@ -24,7 +24,7 @@ export function SettingsPage({
         actions={
           <>
             <BellButton />
-            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate()}</span>
+            <ClientHeaderDate />
           </>
         }
       />

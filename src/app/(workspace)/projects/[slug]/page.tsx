@@ -1,4 +1,5 @@
 import { getProjectDetailBySlug } from "@/lib/data/project-detail";
+import { listGridOperators } from "@/lib/data/grid-operators";
 import { ProjectPage } from "@/features/projects/project-page";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -25,7 +26,10 @@ export default async function Page({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const result = await getProjectDetailBySlug(slug);
+  const [result, operators] = await Promise.all([
+    getProjectDetailBySlug(slug),
+    listGridOperators(),
+  ]);
 
   if (result.kind === "not_found") {
     notFound();
@@ -40,6 +44,7 @@ export default async function Page({
       <ProjectPage
         project={result.kind === "ok" ? result.project : null}
         error={result.kind === "error" ? result.message : null}
+        operators={operators}
       />
     </Suspense>
   );

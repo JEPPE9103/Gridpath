@@ -11,7 +11,6 @@ import {
 import { Button, buttonClassName } from "@/components/ui/button";
 import { Disclaimer, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { useToast } from "@/components/ui/toast-provider";
 import { OfficialNetworkDevelopmentPlanSection } from "@/features/projects/network-development-plan-section";
 import { DeleteProjectButton } from "@/features/projects/delete-project-button";
 import { cn } from "@/lib/cn";
@@ -23,21 +22,22 @@ import {
   gridAuthorityLabel,
   gridSourceTypeLabel,
 } from "@/lib/domain/catalog-labels";
+import { ClientAbsoluteDate, ClientHeaderDate } from "@/components/ui/client-header-date";
+import { ConnectionCasePanel } from "@/features/projects/connection-case-panel";
+import { RequirementsManager } from "@/features/projects/requirements-manager";
+import type { GridOperatorOption } from "@/lib/data/grid-operators";
 import {
-  canCompleteChecklist,
   formatDate,
-  formatHeaderDate,
   formatImportExport,
   formatRelative,
 } from "@/lib/format";
-import { markRequirementComplete } from "@/lib/requirements/actions";
 import { useWorkspace } from "@/lib/workspace-state";
 import type { Alert } from "@/types";
-import { AlertTriangle, Check, CheckCircle2, Circle, Info } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 
 const MiniMap = dynamic(() => import("@/features/map/mini-map").then((mod) => mod.MiniMap), {
   ssr: false,
@@ -87,9 +87,11 @@ const SEVERITY_STYLES: Record<
 export function ProjectPage({
   project,
   error,
+  operators = [],
 }: {
   project: ProjectDetailViewModel | null;
   error: string | null;
+  operators?: GridOperatorOption[];
 }) {
   const { addToCompare, compareIds } = useWorkspace();
   const searchParams = useSearchParams();
@@ -137,6 +139,7 @@ export function ProjectPage({
   return (
     <LoadedProjectPage
       project={project}
+      operators={operators}
       tab={tab}
       compareIds={compareIds}
       onAddToCompare={addToCompare}
@@ -147,12 +150,14 @@ export function ProjectPage({
 
 function LoadedProjectPage({
   project,
+  operators,
   tab,
   compareIds,
   onAddToCompare,
   onTabChange,
 }: {
   project: ProjectDetailViewModel;
+  operators: GridOperatorOption[];
   tab: TabId;
   compareIds: string[];
   onAddToCompare: (id: string, name?: string) => boolean;
@@ -184,7 +189,7 @@ function LoadedProjectPage({
               {compareIds.includes(project.slug) ? "In compare" : "Add to compare"}
             </Button>
             <BellButton />
-            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate(project.lastUpdated)}</span>
+            <ClientHeaderDate iso={project.lastUpdated} />
           </>
         }
       />
@@ -197,7 +202,7 @@ function LoadedProjectPage({
           <Meta label="Confidence" value={`${project.confidence} confidence`} />
           <Meta label="Import / export" value={formatImportExport(project)} />
           <Meta label="Target COD" value={project.targetCOD || "—"} />
-          <Meta label="Last updated" value={formatDate(project.lastUpdated)} />
+          <Meta label="Last updated" value={<ClientAbsoluteDate iso={project.lastUpdated} />} />
           <Meta label="Case ID" value={project.connectionCase?.caseId ?? "Not opened"} mono />
         </dl>
       </div>
@@ -225,7 +230,9 @@ function LoadedProjectPage({
       <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         {tab === "overview" ? <OverviewTab project={project} /> : null}
         {tab === "grid" ? <GridTab project={project} /> : null}
-        {tab === "connection" ? <ConnectionTab project={project} /> : null}
+        {tab === "connection" ? (
+          <ConnectionTab project={project} operators={operators} />
+        ) : null}
         {tab === "documents" ? <DocumentsTab project={project} /> : null}
         {tab === "activity" ? <ActivityTab project={project} /> : null}
       </div>
@@ -251,102 +258,9 @@ function Meta({
 }
 
 function OverviewTab({ project }: { project: ProjectDetailViewModel }) {
-  const { pushToast } = useToast();
-  const router = useRouter();
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function onComplete(itemId: string) {
-    setPendingId(itemId);
-    startTransition(async () => {
-      const result = await markRequirementComplete(itemId, project.slug);
-      if (!result.ok) {
-        pushToast({
-          title: "Could not update requirement",
-          description: "The change was not saved.",
-          tone: "warning",
-        });
-        return;
-      }
-      router.refresh();
-      pushToast({
-        title: "Application readiness updated",
-        description: "Requirement marked complete.",
-        tone: "success",
-      });
-    });
-  }
-
   return (
     <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-      <section className="rounded-md border border-line bg-surface p-5">
-        <div className="flex items-end justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Application readiness</h2>
-            <p className="mt-1 text-sm text-muted">Customer-side completeness for the current process.</p>
-          </div>
-          <p className="font-mono text-3xl font-semibold text-ink">
-            {project.readinessPercent == null ? (
-              <span className="text-lg font-sans font-medium text-muted">Not available</span>
-            ) : (
-              <>
-                {project.readinessPercent}%
-                <span className="ml-1 text-sm font-sans font-medium text-muted">Ready</span>
-              </>
-            )}
-          </p>
-        </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-canvas">
-          <div
-            className="h-full bg-teal"
-            style={{ width: `${project.readinessPercent ?? 0}%` }}
-          />
-        </div>
-        {project.requirements.length === 0 ? (
-          <p className="mt-4 text-sm text-muted">No requirements recorded for this project yet.</p>
-        ) : (
-          <ul className="mt-4 divide-y divide-line">
-            {project.requirements.map((item) => {
-              const complete = item.status === "Complete";
-              const interactive =
-                project.canUpdateRequirements && canCompleteChecklist(item.status);
-              return (
-                <li key={item.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      {complete ? (
-                        <Check size={14} className="shrink-0 text-success" />
-                      ) : (
-                        <Circle size={14} className="shrink-0 text-muted" />
-                      )}
-                      <span className="text-sm">{item.label}</span>
-                    </div>
-                    {item.category || item.dueDate ? (
-                      <p className="mt-1 pl-6 text-xs text-muted">
-                        {[item.category, item.dueDate ? `Due ${formatDate(item.dueDate)}` : null]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={item.status} />
-                    {interactive ? (
-                      <Button
-                        variant="ghost"
-                        onClick={() => onComplete(item.id)}
-                        disabled={isPending && pendingId === item.id}
-                      >
-                        Mark complete
-                      </Button>
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      <RequirementsManager project={project} />
 
       <div className="space-y-4">
         {project.alerts.length > 0 ? (
@@ -581,13 +495,20 @@ function QuietTag({ children }: { children: ReactNode }) {
   );
 }
 
-function ConnectionTab({ project }: { project: ProjectDetailViewModel }) {
+function ConnectionTab({
+  project,
+  operators,
+}: {
+  project: ProjectDetailViewModel;
+  operators: GridOperatorOption[];
+}) {
   const current = project.stage;
   const params = useSearchParams();
   const selected = (params.get("stage") as OverviewPipelineStage | null) ?? current;
   const router = useRouter();
   const currentIndex = OVERVIEW_PIPELINE_STAGES.indexOf(current);
   const connectionCase = project.connectionCase;
+  const editRequested = params.get("edit") === "1";
   const submitted = project.requirements
     .filter((item) => item.status === "Complete")
     .map((item) => item.label);
@@ -633,41 +554,22 @@ function ConnectionTab({ project }: { project: ProjectDetailViewModel }) {
         </div>
       </section>
 
+      <ConnectionCasePanel
+        project={project}
+        operators={operators}
+        initialMode={editRequested && connectionCase ? "edit" : "view"}
+      />
+
       {connectionCase ? (
         <section className="rounded-md border border-line bg-surface p-5">
-          <h3 className="text-base font-semibold">{current}</h3>
-          <dl className="mt-3 grid gap-3 text-sm md:grid-cols-3">
-            <Row label="Case reference" value={connectionCase.caseId ?? "—"} />
-            <Row label="Status" value={<StatusBadge status={connectionCase.status} />} />
-            {connectionCase.submittedAt ? (
-              <Row label="Submitted" value={formatDate(connectionCase.submittedAt)} />
-            ) : null}
-            {connectionCase.nextMilestone ? (
-              <Row label="Next milestone" value={connectionCase.nextMilestone} />
-            ) : null}
-            {connectionCase.deadline ? (
-              <Row label="Deadline" value={formatDate(connectionCase.deadline)} />
-            ) : null}
-            {connectionCase.ownerName ? (
-              <Row label="Responsible owner" value={connectionCase.ownerName} />
-            ) : null}
-            <Row label="Project stage" value={project.stage} />
-          </dl>
-          {connectionCase.notes ? (
-            <p className="mt-3 text-sm leading-6 text-muted">{connectionCase.notes}</p>
-          ) : null}
+          <h3 className="text-sm font-semibold">Requirements linked to this process</h3>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             <ListBlock title="Requirements" items={requirementLabels} />
             <ListBlock title="Submitted" items={submitted} />
             <ListBlock title="Missing" items={missing} empty="None outstanding" />
           </div>
         </section>
-      ) : (
-        <EmptyState
-          title="No connection case yet"
-          description="A connection case has not been opened for this project."
-        />
-      )}
+      ) : null}
     </div>
   );
 }
@@ -721,7 +623,11 @@ function DocumentsTab({ project }: { project: ProjectDetailViewModel }) {
 }
 
 function ActivityTab({ project }: { project: ProjectDetailViewModel }) {
-  const now = useMemo(() => new Date(), []);
+  const nowMs = useSyncExternalStore(
+    () => () => {},
+    () => Date.now(),
+    () => null,
+  );
 
   if (project.events.length === 0) {
     return (
@@ -744,7 +650,11 @@ function ActivityTab({ project }: { project: ProjectDetailViewModel }) {
               ) : event.eventType ? (
                 <span className="text-xs text-muted">{event.eventType}</span>
               ) : null}
-              <span className="text-xs text-muted">{formatRelative(event.occurredAt, now)}</span>
+              <span className="text-xs text-muted">
+                {nowMs
+                  ? formatRelative(event.occurredAt, new Date(nowMs))
+                  : formatDate(event.occurredAt)}
+              </span>
             </div>
           </div>
           {event.detail ? (

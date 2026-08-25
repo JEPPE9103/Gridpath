@@ -2,6 +2,8 @@
 
 import { BellButton } from "@/components/layout/app-shell";
 import { StageBadge, StatusBadge } from "@/components/ui/badges";
+import { buttonClassName } from "@/components/ui/button";
+import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/cn";
@@ -12,10 +14,9 @@ import {
   type ConnectionCaseListStatus,
   type ConnectionCasesResult,
 } from "@/lib/data/connections-types";
-import { formatDate, formatHeaderDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { CONNECTION_STAGES, type ConnectionStage } from "@/types";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 export function ConnectionsPage({ result }: { result: ConnectionCasesResult }) {
@@ -51,7 +52,6 @@ export function ConnectionsPage({ result }: { result: ConnectionCasesResult }) {
 }
 
 function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
-  const router = useRouter();
   const [operator, setOperator] = useState("All");
   const [stage, setStage] = useState<ConnectionStage | "All">("All");
   const [status, setStatus] = useState<ConnectionCaseListStatus | "All">("All");
@@ -96,7 +96,7 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
         actions={
           <>
             <BellButton />
-            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate()}</span>
+            <ClientHeaderDate />
           </>
         }
       />
@@ -151,12 +151,12 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
         {cases.length === 0 ? (
           <EmptyState
             title="No connection cases yet"
-            description="Opened grid connection processes for this workspace will appear here."
+            description="Start a connection process from a project to track operator interaction here."
           />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No connection cases match"
-            description="Prospect and screened sites do not have an opened operator case yet. Clear filters to see all cases."
+            description="Clear filters to see all cases for this workspace."
           />
         ) : (
           <div className="overflow-x-auto rounded-md border border-line bg-surface">
@@ -172,20 +172,19 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
                   <th className="px-4 py-2 font-medium">Deadline</th>
                   <th className="px-4 py-2 font-medium">Owner</th>
                   <th className="px-4 py-2 font-medium">Status</th>
+                  <th className="px-4 py-2 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((item) => (
                   <tr
                     key={item.id}
-                    className="cursor-pointer border-b border-line last:border-0 hover:bg-canvas"
-                    onClick={() => router.push(`/projects/${item.projectSlug}?tab=connection`)}
+                    className="border-b border-line last:border-0 hover:bg-canvas"
                   >
                     <td className="px-4 py-3 font-medium">
                       <Link
                         href={`/projects/${item.projectSlug}`}
                         className="hover:text-teal"
-                        onClick={(event) => event.stopPropagation()}
                       >
                         {item.projectName}
                       </Link>
@@ -220,6 +219,22 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
                     <td className="px-4 py-3">{item.ownerName ?? "Unassigned"}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={item.status} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={`/projects/${item.projectSlug}?tab=connection`}
+                          className={buttonClassName("secondary")}
+                        >
+                          Open project
+                        </Link>
+                        <Link
+                          href={`/projects/${item.projectSlug}?tab=connection&edit=1`}
+                          className={buttonClassName("ghost")}
+                        >
+                          Edit case
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

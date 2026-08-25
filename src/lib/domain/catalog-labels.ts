@@ -311,10 +311,53 @@ export function isChecklistStatus(value: string): value is ChecklistStatus {
   return value in CHECKLIST_STATUS_DB;
 }
 
+export const CONNECTION_CASE_STATUS_VALUES = [
+  "on_track",
+  "waiting",
+  "at_risk",
+  "overdue",
+  "complete",
+  "cancelled",
+] as const;
+
+export const REQUIREMENT_CATEGORY_VALUES = [
+  "technical",
+  "land",
+  "permit",
+  "grid",
+  "commercial",
+  "environmental",
+  "other",
+] as const;
+
+export const REQUIREMENT_STATUS_VALUES = [
+  "not_started",
+  "in_progress",
+  "incomplete",
+  "missing",
+  "complete",
+] as const;
+
 export function connectionCaseStatusLabel(
   value: string | null | undefined,
 ): ConnectionCaseStatus | "Complete" | "Cancelled" {
   return labelFromMap(value, CASE_STATUS_LABELS, "On Track");
+}
+
+export function connectionCaseStatusToDb(value: string | null | undefined) {
+  return dbValueFromLabel(
+    CASE_STATUS_LABELS,
+    value,
+    CONNECTION_CASE_STATUS_VALUES,
+  );
+}
+
+export function requirementCategoryToDb(value: string | null | undefined) {
+  return dbValueFromLabel(
+    REQUIREMENT_CATEGORY_LABELS,
+    value,
+    REQUIREMENT_CATEGORY_VALUES,
+  );
 }
 
 export function dataSourceLabel(value: string | null | undefined): DataSourceKind | null {

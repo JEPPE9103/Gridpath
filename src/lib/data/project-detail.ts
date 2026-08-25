@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { getOfficialGridAreaContextForProject, getOfficialNetworkDevelopmentPlanContextForProject } from "@/lib/data/grid-intelligence";
 import { getCurrentOrganization } from "@/lib/data/organization";
-import { canCreateOrEditProjects, canDeleteProjects } from "@/lib/projects/authorization";
+import { canAdminWorkflow, canCreateOrEditProjects, canDeleteProjects, canWriteWorkflow } from "@/lib/projects/authorization";
 import type {
   ProjectAlertItem,
   ProjectConnectionCase,
@@ -29,7 +29,7 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AlertSeverity } from "@/types";
 
-type GridOperatorRow = { name: string };
+type GridOperatorRow = { id: string; name: string };
 type SiteRow = {
   name: string | null;
   location: string | null;
@@ -40,13 +40,17 @@ type SiteRow = {
 type ProfileRow = { id: string; full_name: string | null };
 
 type CaseRow = {
+  id: string;
   case_id: string | null;
+  stage: string;
   status: string;
   submitted_at: string | null;
   next_milestone: string | null;
   deadline: string | null;
   owner_id: string | null;
   notes: string | null;
+  grid_operator_id: string | null;
+  grid_operators: GridOperatorRow | GridOperatorRow[] | null;
 };
 
 type RequirementRow = {
@@ -101,6 +105,7 @@ type ProjectRow = {
   confidence: string;
   target_cod: string | null;
   updated_at: string;
+  grid_operator_id: string | null;
   grid_operators: GridOperatorRow | GridOperatorRow[] | null;
   project_sites: SiteRow[] | null;
 };
@@ -173,14 +178,21 @@ function mapCase(rows: CaseRow[], profiles: ProfileRow[]): ProjectConnectionCase
   if (!row) {
     return null;
   }
+  const operator = asSingle(row.grid_operators);
   return {
+    id: row.id,
     caseId: row.case_id,
+    stage: pipelineStageLabel(row.stage) as ProjectConnectionCase["stage"],
+    stageValue: row.stage,
     status: connectionCaseStatusLabel(row.status),
+    statusValue: row.status,
     submittedAt: row.submitted_at,
     nextMilestone: row.next_milestone,
     deadline: row.deadline,
     ownerName: profileName(profiles, row.owner_id),
     notes: row.notes?.trim() || null,
+    gridOperatorId: row.grid_operator_id,
+    gridOperatorName: operator?.name ?? null,
   };
 }
 
@@ -197,6 +209,9 @@ function mapProject(
   canUpdateRequirements: boolean,
   canEdit: boolean,
   canDelete: boolean,
+  canDeleteRequirements: boolean,
+  canManageConnectionCase: boolean,
+  canDeleteConnectionCase: boolean,
   officialGridAreaContext: OfficialGridAreaContext | null,
   officialNetworkDevelopmentPlanContext: OfficialNupContext | null,
 ): ProjectDetailViewModel {
@@ -221,6 +236,7 @@ function mapProject(
     importMW: toNumber(row.import_mw),
     exportMW: toNumber(row.export_mw),
     gridOperator: operator?.name ?? "",
+    gridOperatorId: row.grid_operator_id,
     voltageLevel: row.voltage_level ?? "",
     stage: pipelineStageLabel(row.connection_stage),
     outlook: outlookLabel(row.connection_outlook),
@@ -238,6 +254,9 @@ function mapProject(
     canUpdateRequirements,
     canEdit,
     canDelete,
+    canDeleteRequirements,
+    canManageConnectionCase,
+    canDeleteConnectionCase,
     officialGridAreaContext,
     officialNetworkDevelopmentPlanContext,
   };
@@ -274,7 +293,8 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
       confidence,
       target_cod,
       updated_at,
-      grid_operators ( name ),
+      grid_operator_id,
+      grid_operators ( id, name ),
       project_sites ( name, location, geom, is_primary )
     `,
     )
@@ -306,7 +326,9 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
     await Promise.all([
       supabase
         .from("connection_cases")
-        .select("case_id, status, submitted_at, next_milestone, deadline, owner_id, notes")
+        .select(
+          "id, case_id, stage, status, submitted_at, next_milestone, deadline, owner_id, notes, grid_operator_id, grid_operators ( id, name )",
+        )
         .eq("project_id", projectId)
         .order("created_at", { ascending: false })
         .limit(1),
@@ -381,9 +403,12 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
         alerts: (alertsResult.data ?? []) as AlertRow[],
         profiles,
       },
-      canCreateOrEditProjects(organization.role),
+      canWriteWorkflow(organization.role),
       canCreateOrEditProjects(organization.role),
       canDeleteProjects(organization.role),
+      canAdminWorkflow(organization.role),
+      canWriteWorkflow(organization.role),
+      canAdminWorkflow(organization.role),
       officialContext,
       officialNupContext,
     ),

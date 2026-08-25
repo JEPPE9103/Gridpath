@@ -12,9 +12,9 @@ import {
   OVERVIEW_PIPELINE_STAGES,
   type PortfolioOverview,
 } from "@/lib/data/overview-types";
+import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import {
   formatCapacityShort,
-  formatHeaderDate,
   formatMWTotal,
   formatRelative,
 } from "@/lib/format";
@@ -98,7 +98,7 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
         actions={
           <>
             <BellButton />
-            <span className="hidden text-sm text-muted sm:inline">{formatHeaderDate()}</span>
+            <ClientHeaderDate />
           </>
         }
       />

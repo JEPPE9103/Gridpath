@@ -52,13 +52,19 @@ export type ProjectAlertItem = {
 };
 
 export type ProjectConnectionCase = {
+  id: string;
   caseId: string | null;
+  stage: OverviewPipelineStage;
+  stageValue: string;
   status: ConnectionCaseStatus | "Complete" | "Cancelled";
+  statusValue: string;
   submittedAt: string | null;
   nextMilestone: string | null;
   deadline: string | null;
   ownerName: string | null;
   notes: string | null;
+  gridOperatorId: string | null;
+  gridOperatorName: string | null;
 };
 
 export type ProjectDetailViewModel = {
@@ -75,6 +81,7 @@ export type ProjectDetailViewModel = {
   importMW: number;
   exportMW: number;
   gridOperator: string;
+  gridOperatorId: string | null;
   voltageLevel: string;
   stage: OverviewPipelineStage;
   outlook: Outlook;
@@ -92,6 +99,9 @@ export type ProjectDetailViewModel = {
   canUpdateRequirements: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  canDeleteRequirements: boolean;
+  canManageConnectionCase: boolean;
+  canDeleteConnectionCase: boolean;
   officialGridAreaContext: OfficialGridAreaContext | null;
   officialNetworkDevelopmentPlanContext: OfficialNupContext | null;
 };

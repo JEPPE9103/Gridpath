@@ -7,7 +7,31 @@ import type { CurrentUserProfile } from "@/lib/auth/current-user";
 import { WorkspaceProvider } from "@/lib/workspace-state";
 import { Bell, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+
+function subscribeSidebarCollapse(onStoreChange: () => void) {
+  const mobile = window.matchMedia("(max-width: 767px)");
+  const desktop = window.matchMedia("(min-width: 1280px)");
+  mobile.addEventListener("change", onStoreChange);
+  desktop.addEventListener("change", onStoreChange);
+  return () => {
+    mobile.removeEventListener("change", onStoreChange);
+    desktop.removeEventListener("change", onStoreChange);
+  };
+}
+
+function getSidebarCollapsePreference() {
+  if (window.matchMedia("(max-width: 767px)").matches) {
+    return false;
+  }
+  return !window.matchMedia("(min-width: 1280px)").matches;
+}
+
+function getSidebarMediaKey() {
+  const mobile = window.matchMedia("(max-width: 767px)").matches;
+  const desktop = window.matchMedia("(min-width: 1280px)").matches;
+  return `${mobile ? "m" : "d"}:${desktop ? "xl" : "sm"}`;
+}
 
 function ShellFrame({
   children,
@@ -19,32 +43,35 @@ function ShellFrame({
   criticalAlertCount: number;
 }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const mediaCollapsed = useSyncExternalStore(
+    subscribeSidebarCollapse,
+    getSidebarCollapsePreference,
+    () => false,
+  );
+  const mediaKey = useSyncExternalStore(
+    subscribeSidebarCollapse,
+    getSidebarMediaKey,
+    () => "ssr",
+  );
+  const [manualCollapsed, setManualCollapsed] = useState<boolean | null>(null);
+  const [mediaKeySeen, setMediaKeySeen] = useState(mediaKey);
+  if (mediaKeySeen !== mediaKey) {
+    setMediaKeySeen(mediaKey);
+    setManualCollapsed(null);
+  }
+  const sidebarCollapsed = manualCollapsed ?? mediaCollapsed;
   const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
   const mobileOpen = mobileNavPath === pathname;
 
   useEffect(() => {
-    const mobile = window.matchMedia("(max-width: 767px)");
     const desktop = window.matchMedia("(min-width: 1280px)");
-    const apply = () => {
-      if (mobile.matches) {
-        setCollapsed(false);
-        return;
-      }
-      setCollapsed(!desktop.matches);
-    };
-    apply();
     const closeMobileOnDesktop = (event: MediaQueryListEvent) => {
       if (event.matches) {
         setMobileNavPath(null);
       }
     };
-    mobile.addEventListener("change", apply);
-    desktop.addEventListener("change", apply);
     desktop.addEventListener("change", closeMobileOnDesktop);
     return () => {
-      mobile.removeEventListener("change", apply);
-      desktop.removeEventListener("change", apply);
       desktop.removeEventListener("change", closeMobileOnDesktop);
     };
   }, []);
@@ -75,11 +102,11 @@ function ShellFrame({
         }
       >
         <Sidebar
-          collapsed={collapsed}
+          collapsed={sidebarCollapsed}
           overlay={mobileOpen}
           user={user}
           criticalAlertCount={criticalAlertCount}
-          onToggle={() => setCollapsed((value) => !value)}
+          onToggle={() => setManualCollapsed(!sidebarCollapsed)}
           onNavigate={() => setMobileNavPath(null)}
         />
       </div>
