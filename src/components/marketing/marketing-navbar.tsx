@@ -63,11 +63,11 @@ export function MarketingNavbar() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
-          <CtaLink href="/overview" variant="secondary">
-            Open demo
-          </CtaLink>
-          <CtaLink href="/#demo">Book a demo</CtaLink>
+        <div className="hidden items-center gap-3 lg:flex">
+          <Link href="/login" className="text-sm text-muted hover:text-ink">
+            Sign in
+          </Link>
+          <CtaLink href="/signup">Get started</CtaLink>
         </div>
 
         <button
@@ -93,12 +93,15 @@ export function MarketingNavbar() {
                 {link.label}
               </Link>
             ))}
+            <Link href="/login" className="py-1 text-ink" onClick={() => setOpen(false)}>
+              Sign in
+            </Link>
           </nav>
           <div className="mt-5 flex flex-col gap-2">
-            <CtaLink href="/overview" variant="secondary" className="w-full">
-              Open demo
+            <CtaLink href="/signup" className="w-full" onClick={() => setOpen(false)}>
+              Get started
             </CtaLink>
-            <CtaLink href="/#demo" className="w-full">
+            <CtaLink href="/#demo" variant="secondary" className="w-full" onClick={() => setOpen(false)}>
               Book a demo
             </CtaLink>
           </div>

@@ -7,11 +7,13 @@ export function CtaLink({
   children,
   variant = "primary",
   className,
+  onClick,
 }: {
   href: string;
   children: ReactNode;
   variant?: "primary" | "secondary" | "ghost" | "on-dark";
   className?: string;
+  onClick?: () => void;
 }) {
   const classes = cn(
     "inline-flex items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
@@ -24,14 +26,14 @@ export function CtaLink({
 
   if (href.startsWith("http")) {
     return (
-      <a href={href} className={classes}>
+      <a href={href} className={classes} onClick={onClick}>
         {children}
       </a>
     );
   }
 
   return (
-    <Link href={href} className={classes}>
+    <Link href={href} className={classes} onClick={onClick}>
       {children}
     </Link>
   );

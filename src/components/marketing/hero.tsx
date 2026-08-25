@@ -1,5 +1,6 @@
 import { CtaLink } from "@/components/marketing/cta-link";
 import { ProductPreview } from "@/components/marketing/product-preview";
+import Link from "next/link";
 
 export function Hero() {
   return (
@@ -26,13 +27,22 @@ export function Hero() {
             className="marketing-enter mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap"
             style={{ animationDelay: "240ms" }}
           >
-            <CtaLink href="/#demo" className="w-full px-5 sm:w-auto">
+            <CtaLink href="/signup" className="w-full px-5 sm:w-auto">
+              Get started
+            </CtaLink>
+            <CtaLink href="/#demo" variant="secondary" className="w-full px-5 sm:w-auto">
               Book a demo
             </CtaLink>
-            <CtaLink href="/overview" variant="secondary" className="w-full px-5 sm:w-auto">
-              Open product demo
-            </CtaLink>
           </div>
+          <p
+            className="marketing-enter mt-4 text-sm text-muted"
+            style={{ animationDelay: "280ms" }}
+          >
+            Prefer a guided walkthrough?{" "}
+            <Link href="/overview" className="font-medium text-teal hover:text-teal-dark">
+              Open product demo
+            </Link>
+          </p>
           <p
             className="marketing-enter mt-5 text-sm text-muted"
             style={{ animationDelay: "320ms" }}

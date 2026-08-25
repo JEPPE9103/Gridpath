@@ -1,4 +1,5 @@
 import { LoginForm } from "@/app/login/login-form";
+import { AuthCard } from "@/components/auth/auth-card";
 import { getPostAuthPath } from "@/lib/auth/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
@@ -17,12 +18,8 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-10">
-      <div className="w-full max-w-[380px] rounded-md border border-line bg-surface p-8">
-        <p className="text-[15px] font-semibold tracking-[0.18em] text-ink">NOXHEIM</p>
-        <p className="mt-1 text-[11px] tracking-wide text-muted">Grid Intelligence</p>
-        <LoginForm />
-      </div>
-    </main>
+    <AuthCard title="Sign in">
+      <LoginForm />
+    </AuthCard>
   );
 }
