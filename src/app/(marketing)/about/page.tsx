@@ -27,12 +27,15 @@ export default function AboutPage() {
           headroom. Official operator assessment remains required. Sources, publication dates and
           retrieved times are meant to stay visible.
         </p>
-        <p>The company is early-stage. The product demo is the best way to evaluate the system.</p>
+        <p>
+          The company is early-stage. Book a demo or create an account to evaluate the workspace on
+          your own projects.
+        </p>
       </div>
       <div className="mt-8 flex flex-wrap gap-3">
         <CtaLink href="/#demo">Book a demo</CtaLink>
-        <CtaLink href="/overview" variant="secondary">
-          Open product demo
+        <CtaLink href="/signup" variant="secondary">
+          Get started
         </CtaLink>
       </div>
     </MarketingSection>

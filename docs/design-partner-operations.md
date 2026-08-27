@@ -88,11 +88,13 @@ CLI cannot safely inspect/change Cloud Auth. Configure in Supabase Dashboard →
 
 | Setting | Design Partner Cloud value |
 |---------|----------------------------|
-| Site URL | `https://gridpath-henna.vercel.app` |
-| Redirect URLs | `https://gridpath-henna.vercel.app/**` (and exact login/signup callbacks if listed separately) |
+| Site URL | `https://www.noxheim.com` (canonical). Keep `https://gridpath-henna.vercel.app` as an allowed Redirect URL during transition. |
+| Redirect URLs | `https://www.noxheim.com/**`, `https://noxheim.com/**`, and optionally `https://gridpath-henna.vercel.app/**` |
 | Enable email signup | ON |
 | Confirm email | OFF for tightly supervised pilot smoke (acceptable); if ON, SMTP must work before relying on signup |
 | Minimum password length | ≥ 8 (app validates 8+) |
+
+Password reset is not implemented in the app UI yet — treat as a known pilot limitation (operator-assisted reset via Supabase Dashboard if needed).
 
 Do **not** use `.local` emails — GoTrue rejects them as invalid. Use a normal domain for smoke identities.
 

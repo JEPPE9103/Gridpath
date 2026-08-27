@@ -3,11 +3,9 @@ import { CtaLink } from "@/components/marketing/cta-link";
 import { MarketingMap } from "@/components/marketing/marketing-map";
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
-import { SourceBadge, StageBadge } from "@/components/ui/badges";
-import { formatCapacity } from "@/lib/format";
+import { StageBadge } from "@/components/ui/badges";
 import { projectRepository } from "@/lib/repositories";
 import { CONNECTION_STAGES } from "@/types";
-import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 
 const projects = projectRepository.list();
@@ -16,7 +14,6 @@ const mapProjects = projects.filter((project) =>
     project.id,
   ),
 );
-const gavle = projects.find((project) => project.id === "gavle-bess")!;
 const mapSites = mapProjects.map((project) => ({
   id: project.id,
   name: project.name,
@@ -28,46 +25,43 @@ const mapSites = mapProjects.map((project) => ({
 export function ProductPillars() {
   return (
     <div id="product">
-      <ContextPillar />
-      <ProcessPillar />
-      <ChangesPillar />
+      <ScreenPillar />
+      <ManagePillar />
+      <MonitorPillar />
     </div>
   );
 }
 
-function ContextPillar() {
+function ScreenPillar() {
   return (
     <MarketingSection className="bg-surface">
       <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr]">
         <Reveal>
-          <Eyebrow>Official context</Eyebrow>
+          <Eyebrow>Screen</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            See which official grid area actually covers the site.
+            Understand and compare development projects.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            NOXHEIM matches a project coordinate to Ei local-network concessions and network
-            development-plan areas. Forecast MW is published transfer-capacity need — not available
-            connection capacity.
+            Match a project coordinate to official Ei local-network concessions and network
+            development-plan areas. Forecast MW is published need for transfer capacity — not
+            available connection capacity.
           </p>
-          <div className="mt-6">
-            <CtaLink href="/map" variant="secondary">
-              Open Map & Compare
-            </CtaLink>
-          </div>
+          <p className="mt-4 text-sm text-muted">
+            Sample workspace below — illustrative only, not live customer or official events.
+          </p>
         </Reveal>
         <Reveal delay={80} fade>
           <AppFrame path="/map">
             <div className="grid bg-canvas md:grid-cols-[1fr_240px]">
               <MarketingMap selectedId="gavle-bess" sites={mapSites} />
               <aside className="border-t border-line bg-surface p-4 md:border-t-0 md:border-l">
-                <p className="text-sm font-semibold">{gavle.name}</p>
-                <p className="text-xs text-muted">{gavle.location}</p>
+                <p className="text-sm font-semibold">Gävle BESS</p>
+                <p className="text-xs text-muted">Sample project · Gävle</p>
                 <dl className="mt-3 space-y-1.5 text-xs">
-                  <Row label="Capacity" value={formatCapacity(gavle)} />
-                  <Row label="Official local network" value="Gävle Energi Elnät AB" />
-                  <Row label="Official NUP" value="Gävle Energi Elnät AB" />
-                  <Row label="Forecast need 2028" value="139.7 MW" />
-                  <Row label="Stage" value={<StageBadge stage={gavle.stage} />} />
+                  <Row label="Official local network" value="Identified" />
+                  <Row label="Network development plan" value="Matched" />
+                  <Row label="Forecast need 2028" value="Published" />
+                  <Row label="Team outlook" value="Customer-entered" />
                 </dl>
                 <p className="mt-4 text-[11px] leading-4 text-muted">
                   Official source · Energimarknadsinspektionen. Not a capacity guarantee.
@@ -81,18 +75,20 @@ function ContextPillar() {
   );
 }
 
-function ProcessPillar() {
+function ManagePillar() {
   const currentIndex = CONNECTION_STAGES.indexOf("Grid Study");
   return (
     <MarketingSection>
       <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_0.9fr]">
         <Reveal>
-          <AppFrame path="/projects/gavle-bess">
+          <AppFrame path="/projects/sample-bess">
             <div className="bg-canvas p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-semibold">Gävle BESS</p>
-                  <p className="text-[11px] text-muted">Battery Storage · 20 / 20 MW · Connection process</p>
+                  <p className="text-sm font-semibold">Sample BESS</p>
+                  <p className="text-[11px] text-muted">
+                    Battery Storage · Connection process · customer-entered
+                  </p>
                 </div>
                 <StageBadge stage="Grid Study" />
               </div>
@@ -115,36 +111,36 @@ function ProcessPillar() {
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <div className="rounded-md border border-line bg-surface p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                    Missing
+                    Requirements
                   </p>
-                  <ul className="mt-2 space-y-1 text-xs">
-                    <li>Signed grid study agreement</li>
-                    <li>Study fee confirmation</li>
-                  </ul>
+                  <p className="mt-2 text-sm font-semibold">7 of 10 required items complete</p>
+                  <p className="mt-1 text-[11px] text-muted">
+                    Workflow readiness — not a feasibility assessment.
+                  </p>
                 </div>
                 <div className="rounded-md border border-line bg-surface p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                    Case VF-GS-2025-1842
+                    Connection case
                   </p>
-                  <p className="mt-2 text-xs text-muted">Owner: Portfolio manager</p>
-                  <p className="mt-1 text-xs text-muted">Next: study workshop · 30 Sep 2026</p>
+                  <p className="mt-2 text-xs text-muted">Customer-entered case reference</p>
+                  <p className="mt-1 text-xs text-muted">Next: study workshop</p>
                 </div>
               </div>
             </div>
           </AppFrame>
         </Reveal>
         <Reveal delay={80}>
-          <Eyebrow>Connection process</Eyebrow>
+          <Eyebrow>Manage</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Keep the connection case next to the grid context.
+            Track grid-connection process and project readiness.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Track enquiries, studies, offers, documents, deadlines and owners across operators —
-            in the same workspace as the official grid record.
+            Keep enquiries, studies, offers, deadlines and required checklist items next to the
+            official grid record — without treating readiness as connection viability.
           </p>
           <div className="mt-6">
-            <CtaLink href="/connections" variant="secondary">
-              Open Connections
+            <CtaLink href="/signup" variant="secondary">
+              Get started
             </CtaLink>
           </div>
         </Reveal>
@@ -153,46 +149,45 @@ function ProcessPillar() {
   );
 }
 
-function ChangesPillar() {
+function MonitorPillar() {
   return (
     <MarketingSection className="bg-surface">
       <div className="grid items-start gap-10 lg:grid-cols-[0.85fr_1.15fr]">
         <Reveal>
-          <Eyebrow>Published changes</Eyebrow>
+          <Eyebrow>Monitor</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            See what the source published — then which sites sit in that area.
+            Review relevant changes in published grid and planning information.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            When a structured official dataset is updated, NOXHEIM can show added, removed and
-            changed records and map them to projects in the planning area. It does not infer lost
-            MW or connection risk. Official Ei NUP is a baseline today — not an alert feed.
+            When an official dataset is refreshed, NOXHEIM can show added, removed and changed
+            records and which portfolio projects intersect the affected area. Pilot refresh is
+            supervised — not continuous live monitoring.
           </p>
+          <div className="mt-6">
+            <CtaLink href="/#demo" variant="secondary">
+              Book a demo
+            </CtaLink>
+          </div>
         </Reveal>
         <Reveal delay={80}>
           <AppFrame path="/changes">
             <div className="bg-canvas p-4 sm:p-5">
-              <p className="text-[11px] uppercase tracking-wide text-muted">Published observation</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted">Sample change</p>
               <h3 className="mt-1 text-xl font-semibold tracking-tight">
-                Published transfer-capacity forecast changed
+                Published network-development information changed
               </h3>
               <p className="mt-2 text-sm leading-6 text-muted">
-                Gävle Energi Elnät AB planning area · 2028 forecast need 140 MW → 150 MW. This is
-                published need for transfer capacity, not available connection capacity.
+                Forecast need for transfer capacity updated for a planning area. This is published
+                need — not available connection capacity or headroom.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-teal px-2.5 py-1 text-[11px] font-semibold text-white">
-                  1 project in the planning area
+                  1 portfolio project intersects the affected planning area
                 </span>
-                <span className="rounded-full bg-surface px-2.5 py-1 text-[12px]">Gävle BESS</span>
+                <span className="rounded-full bg-surface px-2.5 py-1 text-[12px]">Sample BESS</span>
               </div>
-              <div className="mt-5 flex items-center justify-between border-t border-line pt-4">
-                <SourceBadge source="Official" />
-                <CtaLink href="/changes" variant="ghost" className="gap-1 px-0 py-0 text-teal hover:text-teal-dark">
-                  Review change <ArrowRight size={14} />
-                </CtaLink>
-              </div>
-              <p className="mt-3 text-[11px] leading-4 text-muted">
-                Sample of change detection. Not a live Ei workbook update.
+              <p className="mt-5 text-[11px] leading-4 text-muted">
+                Sample illustration only. Not a live official event or customer alert.
               </p>
             </div>
           </AppFrame>

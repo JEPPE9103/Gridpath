@@ -107,7 +107,7 @@ export function strongestDevelopmentProfile<T extends { developmentProfile: Deve
 }
 
 export function rankingExplanation(): string {
-  return "Ranked by stored project outlook, data confidence, application readiness, connection process validation and open attention alerts. NOXHEIM analysis — not a grid operator decision and not a guarantee of capacity.";
+  return "Portfolio comparison ranked from team outlook, team confidence, application readiness, connection process state and open attention items. Development triage only — not an official grid score, capacity score, AI site score or feasibility assessment.";
 }
 
 function outlookFactor(outlook: Outlook): DevelopmentProfileFactor {

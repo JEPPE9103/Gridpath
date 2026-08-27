@@ -52,8 +52,8 @@ export function DemoCTA() {
             <CtaLink href="#demo-form" className="w-full px-5 sm:w-auto">
               Book a demo
             </CtaLink>
-            <CtaLink href="/overview" variant="secondary" className="w-full px-5 sm:w-auto">
-              Open product demo
+            <CtaLink href="/signup" variant="secondary" className="w-full px-5 sm:w-auto">
+              Get started
             </CtaLink>
           </div>
         </Reveal>
@@ -71,11 +71,11 @@ export function DemoCTA() {
                   Thanks — demo request received.
                 </h3>
                 <p className="mt-3 text-sm leading-6 text-muted">
-                  This environment does not send the form to a CRM yet. Your details stayed in this
-                  browser session. Open the product demo while you wait.
+                  This form does not send to a CRM yet. Your details stayed in this browser session.
+                  Create an account if you want to explore the workspace yourself.
                 </p>
-                <CtaLink href="/overview" className="mt-6">
-                  Open product demo
+                <CtaLink href="/signup" className="mt-6">
+                  Get started
                 </CtaLink>
               </div>
             ) : (

@@ -139,7 +139,7 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
 
         <section className="grid gap-4 xl:grid-cols-2">
           <div className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Current project outlook</h2>
+            <h2 className="text-base font-semibold">Team outlook (customer-entered)</h2>
             <p className="mt-1 text-xs text-muted">Stored project assessment — not live grid capacity.</p>
             <ul className="mt-3 space-y-2">
               {report.outlookCounts.map((row) => (

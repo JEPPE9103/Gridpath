@@ -133,7 +133,7 @@ export function PortfolioPage({
             value={outlook}
             onChange={(value) => setOutlook(value as Outlook | "All")}
             options={["All", ...OUTLOOKS]}
-            label="Outlook"
+            label="Team outlook"
           />
         </div>
 
@@ -187,8 +187,8 @@ export function PortfolioPage({
                   <Th onClick={() => toggleSort("stage")} active={sortKey === "stage"} dir={sortDir}>
                     Stage
                   </Th>
-                  <Th>Outlook</Th>
-                  <Th>Confidence</Th>
+                  <Th>Team outlook</Th>
+                  <Th>Team confidence</Th>
                   <Th onClick={() => toggleSort("targetCOD")} active={sortKey === "targetCOD"} dir={sortDir}>
                     Target COD
                   </Th>

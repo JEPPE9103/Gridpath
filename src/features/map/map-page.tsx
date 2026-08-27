@@ -161,7 +161,7 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
             }
           />
           <Select
-            label="Outlook"
+            label="Team outlook"
             value={filters.outlook}
             options={["All", ...OUTLOOKS]}
             onChange={(value) =>
@@ -169,7 +169,7 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
             }
           />
           <Select
-            label="Confidence"
+            label="Team confidence"
             value={filters.confidence}
             options={["All", ...CONFIDENCES]}
             onChange={(value) =>
@@ -226,9 +226,9 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
               <>
                 <div className="flex items-start justify-between gap-2 border-b border-line px-3 py-2">
                   <div>
-                    <p className="text-xs font-medium">Project outlook</p>
+                    <p className="text-xs font-medium">Team outlook</p>
                     <p className="mt-0.5 text-[11px] leading-4 text-muted">
-                      Not guaranteed grid capacity.
+                      Customer-entered triage colours — not official capacity.
                     </p>
                   </div>
                   <button
@@ -306,8 +306,8 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
                 <Line label="Technology" value={selected.technology} />
                 <Line label="Import / Export MW" value={importExportLabel(selected)} />
                 <Line label="Grid operator" value={selected.gridOperator || "—"} />
-                <Line label="Current project outlook" value={<OutlookBadge outlook={selected.outlook} />} />
-                <Line label="Confidence" value={<ConfidenceBadge confidence={selected.confidence} />} />
+                <Line label="Team outlook" value={<OutlookBadge outlook={selected.outlook} />} />
+                <Line label="Team confidence" value={<ConfidenceBadge confidence={selected.confidence} />} />
                 <Line label="Current stage" value={<StageBadge stage={selected.stage} />} />
                 <Line label="Target COD" value={selected.targetCOD || "—"} />
                 <Line label="Application readiness" value={readinessLabel(selected.readinessPercent)} />
@@ -342,15 +342,16 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
 
         <div className="mt-3 space-y-1">
           <p className="text-[11px] uppercase tracking-[0.12em] text-muted">
-            Customer / project data · stored in NOXHEIM
+            Customer / project data · team outlook markers
             <span className="mx-2 text-muted">|</span>
-            NOXHEIM derived · readiness and comparison ranking
+            Portfolio comparison · development triage ranking
             <span className="mx-2 text-muted">|</span>
-            External grid intelligence · not connected yet
+            Official Ei Grid Intelligence · on each project Grid tab
           </p>
           <p className="text-xs leading-5 text-muted">
-            Current comparison uses project and workflow data stored in NOXHEIM. Live external grid
-            intelligence is not connected yet.
+            Map colours and compare ranking use customer-entered and workflow fields for portfolio
+            triage. They are not an official grid score or capacity assessment. Official local-network
+            and NUP context live on the project Grid Intelligence tab.
           </p>
         </div>
       </div>
@@ -359,7 +360,9 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface shadow-sm">
           <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <div>
-              <h2 className="text-base font-semibold">Compare sites ({compared.length}/4)</h2>
+              <h2 className="text-base font-semibold">
+                Portfolio comparison ({compared.length}/4)
+              </h2>
               <p className="text-xs text-muted">{rankingExplanation()}</p>
               <p className="mt-1 text-xs text-muted">
                 Compare selection is saved in this browser only — not shared with your team.
@@ -414,11 +417,11 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
                     values={compared.map((p) => p.gridOperator || "—")}
                   />
                   <CompareRow
-                    label="Connection outlook"
+                    label="Team outlook"
                     values={compared.map((p) => <OutlookBadge key={p.slug} outlook={p.outlook} />)}
                   />
                   <CompareRow
-                    label="Confidence"
+                    label="Team confidence"
                     values={compared.map((p) => (
                       <ConfidenceBadge key={p.slug} confidence={p.confidence} />
                     ))}

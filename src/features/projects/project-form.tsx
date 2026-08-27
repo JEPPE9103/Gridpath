@@ -140,7 +140,11 @@ export function ProjectForm({
               placeholder="20"
             />
           </Field>
-          <Field label="Grid operator" error={errors.gridOperatorId}>
+          <Field
+            label="Project / connection operator"
+            error={errors.gridOperatorId}
+            hint="Customer-selected. May differ from official Ei local-network or NUP companies."
+          >
             <select name="gridOperatorId" defaultValue={values.gridOperatorId} className={inputClass}>
               <option value="">Not set</option>
               {operators.map((operator) => (
@@ -163,7 +167,11 @@ export function ProjectForm({
               ))}
             </select>
           </Field>
-          <Field label="Project outlook" error={errors.connectionOutlook}>
+          <Field
+            label="Team outlook"
+            error={errors.connectionOutlook}
+            hint="Customer-entered assessment for triage — not NOXHEIM Grid Intelligence."
+          >
             <select
               name="connectionOutlook"
               defaultValue={values.connectionOutlook}
@@ -176,7 +184,11 @@ export function ProjectForm({
               ))}
             </select>
           </Field>
-          <Field label="Confidence" error={errors.confidence}>
+          <Field
+            label="Team confidence"
+            error={errors.confidence}
+            hint="Customer-entered confidence in your own assessment — not an official score."
+          >
             <select name="confidence" defaultValue={values.confidence} className={inputClass}>
               {PROJECT_CONFIDENCE_VALUES.map((value) => (
                 <option key={value} value={value}>
@@ -214,11 +226,13 @@ const inputClass =
 function Field({
   label,
   error,
+  hint,
   className,
   children,
 }: {
   label: string;
   error?: string;
+  hint?: string;
   className?: string;
   children: ReactNode;
 }) {
@@ -226,6 +240,7 @@ function Field({
     <label className={`block text-sm ${className ?? ""}`}>
       <span className="text-muted">{label}</span>
       {children}
+      {hint && !error ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
       {error ? <p className="mt-1 text-xs text-critical">{error}</p> : null}
     </label>
   );

@@ -196,10 +196,10 @@ function LoadedProjectPage({
 
       <div className="border-b border-line bg-canvas px-4 pb-4 sm:px-6 lg:px-8">
         <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4 xl:grid-cols-8">
-          <Meta label="Grid operator" value={project.gridOperator || "—"} />
+          <Meta label="Project operator" value={project.gridOperator || "—"} />
           <Meta label="Connection stage" value={<StageBadge stage={project.stage} />} />
-          <Meta label="Connection outlook" value={<OutlookBadge outlook={project.outlook} />} />
-          <Meta label="Confidence" value={`${project.confidence} confidence`} />
+          <Meta label="Team outlook" value={<OutlookBadge outlook={project.outlook} />} />
+          <Meta label="Team confidence" value={`${project.confidence} confidence`} />
           <Meta label="Import / export" value={formatImportExport(project)} />
           <Meta label="Target COD" value={project.targetCOD || "—"} />
           <Meta label="Last updated" value={<ClientAbsoluteDate iso={project.lastUpdated} />} />
@@ -345,13 +345,20 @@ function GridTab({ project }: { project: ProjectDetailViewModel }) {
             <QuietTag>Project data · Stored in NOXHEIM</QuietTag>
           </div>
           <dl className="mt-4 grid grid-cols-1 gap-3 text-sm">
-            <Row label="Project connection operator" value={project.gridOperator || "—"} />
+            <Row
+              label="Project / connection operator"
+              value={project.gridOperator || "—"}
+            />
             <Row label="Connection stage" value={<StageBadge stage={project.stage} />} />
             <Row label="Import" value={project.importMW > 0 ? `${project.importMW} MW` : "—"} />
             <Row label="Export" value={project.exportMW > 0 ? `${project.exportMW} MW` : "—"} />
-            <Row label="Current project outlook" value={<OutlookBadge outlook={project.outlook} />} />
-            <Row label="Confidence" value={<ConfidenceBadge confidence={project.confidence} />} />
+            <Row label="Team outlook" value={<OutlookBadge outlook={project.outlook} />} />
+            <Row label="Team confidence" value={<ConfidenceBadge confidence={project.confidence} />} />
           </dl>
+          <p className="mt-4 text-xs leading-5 text-muted">
+            Operator, outlook and confidence are customer-entered. They are not derived from Ei
+            local-network or NUP geography and may differ from official companies shown below.
+          </p>
         </section>
 
         <section className="rounded-md border border-line bg-surface p-5">

@@ -1,10 +1,9 @@
 import { AppFrame } from "@/components/marketing/app-frame";
-import { SourceBadge } from "@/components/ui/badges";
 import type { ReactNode } from "react";
 
 export function ProductPreview() {
   return (
-    <AppFrame path="/projects/gavle-bess">
+    <AppFrame path="/projects/sample-bess">
       <div className="grid min-h-[300px] bg-canvas sm:min-h-[400px] sm:grid-cols-[52px_1fr] md:grid-cols-[148px_1fr]">
         <aside className="hidden bg-sidebar px-2 py-4 text-white sm:block md:px-3">
           <p className="hidden px-1 text-[10px] font-semibold tracking-[0.16em] md:block">
@@ -23,29 +22,32 @@ export function ProductPreview() {
         <div className="min-w-0 p-3 md:p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p className="text-lg font-semibold leading-none">Gävle BESS</p>
-              <p className="mt-1 text-[11px] text-muted">Battery Storage · 20 / 20 MW · Gävle</p>
+              <p className="text-lg font-semibold leading-none">Sample BESS</p>
+              <p className="mt-1 text-[11px] text-muted">
+                Battery Storage · 20 / 20 MW · product preview
+              </p>
             </div>
-            <SourceBadge source="Official" />
+            <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+              Sample
+            </span>
           </div>
           <div className="mt-3 rounded-md border border-line bg-surface p-3 md:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold">Official network development plan</p>
+              <p className="text-sm font-semibold">Official network context</p>
               <p className="text-[10px] uppercase tracking-wide text-muted">
                 Energimarknadsinspektionen
               </p>
             </div>
             <dl className="mt-3 space-y-1.5 text-xs">
-              <Row label="Workspace operator" value="Vattenfall Eldistribution" />
-              <Row label="Official local network" value="Gävle Energi Elnät AB" />
-              <Row label="Official NUP company" value="Gävle Energi Elnät AB" />
-              <Row label="Forecast need 2028" value="139.7 MW" />
-              <Row label="Planned investments" value="Ja" />
-              <Row label="Overlying-network limitation" value="Ja" />
+              <Row label="Official local-network context" value="Identified" />
+              <Row label="Network development plan" value="Matched" />
+              <Row label="Forecast need for transfer capacity" value="Published" />
+              <Row label="Team outlook" value="Customer-entered" />
+              <Row label="Required items complete" value="7 of 10" />
             </dl>
             <p className="mt-3 text-[11px] leading-4 text-muted">
               Forecast need for transfer capacity. Not available MW, headroom, or connection
-              capacity.
+              capacity. Sample workspace — not live data.
             </p>
           </div>
         </div>
