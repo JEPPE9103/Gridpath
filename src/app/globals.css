@@ -76,20 +76,6 @@ textarea {
   font-size: 10px;
 }
 
-.marketing-grid {
-  background-image:
-    linear-gradient(to right, rgba(26, 30, 36, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(26, 30, 36, 0.045) 1px, transparent 1px);
-  background-size: 56px 56px;
-}
-
-.marketing-grid-dark {
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-  background-size: 56px 56px;
-}
-
 @keyframes marketing-enter {
   from {
     opacity: 0;

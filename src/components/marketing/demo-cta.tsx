@@ -42,10 +42,11 @@ export function DemoCTA() {
         <Reveal>
           <Eyebrow>Get in touch</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[42px] sm:leading-[1.12]">
-            See your grid development portfolio differently.
+            See official grid context on your portfolio.
           </h2>
           <p className="mt-5 max-w-md text-base leading-7 text-muted">
-            Bring sites, connection processes and grid changes into one workspace.
+            Bring official Swedish grid context, connection cases and published plan changes into
+            one workspace.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <CtaLink href="#demo-form" className="w-full px-5 sm:w-auto">

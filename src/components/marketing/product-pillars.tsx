@@ -3,7 +3,7 @@ import { CtaLink } from "@/components/marketing/cta-link";
 import { MarketingMap } from "@/components/marketing/marketing-map";
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
-import { ConfidenceBadge, OutlookBadge, SourceBadge, StageBadge } from "@/components/ui/badges";
+import { SourceBadge, StageBadge } from "@/components/ui/badges";
 import { formatCapacity } from "@/lib/format";
 import { projectRepository } from "@/lib/repositories";
 import { CONNECTION_STAGES } from "@/types";
@@ -28,25 +28,26 @@ const mapSites = mapProjects.map((project) => ({
 export function ProductPillars() {
   return (
     <div id="product">
-      <ScreenPillar />
-      <ManagePillar />
-      <MonitorPillar />
+      <ContextPillar />
+      <ProcessPillar />
+      <ChangesPillar />
     </div>
   );
 }
 
-function ScreenPillar() {
+function ContextPillar() {
   return (
     <MarketingSection className="bg-surface">
       <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr]">
         <Reveal>
-          <Eyebrow>Screen</Eyebrow>
+          <Eyebrow>Official context</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Find where development effort is worth spending.
+            See which official grid area actually covers the site.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Compare potential sites, grid outlook, constraints, confidence and project readiness
-            before committing expensive engineering resources.
+            NOXHEIM matches a project coordinate to Ei local-network concessions and network
+            development-plan areas. Forecast MW is published transfer-capacity need — not available
+            connection capacity.
           </p>
           <div className="mt-6">
             <CtaLink href="/map" variant="secondary">
@@ -63,13 +64,13 @@ function ScreenPillar() {
                 <p className="text-xs text-muted">{gavle.location}</p>
                 <dl className="mt-3 space-y-1.5 text-xs">
                   <Row label="Capacity" value={formatCapacity(gavle)} />
-                  <Row label="Operator" value="Vattenfall" />
-                  <Row label="Outlook" value={<OutlookBadge outlook={gavle.outlook} />} />
-                  <Row label="Confidence" value={<ConfidenceBadge confidence={gavle.confidence} />} />
+                  <Row label="Official local network" value="Gävle Energi Elnät AB" />
+                  <Row label="Official NUP" value="Gävle Energi Elnät AB" />
+                  <Row label="Forecast need 2028" value="139.7 MW" />
                   <Row label="Stage" value={<StageBadge stage={gavle.stage} />} />
                 </dl>
                 <p className="mt-4 text-[11px] leading-4 text-muted">
-                  NOXHEIM analysis for comparison — not a capacity guarantee.
+                  Official source · Energimarknadsinspektionen. Not a capacity guarantee.
                 </p>
               </aside>
             </div>
@@ -80,7 +81,7 @@ function ScreenPillar() {
   );
 }
 
-function ManagePillar() {
+function ProcessPillar() {
   const currentIndex = CONNECTION_STAGES.indexOf("Grid Study");
   return (
     <MarketingSection>
@@ -91,9 +92,9 @@ function ManagePillar() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-semibold">Gävle BESS</p>
-                  <p className="text-[11px] text-muted">Battery Storage · 20 / 20 MW · 130 kV</p>
+                  <p className="text-[11px] text-muted">Battery Storage · 20 / 20 MW · Connection process</p>
                 </div>
-                <OutlookBadge outlook="At Risk" />
+                <StageBadge stage="Grid Study" />
               </div>
               <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
                 {CONNECTION_STAGES.map((stage, index) => (
@@ -133,13 +134,13 @@ function ManagePillar() {
           </AppFrame>
         </Reveal>
         <Reveal delay={80}>
-          <Eyebrow>Manage</Eyebrow>
+          <Eyebrow>Connection process</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Run connection processes in one workspace.
+            Keep the connection case next to the grid context.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Track enquiries, applications, studies, offers, documents, deadlines and
-            responsibilities across different grid operators.
+            Track enquiries, studies, offers, documents, deadlines and owners across operators —
+            in the same workspace as the official grid record.
           </p>
           <div className="mt-6">
             <CtaLink href="/connections" variant="secondary">
@@ -152,45 +153,47 @@ function ManagePillar() {
   );
 }
 
-function MonitorPillar() {
+function ChangesPillar() {
   return (
     <MarketingSection className="bg-surface">
       <div className="grid items-start gap-10 lg:grid-cols-[0.85fr_1.15fr]">
         <Reveal>
-          <Eyebrow>Monitor</Eyebrow>
+          <Eyebrow>Published changes</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Know when the grid changes around your projects.
+            See what the source published — then which sites sit in that area.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            NOXHEIM surfaces published grid and operator changes and links them to projects that may
-            be affected. Refresh cadence for the pilot is supervised by NOXHEIM operations — not
-            continuous live monitoring.
+            When a structured official dataset is updated, NOXHEIM can show added, removed and
+            changed records and map them to projects in the planning area. It does not infer lost
+            MW or connection risk. Official Ei NUP is a baseline today — not an alert feed.
           </p>
         </Reveal>
         <Reveal delay={80}>
           <AppFrame path="/changes">
             <div className="bg-canvas p-4 sm:p-5">
-              <p className="text-[11px] uppercase tracking-wide text-muted">Capacity</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted">Published observation</p>
               <h3 className="mt-1 text-xl font-semibold tracking-tight">
-                Vattenfall capacity publication updated
+                Published transfer-capacity forecast changed
               </h3>
               <p className="mt-2 text-sm leading-6 text-muted">
-                Public hosting-capacity map refreshed for Gävleborg and Dalarna. Gävle 130 kV
-                headroom reduced; Falun 20 kV headroom increased. Figures are indicative.
+                Gävle Energi Elnät AB planning area · 2028 forecast need 140 MW → 150 MW. This is
+                published need for transfer capacity, not available connection capacity.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-teal px-2.5 py-1 text-[11px] font-semibold text-white">
-                  This change affects 2 projects
+                  1 project in the planning area
                 </span>
                 <span className="rounded-full bg-surface px-2.5 py-1 text-[12px]">Gävle BESS</span>
-                <span className="rounded-full bg-surface px-2.5 py-1 text-[12px]">Falun BESS</span>
               </div>
               <div className="mt-5 flex items-center justify-between border-t border-line pt-4">
-                <SourceBadge source="Indicative" />
+                <SourceBadge source="Official" />
                 <CtaLink href="/changes" variant="ghost" className="gap-1 px-0 py-0 text-teal hover:text-teal-dark">
-                  Review affected projects <ArrowRight size={14} />
+                  Review change <ArrowRight size={14} />
                 </CtaLink>
               </div>
+              <p className="mt-3 text-[11px] leading-4 text-muted">
+                Sample of change detection. Not a live Ei workbook update.
+              </p>
             </div>
           </AppFrame>
         </Reveal>
@@ -203,7 +206,7 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <dt className="text-muted">{label}</dt>
-      <dd>{value}</dd>
+      <dd className="text-right">{value}</dd>
     </div>
   );
 }

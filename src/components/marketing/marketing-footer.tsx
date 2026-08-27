@@ -7,7 +7,7 @@ export function MarketingFooter() {
         <div>
           <p className="text-[13px] font-semibold tracking-[0.18em]">NOXHEIM</p>
           <p className="mt-3 max-w-sm text-sm leading-6 text-muted">
-            Grid Intelligence for energy development.
+            Official Swedish grid context for energy development portfolios.
           </p>
         </div>
         <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">

@@ -3,20 +3,20 @@ import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 
 const ITEMS = [
   {
-    title: "Screen earlier",
-    copy: "Identify weak opportunities before detailed engineering.",
+    title: "Official context first",
+    copy: "See Ei local-network and NUP coverage before spending detailed engineering time.",
   },
   {
-    title: "Reduce manual work",
-    copy: "Keep project, operator and connection information organised.",
+    title: "Process in one record",
+    copy: "Keep the operator case, documents and deadlines beside the grid context.",
   },
   {
-    title: "Catch changes",
-    copy: "Understand when external grid updates affect your sites.",
+    title: "Published changes, not invented impact",
+    copy: "Inspect what a source published, then which sites sit in that planning area.",
   },
   {
-    title: "Make better portfolio decisions",
-    copy: "Compare projects before committing more development capital.",
+    title: "Compare the portfolio",
+    copy: "Look across sites without treating forecast MW as available capacity.",
   },
 ];
 

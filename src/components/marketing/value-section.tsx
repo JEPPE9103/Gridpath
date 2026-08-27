@@ -2,7 +2,12 @@ import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 import { ArrowRight } from "lucide-react";
 
-const SOURCES = ["Grid data", "DSO portals", "Documents", "Project teams"];
+const SOURCES = [
+  "Ei local-network areas",
+  "Ei network development plans",
+  "Connection cases",
+  "Project documents",
+];
 
 export function ValueSection() {
   return (
@@ -10,12 +15,12 @@ export function ValueSection() {
       <Reveal>
         <Eyebrow>The problem</Eyebrow>
         <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight sm:text-[40px] sm:leading-[1.15]">
-          Grid development shouldn’t live across spreadsheets, portals and inboxes.
+          Official grid context should sit on the project — not in a spreadsheet.
         </h2>
         <p className="mt-5 max-w-2xl text-base leading-7 text-muted">
-          Grid information, connection processes, project documents and deadlines are fragmented
-          across operators and internal tools. NOXHEIM brings the development workflow into one
-          system.
+          Regulator datasets, connection processes and project files are usually separate. NOXHEIM
+          puts official Swedish grid context on each site, then keeps the connection workspace
+          beside it.
         </p>
       </Reveal>
 
@@ -39,7 +44,7 @@ export function ValueSection() {
           <ArrowRight className="mx-auto hidden text-muted lg:block" size={18} />
           <div className="rounded-md border border-teal/30 bg-teal-soft px-5 py-5 text-center">
             <p className="text-sm font-semibold text-teal">One development portfolio</p>
-            <p className="mt-1 text-xs text-muted">Sites, cases, documents, change</p>
+            <p className="mt-1 text-xs text-muted">Sites, official context, cases, documents</p>
           </div>
         </div>
       </Reveal>

@@ -9,32 +9,32 @@ const CASES = [
   {
     id: "bess",
     label: "Battery Storage",
-    title: "Keep a fast-moving BESS pipeline comparable.",
-    copy: "Screen import/export requirements, manage multiple connection enquiries and monitor project readiness across a development portfolio that changes week to week.",
+    title: "Keep a BESS pipeline comparable.",
+    copy: "Hold each site’s official NUP and local-network context next to the connection case, so a fast-moving storage portfolio stays reviewable week to week.",
   },
   {
     id: "renewables",
     label: "Renewables",
-    title: "Place solar and wind against the right voltage hypothesis.",
-    copy: "Track long-lead applications, permit dependencies and operator studies for generation sites that often sit on congested 130–220 kV corridors.",
+    title: "Place solar and wind against published planning areas.",
+    copy: "See which Ei planning area covers a generation site, including published forecast need and operator assessments — then track the long-lead connection case.",
   },
   {
     id: "ev",
     label: "EV Infrastructure",
     title: "Treat charging capacity as a connection programme.",
-    copy: "Follow load-driven import cases, urban reinforcement constraints and study timelines across hubs that cannot wait on informal spreadsheet tracking.",
+    copy: "Follow load-driven import cases, documents and study timelines across hubs without informal spreadsheet tracking.",
   },
   {
     id: "industrial",
     label: "Industrial Electrification",
     title: "Connect demand projects without losing the paper trail.",
-    copy: "Hold contracted milestones, design interfaces and operator correspondence in one record as load steps up through study, offer and agreement.",
+    copy: "Keep contracted milestones, design files and operator correspondence on one record as load steps through study, offer and agreement.",
   },
   {
     id: "consultants",
     label: "Grid & Engineering Consultants",
-    title: "Give clients a shared picture of grid process risk.",
-    copy: "Separate indicative public signals from official operator documents, and show which changes actually touch the sites you are advising on.",
+    title: "Give clients a shared picture of published grid context.",
+    copy: "Separate official regulator datasets from workspace assumptions, and show which published changes actually cover the sites you are advising on.",
   },
 ];
 

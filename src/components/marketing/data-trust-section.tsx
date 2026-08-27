@@ -5,25 +5,25 @@ import { SourceBadge } from "@/components/ui/badges";
 const KINDS = [
   {
     source: "Official" as const,
-    copy: "Operator letters, offers, agreements and formal study reports.",
+    copy: "Ei local-network concessions, Ei network development plans, operator letters, offers and formal study reports.",
   },
   {
     source: "Indicative" as const,
-    copy: "Public capacity maps and planning signals. Useful, not binding.",
+    copy: "Public planning signals that are useful for screening. Not binding, and not treated as available MW.",
   },
   {
     source: "Customer Data" as const,
-    copy: "Internal files, land control, load profiles and client assumptions.",
+    copy: "Internal files, land control, load profiles and the operator name stored on the project.",
   },
   {
     source: "NOXHEIM Analysis" as const,
-    copy: "Working judgements for screening and comparison — never a guarantee.",
+    copy: "Workspace judgements for comparison — never a capacity guarantee or derived connection outlook.",
   },
 ];
 
 export function DataTrustSection() {
   return (
-    <MarketingSection id="trust" dark className="marketing-grid-dark">
+    <MarketingSection id="trust" dark>
       <Reveal>
         <Eyebrow>
           <span className="text-[#9ad1c8]">Data philosophy</span>
@@ -32,8 +32,9 @@ export function DataTrustSection() {
           Grid intelligence you can interrogate, not blindly trust.
         </h2>
         <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-          NOXHEIM does not guarantee grid capacity. Important datapoints are intended to show
-          source, publication date, last retrieved time and confidence where available.
+          NOXHEIM does not guarantee grid capacity. Official datapoints are intended to show source,
+          publication date, last retrieved time and confidence. Forecast figures from Ei NUP are
+          published need for transfer capacity — not headroom.
         </p>
       </Reveal>
       <div className="mt-12 grid gap-3 sm:grid-cols-2">

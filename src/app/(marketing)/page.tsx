@@ -14,11 +14,11 @@ export const metadata: Metadata = {
     absolute: "NOXHEIM — Grid Development Intelligence",
   },
   description:
-    "Screen sites, manage grid connection processes and monitor published grid changes across your energy development portfolio.",
+    "Official Swedish grid context for energy development portfolios. Ei local-network areas, network development plans, connection tracking and published-plan changes.",
   openGraph: {
     title: "NOXHEIM — Grid Development Intelligence",
     description:
-      "Screen sites, manage grid connection processes and monitor published grid changes across your energy development portfolio.",
+      "Official Swedish grid context for energy development portfolios. Ei local-network areas, network development plans, connection tracking and published-plan changes.",
     type: "website",
     locale: "en_GB",
     siteName: "NOXHEIM",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "NOXHEIM — Grid Development Intelligence",
     description:
-      "Screen sites, manage grid connection processes and monitor published grid changes across your energy development portfolio.",
+      "Official Swedish grid context for energy development portfolios. Ei local-network areas, network development plans, connection tracking and published-plan changes.",
   },
 };
 

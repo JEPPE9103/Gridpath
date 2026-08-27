@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "NOXHEIM is Grid Intelligence software for energy developers managing grid-connected portfolios.",
+    "NOXHEIM is Grid Intelligence software for energy developers. Official Swedish grid context, connection tracking and published-plan changes.",
 };
 
 export default function AboutPage() {
@@ -17,14 +17,15 @@ export default function AboutPage() {
       </h1>
       <div className="mt-8 max-w-2xl space-y-4 text-base leading-7 text-muted">
         <p>
-          NOXHEIM is Grid Intelligence software for professional energy developers. It helps teams
-          screen sites, run connection processes, monitor operator and grid-information change, and
-          keep documents and deadlines in one workspace.
+          NOXHEIM is Grid Intelligence software for professional energy developers. It places
+          official Energimarknadsinspektionen local-network areas and network development plans on
+          each site, keeps connection cases and documents in one workspace, and can show when a
+          published dataset changes around a project.
         </p>
         <p>
-          It does not guarantee grid capacity. Official operator assessment remains required.
-          NOXHEIM is built to make sources, confidence and process state visible — so development
-          teams can decide where to spend engineering time.
+          It does not guarantee grid capacity, derive available MW, or treat forecast figures as
+          headroom. Official operator assessment remains required. Sources, publication dates and
+          retrieved times are meant to stay visible.
         </p>
         <p>The company is early-stage. The product demo is the best way to evaluate the system.</p>
       </div>

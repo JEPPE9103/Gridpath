@@ -1,7 +1,7 @@
 import { AppFrame } from "@/components/marketing/app-frame";
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
-import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badges";
+import { StageBadge } from "@/components/ui/badges";
 import { formatCapacity } from "@/lib/format";
 import { projectRepository } from "@/lib/repositories";
 import Link from "next/link";
@@ -10,7 +10,11 @@ const IDS = ["gavle-bess", "vasteras-storage", "uppsala-wind-north", "falun-bess
 const projects = projectRepository.list().filter((project) => IDS.includes(project.id));
 
 const ATTENTION = [
-  { title: "Grid data changed", project: "Gävle BESS", href: "/projects/gavle-bess?tab=grid" },
+  {
+    title: "Review official NUP context",
+    project: "Gävle BESS",
+    href: "/projects/gavle-bess?tab=grid",
+  },
   {
     title: "Application incomplete",
     project: "Uppsala Wind North",
@@ -22,9 +26,9 @@ const ATTENTION = [
     href: "/projects/sundsvall-solar?tab=connection",
   },
   {
-    title: "Outlook improved",
-    project: "Falun BESS",
-    href: "/projects/falun-bess?tab=grid",
+    title: "Official local network vs NUP company differ",
+    project: "Uppsala Wind North",
+    href: "/projects/uppsala-wind-north?tab=grid",
   },
 ];
 
@@ -41,7 +45,7 @@ export function ProductProof() {
       <Reveal>
         <Eyebrow>Inside the workspace</Eyebrow>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-[40px] sm:leading-[1.15]">
-          One portfolio. Grid connections in one place.
+          One portfolio. Official context and connection work together.
         </h2>
       </Reveal>
       <Reveal delay={70}>
@@ -55,8 +59,6 @@ export function ProductProof() {
                     <th className="px-4 py-2 font-medium">Grid operator</th>
                     <th className="px-4 py-2 font-medium">MW</th>
                     <th className="px-4 py-2 font-medium">Stage</th>
-                    <th className="px-4 py-2 font-medium">Outlook</th>
-                    <th className="px-4 py-2 font-medium">Confidence</th>
                     <th className="px-4 py-2 font-medium">Next action</th>
                   </tr>
                 </thead>
@@ -73,12 +75,6 @@ export function ProductProof() {
                       <td className="px-4 py-3 font-mono text-[13px]">{formatCapacity(project)}</td>
                       <td className="px-4 py-3">
                         <StageBadge stage={project.stage} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <OutlookBadge outlook={project.outlook} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <ConfidenceBadge confidence={project.confidence} />
                       </td>
                       <td className="px-4 py-3 text-muted">{NEXT[project.id]}</td>
                     </tr>
