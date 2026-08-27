@@ -288,8 +288,9 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
         </section>
 
         <p className="text-xs leading-5 text-muted">
-          Portfolio reporting is based on project and workflow data stored in NOXHEIM. Live external
-          grid intelligence is not yet connected.
+          Portfolio reporting uses project and workflow data stored in NOXHEIM. Official Ei Grid
+          Intelligence (local-network and NUP context) is available on each project Grid tab — it is
+          not rolled into these KPIs as capacity or feasibility.
         </p>
       </div>
     </>
