@@ -12,6 +12,7 @@ import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data
 import {
   rankingExplanation,
   strongestDevelopmentProfile,
+  formatFactorPoints,
 } from "@/lib/domain/development-profile";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { useWorkspace } from "@/lib/workspace-state";
@@ -436,6 +437,10 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
                   />
                   <CompareRow label="Target COD" values={compared.map((p) => p.targetCOD || "—")} />
                   <CompareRow
+                    label="Development profile score"
+                    values={compared.map((p) => `${p.developmentProfile.score} pts`)}
+                  />
+                  <CompareRow
                     label="Open alerts / attention"
                     values={compared.map((p) => attentionLabel(p))}
                   />
@@ -445,14 +450,39 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
                   />
                 </tbody>
               </table>
+              <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+                {compared.map((project) => (
+                  <div
+                    key={project.slug}
+                    className="rounded-md border border-line bg-canvas px-4 py-3 text-sm"
+                  >
+                    <p className="font-medium text-ink">{project.name}</p>
+                    <p className="mt-1 text-xs text-muted">
+                      Development profile · {project.developmentProfile.score} pts
+                    </p>
+                    <ul className="mt-2 space-y-0.5 text-ink">
+                      {project.developmentProfile.factors.map((factor) => (
+                        <li key={`${project.slug}-${factor.key}`} className="flex justify-between gap-2">
+                          <span>{factor.label}</span>
+                          <span className="shrink-0 font-mono text-xs text-muted">
+                            {formatFactorPoints(factor.points)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
               {strongest ? (
                 <div className="mt-4 rounded-md border border-line bg-teal-soft px-4 py-3 text-sm">
                   <p className="font-medium text-teal">Strongest current development profile</p>
-                  <p className="mt-1 text-ink">{strongest.name}</p>
+                  <p className="mt-1 text-ink">
+                    {strongest.name} · {strongest.developmentProfile.score} pts
+                  </p>
                   <ul className="mt-2 space-y-0.5 text-ink">
                     {strongest.developmentProfile.factors.map((factor) => (
                       <li key={factor.key}>
-                        {factorSign(factor.direction)} {factor.label}
+                        {formatFactorPoints(factor.points)} · {factor.label}
                       </li>
                     ))}
                   </ul>
@@ -611,12 +641,6 @@ function milestoneLabel(project: MapProject): string {
     return "No connection case";
   }
   return project.connectionCase.nextMilestone?.trim() || "—";
-}
-
-function factorSign(direction: "positive" | "negative" | "neutral"): string {
-  if (direction === "positive") return "+";
-  if (direction === "negative") return "−";
-  return "·";
 }
 
 function LegendDot({ color, label }: { color: string; label: string }) {

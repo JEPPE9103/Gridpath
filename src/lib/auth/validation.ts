@@ -89,10 +89,52 @@ export function parseProfileForm(formData: FormData): {
   return { fullName, jobTitle };
 }
 
+export type PasswordResetFieldErrors = Partial<
+  Record<"email" | "password" | "confirmPassword", string>
+>;
+
+export function parseForgotPasswordForm(formData: FormData): {
+  email: string;
+  fieldErrors: PasswordResetFieldErrors;
+} {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const fieldErrors: PasswordResetFieldErrors = {};
+
+  if (!email || !EMAIL_PATTERN.test(email)) {
+    fieldErrors.email = "Enter a valid work email.";
+  }
+
+  return { email, fieldErrors };
+}
+
+export function parseResetPasswordForm(formData: FormData): {
+  password: string;
+  fieldErrors: PasswordResetFieldErrors;
+  valid: boolean;
+} {
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const fieldErrors: PasswordResetFieldErrors = {};
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    fieldErrors.password = `Use at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+
+  if (password !== confirmPassword) {
+    fieldErrors.confirmPassword = "Passwords do not match.";
+  }
+
+  return {
+    password,
+    fieldErrors,
+    valid: Object.keys(fieldErrors).length === 0,
+  };
+}
+
 export function publicAuthError(
   message: string | undefined,
   fallback: string,
-  kind: "signup" | "workspace" | "generic" = "generic",
+  kind: "signup" | "workspace" | "password_reset" | "generic" = "generic",
 ): string {
   const text = (message ?? "").toLowerCase();
   if (
@@ -101,9 +143,27 @@ export function publicAuthError(
     text.includes("over_email") ||
     text.includes("email rate")
   ) {
-    return kind === "signup"
-      ? "Too many signup attempts. Please wait before trying again."
-      : "Too many attempts. Please wait before trying again.";
+    if (kind === "signup") {
+      return "Too many signup attempts. Please wait before trying again.";
+    }
+    if (kind === "password_reset") {
+      return "Too many reset attempts. Please wait before trying again.";
+    }
+    return "Too many attempts. Please wait before trying again.";
+  }
+  if (kind === "password_reset") {
+    if (
+      text.includes("invalid") &&
+      (text.includes("email") || text.includes("user"))
+    ) {
+      return "Enter a valid work email.";
+    }
+    if (text.includes("expired") || text.includes("otp")) {
+      return "This reset link has expired. Request a new one.";
+    }
+    if (text.includes("session") || text.includes("jwt")) {
+      return "This reset link is invalid or has expired.";
+    }
   }
   if (kind === "signup") {
     if (

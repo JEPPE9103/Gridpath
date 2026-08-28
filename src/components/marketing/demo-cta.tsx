@@ -3,38 +3,16 @@
 import { CtaLink } from "@/components/marketing/cta-link";
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
-import { Button } from "@/components/ui/button";
+import { authInputClass, authSubmitClass } from "@/components/auth/auth-card";
+import { submitDemoRequestAction, type DemoRequestState } from "@/lib/marketing/demo-actions";
 import { cn } from "@/lib/cn";
-import {
-  DEMO_ROLES,
-  submitDemoRequest,
-  validateDemoRequest,
-  type DemoRequest,
-} from "@/lib/marketing/demo-request";
-import { useState, type FormEvent } from "react";
+import { useActionState } from "react";
 
-const EMPTY: DemoRequest = { name: "", company: "", email: "", role: "" };
+const INITIAL: DemoRequestState = {};
 
 export function DemoCTA() {
-  const [values, setValues] = useState<DemoRequest>(EMPTY);
-  const [errors, setErrors] = useState<Partial<Record<keyof DemoRequest, string>>>({});
-  const [pending, setPending] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    const nextErrors = validateDemoRequest(values);
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
-
-    setPending(true);
-    try {
-      await submitDemoRequest(values);
-      setSuccess(true);
-    } finally {
-      setPending(false);
-    }
-  }
+  const [state, formAction, pending] = useActionState(submitDemoRequestAction, INITIAL);
+  const values = state.values;
 
   return (
     <MarketingSection id="demo">
@@ -62,69 +40,70 @@ export function DemoCTA() {
             id="demo-form"
             className="scroll-mt-28 rounded-md border border-line bg-surface p-6 sm:p-8"
           >
-            {success ? (
+            {state.ok ? (
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal">
                   Request received
                 </p>
                 <h3 className="mt-3 text-2xl font-semibold tracking-tight">
-                  Thanks — demo request received.
+                  Thanks — we&apos;ll be in touch.
                 </h3>
                 <p className="mt-3 text-sm leading-6 text-muted">
-                  This form does not send to a CRM yet. Your details stayed in this browser session.
-                  Create an account if you want to explore the workspace yourself.
+                  Your demo request was saved. The NOXHEIM team will follow up at the email you
+                  provided.
                 </p>
                 <CtaLink href="/signup" className="mt-6">
                   Get started
                 </CtaLink>
               </div>
             ) : (
-              <form onSubmit={onSubmit} noValidate className="space-y-4">
+              <form action={formAction} noValidate className="space-y-4">
                 <Field
                   label="Name"
-                  error={errors.name}
-                  value={values.name}
-                  onChange={(value) => setValues((current) => ({ ...current, name: value }))}
+                  name="name"
+                  error={state.fieldErrors?.name}
+                  defaultValue={values?.name}
                 />
                 <Field
                   label="Company"
-                  error={errors.company}
-                  value={values.company}
-                  onChange={(value) => setValues((current) => ({ ...current, company: value }))}
+                  name="company"
+                  error={state.fieldErrors?.company}
+                  defaultValue={values?.company}
                 />
                 <Field
                   label="Work email"
+                  name="email"
                   type="email"
-                  error={errors.email}
-                  value={values.email}
-                  onChange={(value) => setValues((current) => ({ ...current, email: value }))}
+                  error={state.fieldErrors?.email}
+                  defaultValue={values?.email}
                 />
                 <label className="block text-sm">
-                  <span className="mb-1.5 block text-xs font-medium text-muted">Role</span>
-                  <select
-                    value={values.role}
-                    onChange={(event) =>
-                      setValues((current) => ({ ...current, role: event.target.value }))
-                    }
+                  <span className="mb-1.5 block text-xs font-medium text-muted">
+                    Message (optional)
+                  </span>
+                  <textarea
+                    name="message"
+                    rows={3}
+                    defaultValue={values?.message}
                     className={cn(
-                      "h-10 w-full rounded-md border bg-canvas px-3",
-                      errors.role ? "border-critical" : "border-line",
+                      "w-full rounded-md border bg-canvas px-3 py-2",
+                      state.fieldErrors?.message ? "border-critical" : "border-line",
                     )}
-                  >
-                    <option value="">Select role</option>
-                    {DEMO_ROLES.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.role ? (
-                    <span className="mt-1 block text-xs text-critical">{errors.role}</span>
+                  />
+                  {state.fieldErrors?.message ? (
+                    <span className="mt-1 block text-xs text-critical">
+                      {state.fieldErrors.message}
+                    </span>
                   ) : null}
                 </label>
-                <Button type="submit" disabled={pending} className="h-10 w-full">
+                {state.error ? (
+                  <p className="text-sm text-critical" role="alert">
+                    {state.error}
+                  </p>
+                ) : null}
+                <button type="submit" disabled={pending} className={authSubmitClass}>
                   {pending ? "Sending…" : "Request demo"}
-                </Button>
+                </button>
               </form>
             )}
           </div>
@@ -136,28 +115,26 @@ export function DemoCTA() {
 
 function Field({
   label,
-  value,
-  onChange,
+  name,
   error,
+  defaultValue,
   type = "text",
 }: {
   label: string;
-  value: string;
-  onChange: (value: string) => void;
+  name: string;
   error?: string;
+  defaultValue?: string;
   type?: string;
 }) {
   return (
     <label className="block text-sm">
       <span className="mb-1.5 block text-xs font-medium text-muted">{label}</span>
       <input
+        name={name}
         type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={cn(
-          "h-10 w-full rounded-md border bg-canvas px-3",
-          error ? "border-critical" : "border-line",
-        )}
+        required={name !== "message"}
+        defaultValue={defaultValue}
+        className={cn(authInputClass, "mt-0")}
       />
       {error ? <span className="mt-1 block text-xs text-critical">{error}</span> : null}
     </label>

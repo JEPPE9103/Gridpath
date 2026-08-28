@@ -110,6 +110,13 @@ export function rankingExplanation(): string {
   return "Portfolio comparison ranked from team outlook, team confidence, application readiness, connection process state and open attention items. Development triage only — not an official grid score, capacity score, AI site score or feasibility assessment.";
 }
 
+export function formatFactorPoints(points: number): string {
+  if (points > 0) {
+    return `+${points}`;
+  }
+  return String(points);
+}
+
 function outlookFactor(outlook: Outlook): DevelopmentProfileFactor {
   switch (outlook) {
     case "Favourable":

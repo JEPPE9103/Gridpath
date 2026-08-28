@@ -13,8 +13,8 @@ export default function PrivacyPage() {
       <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">Privacy</h1>
       <div className="mt-8 max-w-2xl space-y-4 text-base leading-7 text-muted">
         <p>
-          This website is an early product surface. The demo request form is validated in the
-          browser and is not connected to a server, CRM or mailing list in this MVP.
+          Demo requests submitted on this website are stored securely so the NOXHEIM team can follow
+          up. We do not sell contact details to third parties.
         </p>
         <p>
           The product demo stores a small amount of workspace state in your browser (for example

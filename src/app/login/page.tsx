@@ -7,7 +7,12 @@ import { redirect } from "next/navigation";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default async function LoginPage() {
+type LoginPageProps = {
+  searchParams: Promise<{ reset?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -19,6 +24,11 @@ export default async function LoginPage() {
 
   return (
     <AuthCard title="Sign in">
+      {params.reset === "success" ? (
+        <p className="mt-3 text-sm text-muted" role="status">
+          Your password was updated. Sign in with your new password.
+        </p>
+      ) : null}
       <LoginForm />
     </AuthCard>
   );

@@ -25,6 +25,10 @@ function isAuthEntryPath(pathname: string): boolean {
   return pathname === "/login" || pathname === "/signup";
 }
 
+function isAuthCallbackPath(pathname: string): boolean {
+  return pathname === "/auth/callback";
+}
+
 async function userHasOrganization(
   supabase: SupabaseClient,
   userId: string,
@@ -100,7 +104,18 @@ export async function updateSession(request: NextRequest) {
     return applyCookies(supabaseResponse, NextResponse.redirect(loginUrl));
   }
 
+  if (isAuthCallbackPath(pathname)) {
+    return supabaseResponse;
+  }
+
   if (user && isAuthEntryPath(pathname)) {
+    const nextUrl = request.nextUrl.clone();
+    nextUrl.pathname = hasOrganization ? "/portfolio" : "/onboarding";
+    nextUrl.search = "";
+    return applyCookies(supabaseResponse, NextResponse.redirect(nextUrl));
+  }
+
+  if (user && pathname === "/forgot-password") {
     const nextUrl = request.nextUrl.clone();
     nextUrl.pathname = hasOrganization ? "/portfolio" : "/onboarding";
     nextUrl.search = "";

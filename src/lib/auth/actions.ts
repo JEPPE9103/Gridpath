@@ -1,8 +1,11 @@
 "use server";
 
+import { authCallbackUrl } from "@/lib/auth/redirect";
 import { getPostAuthPath } from "@/lib/auth/paths";
 import {
+  parseForgotPasswordForm,
   parseProfileForm,
+  parseResetPasswordForm,
   parseSignupForm,
   parseWorkspaceName,
   publicAuthError,
@@ -13,6 +16,19 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 const AUTH_ERROR = "Email or password is incorrect.";
+
+export type ForgotPasswordState = {
+  error?: string;
+  fieldErrors?: ReturnType<typeof parseForgotPasswordForm>["fieldErrors"];
+  email?: string;
+  sent?: boolean;
+};
+
+export type ResetPasswordState = {
+  error?: string;
+  fieldErrors?: ReturnType<typeof parseResetPasswordForm>["fieldErrors"];
+  success?: boolean;
+};
 
 export type SignupState = {
   error?: string;
@@ -59,6 +75,72 @@ export async function signIn(
 
   revalidatePath("/", "layout");
   redirect(await getPostAuthPath());
+}
+
+export async function requestPasswordReset(
+  _previous: ForgotPasswordState,
+  formData: FormData,
+): Promise<ForgotPasswordState> {
+  const { email, fieldErrors } = parseForgotPasswordForm(formData);
+  if (Object.keys(fieldErrors).length > 0) {
+    return { fieldErrors, email };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: authCallbackUrl("/reset-password"),
+  });
+
+  if (error) {
+    console.error("requestPasswordReset failed", error.message);
+    return {
+      error: publicAuthError(
+        error.message,
+        "Could not send a reset email. Try again.",
+        "password_reset",
+      ),
+      email,
+    };
+  }
+
+  return { sent: true, email };
+}
+
+export async function updatePasswordAfterRecovery(
+  _previous: ResetPasswordState,
+  formData: FormData,
+): Promise<ResetPasswordState> {
+  const { password, fieldErrors, valid } = parseResetPasswordForm(formData);
+  if (!valid) {
+    return { fieldErrors };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      error: "This reset link is invalid or has expired. Request a new reset email.",
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    console.error("updatePasswordAfterRecovery failed", error.message);
+    return {
+      error: publicAuthError(
+        error.message,
+        "Could not update your password. Try again.",
+        "password_reset",
+      ),
+    };
+  }
+
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
+  redirect("/login?reset=success");
 }
 
 export async function signUp(

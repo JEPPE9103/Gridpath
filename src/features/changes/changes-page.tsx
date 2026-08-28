@@ -170,19 +170,40 @@ function LoadedChangesPage({
       />
       <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         {sourceBaselines.length > 0 ? (
-          <div className="flex flex-wrap gap-3 text-xs text-muted">
-            {sourceBaselines.map((baseline) => (
-              <p key={baseline.slug}>
-                <span className="font-medium text-ink">{baseline.name}</span>
-                {baseline.classification === "official" && baseline.baselineEstablished
-                  ? " · Baseline established"
-                  : null}
-                {baseline.lastRetrievedAt
-                  ? ` · Last retrieved ${baseline.lastRetrievedAtLabel}`
-                  : null}
-              </p>
-            ))}
-          </div>
+          <section className="rounded-md border border-line bg-canvas px-4 py-3 text-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+              Official source baseline
+            </p>
+            <div className="mt-2 space-y-2">
+              {sourceBaselines.map((baseline) => (
+                <dl key={baseline.slug} className="grid gap-1 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs text-muted">Source</dt>
+                    <dd className="font-medium text-ink">{baseline.name}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted">Baseline established</dt>
+                    <dd className="font-medium text-ink">
+                      {baseline.classification === "official" && baseline.baselineEstablished
+                        ? baseline.lastRetrievedAtLabel ?? "Yes"
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted">Last retrieved</dt>
+                    <dd className="font-medium text-ink">
+                      {baseline.lastRetrievedAtLabel ?? "—"}
+                    </dd>
+                  </div>
+                </dl>
+              ))}
+            </div>
+            <p className="mt-3 text-xs leading-5 text-muted">
+              Future official source snapshots are compared against this baseline. Relevant changes
+              are matched to portfolio projects when detected. Official source data is refreshed by
+              NOXHEIM operations during the design partner phase.
+            </p>
+          </section>
         ) : null}
 
         <div className="flex flex-wrap gap-2">

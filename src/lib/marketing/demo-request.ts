@@ -2,17 +2,8 @@ export interface DemoRequest {
   name: string;
   company: string;
   email: string;
-  role: string;
+  message: string;
 }
-
-export const DEMO_ROLES = [
-  "Portfolio Manager",
-  "Development Manager",
-  "Grid Engineer",
-  "Consultant",
-  "Founder / Executive",
-  "Other",
-] as const;
 
 export function validateDemoRequest(
   input: DemoRequest,
@@ -21,7 +12,6 @@ export function validateDemoRequest(
 
   if (!input.name.trim()) errors.name = "Enter your name.";
   if (!input.company.trim()) errors.company = "Enter your company.";
-  if (!input.role.trim()) errors.role = "Select a role.";
 
   const email = input.email.trim();
   if (!email) {
@@ -30,11 +20,9 @@ export function validateDemoRequest(
     errors.email = "Enter a valid email address.";
   }
 
-  return errors;
-}
+  if (input.message.length > 2000) {
+    errors.message = "Message is too long.";
+  }
 
-/** Replace this with a CRM or API call. Currently a client-side placeholder. */
-export async function submitDemoRequest(request: DemoRequest): Promise<void> {
-  void request;
-  await new Promise((resolve) => setTimeout(resolve, 400));
+  return errors;
 }

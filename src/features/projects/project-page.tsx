@@ -12,6 +12,7 @@ import { Button, buttonClassName } from "@/components/ui/button";
 import { Disclaimer, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { OfficialNetworkDevelopmentPlanSection } from "@/features/projects/network-development-plan-section";
+import { OfficialDataFreshnessStrip } from "@/features/projects/official-data-freshness";
 import { DeleteProjectButton } from "@/features/projects/delete-project-button";
 import { cn } from "@/lib/cn";
 import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
@@ -337,6 +338,10 @@ function GridTab({ project }: { project: ProjectDetailViewModel }) {
 
   return (
     <div className="space-y-4">
+      <OfficialDataFreshnessStrip
+        localNetwork={context}
+        nup={project.officialNetworkDevelopmentPlanContext}
+      />
       <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4">
         <section className="rounded-md border border-line bg-surface p-5">
