@@ -22,8 +22,8 @@ export function ProductPreview() {
         <div className="min-w-0 p-3 md:p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p className="text-lg font-semibold leading-none">Sample BESS</p>
-              <p className="mt-1 text-[11px] text-muted">Battery Storage · 20 / 20 MW · sample</p>
+              <p className="text-lg font-semibold leading-none">Sample Stockholm North BESS</p>
+              <p className="mt-1 text-[11px] text-muted">Battery Storage · 40 / 40 MW · sample</p>
             </div>
             <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
               Sample

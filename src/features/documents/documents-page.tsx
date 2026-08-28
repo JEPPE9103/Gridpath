@@ -155,7 +155,7 @@ function LoadedDocumentsPage({
     <>
       <PageHeader
         title="Documents"
-        subtitle={`${documents.length} document records across ${projects.length} projects`}
+        subtitle={`${documents.length} metadata records across ${projects.length} projects`}
         actions={
           <>
             <BellButton />

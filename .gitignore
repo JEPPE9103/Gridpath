@@ -42,3 +42,6 @@ next-env.d.ts
 
 # leftover create-next-app scaffold
 /noxheim-app
+
+# local operator scratch SQL
+tmp-*.sql

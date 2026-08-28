@@ -44,7 +44,7 @@ export function MapPage({ result }: { result: MapProjectsResult }) {
   if (result.kind === "no_organization") {
     return (
       <>
-        <PageHeader title="Map & Compare" subtitle="Portfolio sites" />
+        <PageHeader title="Map & Compare" subtitle="Portfolio map" />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
             title="No workspace yet"
@@ -58,7 +58,7 @@ export function MapPage({ result }: { result: MapProjectsResult }) {
   if (result.kind === "error") {
     return (
       <>
-        <PageHeader title="Map & Compare" subtitle="Portfolio sites" />
+        <PageHeader title="Map & Compare" subtitle="Portfolio map" />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
             title="Could not load map"
@@ -72,7 +72,7 @@ export function MapPage({ result }: { result: MapProjectsResult }) {
   if (result.projects.length === 0) {
     return (
       <>
-        <PageHeader title="Map & Compare" subtitle="Portfolio sites" />
+        <PageHeader title="Map & Compare" subtitle="Portfolio map" />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
             title="No projects in this workspace"
@@ -108,7 +108,6 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
     () => filtered.filter((project) => !isPlottable(project)),
     [filtered],
   );
-  const geocodedCount = useMemo(() => projects.filter(isPlottable).length, [projects]);
 
   const visibleSelectedSlug =
     selectedSlug && filtered.some((project) => project.slug === selectedSlug) ? selectedSlug : null;
@@ -123,7 +122,7 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
     <>
       <PageHeader
         title="Map & Compare"
-        subtitle={`${projects.length} portfolio sites · ${geocodedCount} mapped`}
+        subtitle="Portfolio map · your development projects across the portfolio"
         actions={
           <>
             <Button variant="secondary" onClick={() => setCompareOpen(true)} disabled={compared.length === 0}>

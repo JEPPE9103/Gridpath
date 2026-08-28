@@ -2,23 +2,11 @@
 
 import { outlookTone } from "@/lib/format";
 import type { Outlook } from "@/types";
-import { Map, Marker, type StyleSpecification } from "maplibre-gl";
+import { Map, Marker } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
-const STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    esri: {
-      type: "raster",
-      tiles: [
-        "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-      ],
-      tileSize: 256,
-      attribution: "Tiles © Esri",
-    },
-  },
-  layers: [{ id: "esri", type: "raster", source: "esri" }],
-};
+/** Light basemap without a vendor API-key watermark (CARTO raster tiles require a key). */
+const STYLE = "https://tiles.openfreemap.org/styles/positron";
 
 export function markerColor(outlook: Outlook): string {
   const tone = outlookTone(outlook);

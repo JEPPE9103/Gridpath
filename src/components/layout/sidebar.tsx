@@ -1,6 +1,7 @@
 "use client";
 
 import { CountBadge } from "@/components/ui/badges";
+import { DemoWorkspaceChip } from "@/components/layout/demo-workspace-banner";
 import { signOut } from "@/lib/auth/actions";
 import type { CurrentUserProfile } from "@/lib/auth/current-user";
 import { cn } from "@/lib/cn";
@@ -37,6 +38,7 @@ export function Sidebar({
   overlay = false,
   user,
   criticalAlertCount = 0,
+  isDemoWorkspace = false,
 }: {
   collapsed: boolean;
   onToggle: () => void;
@@ -44,6 +46,7 @@ export function Sidebar({
   overlay?: boolean;
   user: CurrentUserProfile | null;
   criticalAlertCount?: number;
+  isDemoWorkspace?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -60,6 +63,11 @@ export function Sidebar({
           <p className="mt-1 text-[11px] tracking-wide text-sidebar-muted">
             Grid Intelligence
           </p>
+          {isDemoWorkspace ? (
+            <div className="mt-2">
+              <DemoWorkspaceChip />
+            </div>
+          ) : null}
         </div>
         <button
           type="button"
@@ -70,6 +78,11 @@ export function Sidebar({
           {overlay ? <X size={16} /> : <PanelLeft size={16} />}
         </button>
       </div>
+      {collapsed && isDemoWorkspace ? (
+        <div className="px-2 pt-2">
+          <DemoWorkspaceChip collapsed />
+        </div>
+      ) : null}
 
       <p
         className={cn(

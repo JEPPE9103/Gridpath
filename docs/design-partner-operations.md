@@ -53,6 +53,33 @@ Safety rules enforced in `scripts/lib/ingest-target.mjs`:
 - Optional `SUPABASE_URL` must match that cloud host
 - Never logs credentials
 
+## Sales demo workspace reset
+
+Internal **NOXHEIM Demo Development** workspace only (`noxheim-demo-development` / fixed org id). Sample customer data. Does **not** write official grid tables, `external_changes`, or alerts.
+
+```bash
+npm run demo:reset
+```
+
+Equivalent:
+
+```bash
+$env:NOXHEIM_ALLOW_REMOTE_DEMO_SEED = "true"
+$env:NOXHEIM_REMOTE_PROJECT_REF = "krgzpgqmnzljwlwptmcn"
+node scripts/seed-sales-demo.mjs
+```
+
+Safety:
+
+- Remote off unless `NOXHEIM_ALLOW_REMOTE_DEMO_SEED=true`
+- Project ref must be `krgzpgqmnzljwlwptmcn`
+- Organization id + slug allowlist only
+- Prints the demo org/project IDs that will be affected, then resets **that org only**
+- Never `db reset`, never `supabase/seed.sql` on cloud
+
+Demo script: `docs/design-partner-demo.md`  
+Cheat sheet: `docs/noxheim-demo-cheat-sheet.md`
+
 ## Verify snapshot / completeness
 
 After NUP ingest, the script prints:

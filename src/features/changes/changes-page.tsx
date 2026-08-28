@@ -267,7 +267,7 @@ function LoadedChangesPage({
           officialFilterEmpty ? (
             <EmptyState
               title="No changes have been detected since the current official baseline was established."
-              description="Future source snapshots will be compared with this baseline and relevant portfolio changes will appear here."
+              description="The official baseline is in place. Later source snapshots are compared with the previous version, and relevant geographic changes are mapped to portfolio projects."
             />
           ) : changes.length === 0 ? (
             <EmptyState

@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { getCurrentUserProfile } from "@/lib/auth/current-user";
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { isSalesDemoOrganizationSlug } from "@/lib/demo/sales-demo";
 import { getOpenCriticalAlertCountForCurrentOrganization } from "@/lib/data/open-alerts";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -22,7 +23,11 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   const criticalAlertCount = await getOpenCriticalAlertCountForCurrentOrganization();
 
   return (
-    <AppShell user={user} criticalAlertCount={criticalAlertCount}>
+    <AppShell
+      user={user}
+      criticalAlertCount={criticalAlertCount}
+      isDemoWorkspace={isSalesDemoOrganizationSlug(organization.slug)}
+    >
       {children}
     </AppShell>
   );

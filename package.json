@@ -11,6 +11,7 @@
     "dev:ingest-ei-nup": "node scripts/ingest-ei-network-development-plans.mjs",
     "cloud:ingest-ei-network-areas": "node scripts/cloud-ingest-ei-network-areas.mjs",
     "cloud:ingest-ei-nup": "node scripts/cloud-ingest-ei-nup.mjs",
+    "demo:reset": "node scripts/cloud-seed-sales-demo.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

@@ -5,23 +5,11 @@ import { MarketingMap } from "@/components/marketing/marketing-map";
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 import { StageBadge } from "@/components/ui/badges";
-import { projectRepository } from "@/lib/repositories";
+import { SAMPLE_PORTFOLIO_PREVIEW_SITES } from "@/lib/demo/sample-portfolio-preview";
 import { CONNECTION_STAGES } from "@/types";
 import type { ReactNode } from "react";
 
-const projects = projectRepository.list();
-const mapProjects = projects.filter((project) =>
-  ["gavle-bess", "vasteras-storage", "falun-bess", "lulea-wind", "malmo-bess", "uppsala-wind-north"].includes(
-    project.id,
-  ),
-);
-const mapSites = mapProjects.map((project) => ({
-  id: project.id,
-  name: project.name,
-  latitude: project.latitude,
-  longitude: project.longitude,
-  outlook: project.outlook,
-}));
+const mapSites = SAMPLE_PORTFOLIO_PREVIEW_SITES;
 
 export function ProductPillars() {
   return (
@@ -55,10 +43,10 @@ function ScreenPillar() {
         <Reveal delay={80} fade>
           <AppFrame path="/map">
             <div className="grid bg-canvas md:grid-cols-[1fr_240px]">
-              <MarketingMap selectedId="gavle-bess" sites={mapSites} />
+              <MarketingMap selectedId="stockholm-north-bess" sites={mapSites} />
               <aside className="border-t border-line bg-surface p-4 md:border-t-0 md:border-l">
-                <p className="text-sm font-semibold">Sample BESS</p>
-                <p className="text-xs text-muted">Portfolio interface · not a capacity map</p>
+                <p className="text-sm font-semibold">Sample Stockholm North BESS</p>
+                <p className="text-xs text-muted">Portfolio map · not a capacity map</p>
                 <dl className="mt-3 space-y-1.5 text-xs">
                   <Row label="Official local network" value="Identified" />
                   <Row label="Network development plan" value="Matched" />

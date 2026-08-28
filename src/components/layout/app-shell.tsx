@@ -1,6 +1,7 @@
 "use client";
 
 import { Sidebar } from "@/components/layout/sidebar";
+import { DemoWorkspaceBanner } from "@/components/layout/demo-workspace-banner";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { ToastViewport } from "@/components/ui/toast-viewport";
 import type { CurrentUserProfile } from "@/lib/auth/current-user";
@@ -37,10 +38,12 @@ function ShellFrame({
   children,
   user,
   criticalAlertCount,
+  isDemoWorkspace,
 }: {
   children: ReactNode;
   user: CurrentUserProfile | null;
   criticalAlertCount: number;
+  isDemoWorkspace: boolean;
 }) {
   const pathname = usePathname();
   const mediaCollapsed = useSyncExternalStore(
@@ -106,6 +109,7 @@ function ShellFrame({
           overlay={mobileOpen}
           user={user}
           criticalAlertCount={criticalAlertCount}
+          isDemoWorkspace={isDemoWorkspace}
           onToggle={() => setManualCollapsed(!sidebarCollapsed)}
           onNavigate={() => setMobileNavPath(null)}
         />
@@ -126,6 +130,7 @@ function ShellFrame({
             {user?.initials ?? "?"}
           </span>
         </div>
+        {isDemoWorkspace ? <DemoWorkspaceBanner /> : null}
         {children}
       </div>
     </div>
@@ -136,15 +141,21 @@ export function AppShell({
   children,
   user = null,
   criticalAlertCount = 0,
+  isDemoWorkspace = false,
 }: {
   children: ReactNode;
   user?: CurrentUserProfile | null;
   criticalAlertCount?: number;
+  isDemoWorkspace?: boolean;
 }) {
   return (
     <ToastProvider>
       <WorkspaceProvider>
-        <ShellFrame user={user} criticalAlertCount={criticalAlertCount}>
+        <ShellFrame
+          user={user}
+          criticalAlertCount={criticalAlertCount}
+          isDemoWorkspace={isDemoWorkspace}
+        >
           {children}
         </ShellFrame>
         <ToastViewport />
