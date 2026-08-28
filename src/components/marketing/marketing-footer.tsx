@@ -7,15 +7,12 @@ export function MarketingFooter() {
         <div>
           <p className="text-[13px] font-semibold tracking-[0.18em]">NOXHEIM</p>
           <p className="mt-3 max-w-sm text-sm leading-6 text-muted">
-            Official Swedish grid context for energy development portfolios.
+            Grid Development Intelligence
           </p>
         </div>
         <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
           <Link href="/#product" className="text-muted hover:text-ink">
             Product
-          </Link>
-          <Link href="/#use-cases" className="text-muted hover:text-ink">
-            Use cases
           </Link>
           <Link href="/about" className="text-muted hover:text-ink">
             About
@@ -23,15 +20,20 @@ export function MarketingFooter() {
           <Link href="/privacy" className="text-muted hover:text-ink">
             Privacy
           </Link>
+          <Link href="/login" className="text-muted hover:text-ink">
+            Sign in
+          </Link>
+          <Link href="/signup" className="text-muted hover:text-ink">
+            Get started
+          </Link>
           <Link href="/#demo" className="text-muted hover:text-ink">
-            Contact
+            Book a demo
           </Link>
         </div>
       </div>
       <div className="border-t border-line">
-        <div className="mx-auto flex max-w-[1120px] flex-col gap-2 px-5 py-5 text-xs text-muted sm:px-8 md:flex-row md:items-center md:justify-between md:px-10">
-          <p>Indicative grid intelligence only. Formal grid operator assessment required.</p>
-          <p>© 2026 NOXHEIM</p>
+        <div className="mx-auto flex max-w-[1120px] px-5 py-5 text-xs text-muted sm:px-8 md:px-10">
+          <p>© 2026 Noxheim</p>
         </div>
       </div>
     </footer>

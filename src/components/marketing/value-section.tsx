@@ -1,12 +1,19 @@
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
-import { ArrowRight } from "lucide-react";
 
-const SOURCES = [
-  "Ei local-network areas",
-  "Ei network development plans",
-  "Connection cases",
-  "Project documents",
+const PROBLEMS = [
+  {
+    title: "Fragmented information",
+    copy: "Official grid and planning information is spread across multiple sources.",
+  },
+  {
+    title: "Disconnected workflows",
+    copy: "Connection cases, requirements and project decisions are often tracked separately.",
+  },
+  {
+    title: "Portfolio blind spots",
+    copy: "A published change only becomes actionable when you know which projects it affects.",
+  },
 ];
 
 export function ValueSection() {
@@ -15,39 +22,27 @@ export function ValueSection() {
       <Reveal>
         <Eyebrow>The problem</Eyebrow>
         <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight sm:text-[40px] sm:leading-[1.15]">
-          Official grid context should sit on the project — not in a spreadsheet.
+          Grid data is fragmented. Your development portfolio shouldn&apos;t be.
         </h2>
         <p className="mt-5 max-w-2xl text-base leading-7 text-muted">
-          Regulator datasets, connection processes and project files are usually separate. NOXHEIM
-          puts official Swedish grid context on each site, then keeps the connection workspace
-          beside it.
+          Network information lives across operators, regulators and public datasets. Connection
+          processes live in emails and spreadsheets. Requirements, project status and team decisions
+          often live somewhere else.
+        </p>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-ink">
+          Noxheim connects the information to the projects it affects.
         </p>
       </Reveal>
-
-      <Reveal delay={80}>
-        <div className="mt-12 grid items-center gap-4 lg:grid-cols-[1fr_auto_auto_auto_1fr]">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2">
-            {SOURCES.map((label) => (
-              <div
-                key={label}
-                className="rounded-md border border-line bg-surface px-3 py-4 text-center text-sm font-medium"
-              >
-                {label}
-              </div>
-            ))}
-          </div>
-          <ArrowRight className="mx-auto hidden text-muted lg:block" size={18} />
-          <div className="rounded-md bg-ink px-6 py-5 text-center text-white">
-            <p className="text-[11px] tracking-[0.16em]">NOXHEIM</p>
-            <p className="mt-1 text-sm text-white/70">Grid Intelligence</p>
-          </div>
-          <ArrowRight className="mx-auto hidden text-muted lg:block" size={18} />
-          <div className="rounded-md border border-teal/30 bg-teal-soft px-5 py-5 text-center">
-            <p className="text-sm font-semibold text-teal">One development portfolio</p>
-            <p className="mt-1 text-xs text-muted">Sites, official context, cases, documents</p>
-          </div>
-        </div>
-      </Reveal>
+      <div className="mt-12 grid gap-4 sm:grid-cols-3">
+        {PROBLEMS.map((item, index) => (
+          <Reveal key={item.title} delay={index * 60}>
+            <article className="h-full rounded-md border border-line bg-surface px-5 py-6">
+              <h3 className="text-base font-semibold">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted">{item.copy}</p>
+            </article>
+          </Reveal>
+        ))}
+      </div>
     </MarketingSection>
   );
 }

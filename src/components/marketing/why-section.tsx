@@ -3,20 +3,20 @@ import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 
 const ITEMS = [
   {
-    title: "Official context first",
-    copy: "See Ei local-network and NUP coverage before spending detailed engineering time.",
+    title: "Across operators",
+    copy: "Your development portfolio does not stop at one network boundary. Noxheim is designed around the developer's projects.",
   },
   {
-    title: "Process in one record",
-    copy: "Keep the operator case, documents and deadlines beside the grid context.",
+    title: "Context + workflow",
+    copy: "Official information becomes more useful when it sits beside the connection process and development decisions it affects.",
   },
   {
-    title: "Published changes, not invented impact",
-    copy: "Inspect what a source published, then which sites sit in that planning area.",
+    title: "Traceable intelligence",
+    copy: "Source, retrieval date and provenance stay attached to the information Noxheim presents.",
   },
   {
-    title: "Compare the portfolio",
-    copy: "Look across sites without treating forecast MW as available capacity.",
+    title: "Portfolio-first",
+    copy: "Noxheim is built to show what published information means for your projects — not simply display another dataset.",
   },
 ];
 
@@ -24,9 +24,9 @@ export function WhySection() {
   return (
     <MarketingSection id="why">
       <Reveal>
-        <Eyebrow>Why it matters</Eyebrow>
+        <Eyebrow>Why Noxheim</Eyebrow>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-[40px] sm:leading-[1.15]">
-          Spend engineering time on projects that deserve it.
+          Built for the developer&apos;s portfolio — not one network operator&apos;s map.
         </h2>
       </Reveal>
       <div className="mt-12 grid gap-4 sm:grid-cols-2">

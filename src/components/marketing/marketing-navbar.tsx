@@ -51,7 +51,7 @@ export function MarketingNavbar() {
               compact ? "hidden sm:block sm:h-0 sm:overflow-hidden sm:opacity-0" : "mt-0.5",
             )}
           >
-            Grid Intelligence
+            Grid Development Intelligence
           </p>
         </Link>
 
@@ -66,6 +66,9 @@ export function MarketingNavbar() {
         <div className="hidden items-center gap-3 lg:flex">
           <Link href="/login" className="text-sm text-muted hover:text-ink">
             Sign in
+          </Link>
+          <Link href="/#demo" className="text-sm text-muted hover:text-ink">
+            Book a demo
           </Link>
           <CtaLink href="/signup">Get started</CtaLink>
         </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { CtaLink } from "@/components/marketing/cta-link";
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 import { authInputClass, authSubmitClass } from "@/components/auth/auth-card";
@@ -18,22 +17,14 @@ export function DemoCTA() {
     <MarketingSection id="demo">
       <div className="grid gap-12 lg:grid-cols-[1fr_0.9fr]">
         <Reveal>
-          <Eyebrow>Get in touch</Eyebrow>
+          <Eyebrow>Book a demo</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[42px] sm:leading-[1.12]">
-            See official grid context on your portfolio.
+            See Noxheim on a real development workflow.
           </h2>
           <p className="mt-5 max-w-md text-base leading-7 text-muted">
-            Bring official Swedish grid context, connection cases and published plan changes into
-            one workspace.
+            Tell us a little about your development portfolio and we&apos;ll show how Noxheim can
+            bring grid context, connection workflow and portfolio monitoring together.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <CtaLink href="#demo-form" className="w-full px-5 sm:w-auto">
-              Book a demo
-            </CtaLink>
-            <CtaLink href="/signup" variant="secondary" className="w-full px-5 sm:w-auto">
-              Get started
-            </CtaLink>
-          </div>
         </Reveal>
         <Reveal delay={80}>
           <div
@@ -46,15 +37,8 @@ export function DemoCTA() {
                   Request received
                 </p>
                 <h3 className="mt-3 text-2xl font-semibold tracking-tight">
-                  Thanks — we&apos;ll be in touch.
+                  Thanks — your request has been received. We&apos;ll be in touch.
                 </h3>
-                <p className="mt-3 text-sm leading-6 text-muted">
-                  Your demo request was saved. The NOXHEIM team will follow up at the email you
-                  provided.
-                </p>
-                <CtaLink href="/signup" className="mt-6">
-                  Get started
-                </CtaLink>
               </div>
             ) : (
               <form action={formAction} noValidate className="space-y-4">
@@ -102,7 +86,7 @@ export function DemoCTA() {
                   </p>
                 ) : null}
                 <button type="submit" disabled={pending} className={authSubmitClass}>
-                  {pending ? "Sending…" : "Request demo"}
+                  {pending ? "Sending…" : "Request a demo"}
                 </button>
               </form>
             )}

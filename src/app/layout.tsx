@@ -22,7 +22,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 const siteUrl = getPublicSiteUrl();
 const siteDescription =
-  "Screen sites, manage grid connection processes and monitor published grid changes across your energy development portfolio.";
+  "Screen, manage and monitor grid-connected development projects with official grid context and your development workflow in one place.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

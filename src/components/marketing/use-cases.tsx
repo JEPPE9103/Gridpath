@@ -8,33 +8,21 @@ import { useState } from "react";
 const CASES = [
   {
     id: "bess",
-    label: "Battery Storage",
-    title: "Keep a BESS pipeline comparable.",
-    copy: "Hold each site’s official NUP and local-network context next to the connection case, so a fast-moving storage portfolio stays reviewable week to week.",
+    label: "BESS portfolio screening",
+    title: "BESS portfolio screening",
+    copy: "Bring official grid-development context into every prospective battery project and compare where the team should focus next.",
   },
   {
-    id: "renewables",
-    label: "Renewables",
-    title: "Place solar and wind against published planning areas.",
-    copy: "See which Ei planning area covers a generation site, including published forecast need and operator assessments — then track the long-lead connection case.",
+    id: "connection",
+    label: "Grid connection management",
+    title: "Grid connection management",
+    copy: "Keep connection stages, requirements, references and project status together instead of across spreadsheets and inboxes.",
   },
   {
-    id: "ev",
-    label: "EV Infrastructure",
-    title: "Treat charging capacity as a connection programme.",
-    copy: "Follow load-driven import cases, documents and study timelines across hubs without informal spreadsheet tracking.",
-  },
-  {
-    id: "industrial",
-    label: "Industrial Electrification",
-    title: "Connect demand projects without losing the paper trail.",
-    copy: "Keep contracted milestones, design files and operator correspondence on one record as load steps through study, offer and agreement.",
-  },
-  {
-    id: "consultants",
-    label: "Grid & Engineering Consultants",
-    title: "Give clients a shared picture of published grid context.",
-    copy: "Separate official regulator datasets from workspace assumptions, and show which published changes actually cover the sites you are advising on.",
+    id: "changes",
+    label: "Portfolio change review",
+    title: "Portfolio change review",
+    copy: "When published network information changes, understand which development projects may be affected.",
   },
 ];
 
@@ -47,7 +35,7 @@ export function UseCases() {
       <Reveal>
         <Eyebrow>Use cases</Eyebrow>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-[40px] sm:leading-[1.15]">
-          Built for grid-connected development.
+          Built for BESS and renewable development teams.
         </h2>
       </Reveal>
       <Reveal delay={70}>

@@ -37,3 +37,22 @@ export function Eyebrow({ children }: { children: ReactNode }) {
     </p>
   );
 }
+
+export function CapabilityList({
+  items,
+}: {
+  items: Array<{ title: string; copy: string }>;
+}) {
+  return (
+    <div className="mt-8 space-y-5">
+      {items.map((item) => (
+        <div key={item.title}>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal">
+            {item.title}
+          </p>
+          <p className="mt-1 max-w-md text-sm leading-6 text-muted">{item.copy}</p>
+        </div>
+      ))}
+    </div>
+  );
+}

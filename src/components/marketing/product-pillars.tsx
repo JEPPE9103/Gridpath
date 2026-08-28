@@ -1,8 +1,7 @@
 import { AppFrame } from "@/components/marketing/app-frame";
-import { CtaLink } from "@/components/marketing/cta-link";
 import { MarketingMap } from "@/components/marketing/marketing-map";
 import { Reveal } from "@/components/marketing/reveal";
-import { Eyebrow, MarketingSection } from "@/components/marketing/section";
+import { CapabilityList, Eyebrow, MarketingSection } from "@/components/marketing/section";
 import { StageBadge } from "@/components/ui/badges";
 import { projectRepository } from "@/lib/repositories";
 import { CONNECTION_STAGES } from "@/types";
@@ -34,38 +33,52 @@ export function ProductPillars() {
 
 function ScreenPillar() {
   return (
-    <MarketingSection className="bg-surface">
-      <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+    <MarketingSection>
+      <div className="grid items-start gap-10 lg:grid-cols-[0.95fr_1.05fr]">
         <Reveal>
           <Eyebrow>Screen</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Understand and compare development projects.
+            Screen projects with context, not guesses.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Match a project coordinate to official Ei local-network concessions and network
-            development-plan areas. Forecast MW is published need for transfer capacity — not
-            available connection capacity.
+            Add a project location and bring relevant official grid context directly into the
+            development record. Understand network geography, published network-development
+            information and your own project status before deciding where to focus further
+            diligence.
           </p>
-          <p className="mt-4 text-sm text-muted">
-            Sample workspace below — illustrative only, not live customer or official events.
+          <CapabilityList
+            items={[
+              {
+                title: "Official network context",
+                copy: "Identify the official local-network geography relevant to the project location.",
+              },
+              {
+                title: "Network development plans",
+                copy: "Bring published planning information and forecast need for transfer capacity into the project context.",
+              },
+              {
+                title: "Portfolio triage",
+                copy: "Compare projects using your team's development outlook, workflow readiness and connection progress.",
+              },
+            ]}
+          />
+          <p className="mt-6 max-w-md text-sm leading-6 text-muted">
+            Noxheim does not represent available grid capacity or guarantee connection feasibility.
           </p>
         </Reveal>
         <Reveal delay={80} fade>
           <AppFrame path="/map">
-            <div className="grid bg-canvas md:grid-cols-[1fr_240px]">
+            <div className="grid bg-canvas md:grid-cols-[1fr_220px]">
               <MarketingMap selectedId="gavle-bess" sites={mapSites} />
               <aside className="border-t border-line bg-surface p-4 md:border-t-0 md:border-l">
-                <p className="text-sm font-semibold">Gävle BESS</p>
-                <p className="text-xs text-muted">Sample project · Gävle</p>
+                <p className="text-sm font-semibold">Sample BESS</p>
+                <p className="text-xs text-muted">Portfolio interface · not a capacity map</p>
                 <dl className="mt-3 space-y-1.5 text-xs">
                   <Row label="Official local network" value="Identified" />
                   <Row label="Network development plan" value="Matched" />
-                  <Row label="Forecast need 2028" value="Published" />
+                  <Row label="Forecast need" value="Published" />
                   <Row label="Team outlook" value="Customer-entered" />
                 </dl>
-                <p className="mt-4 text-[11px] leading-4 text-muted">
-                  Official source · Energimarknadsinspektionen. Not a capacity guarantee.
-                </p>
               </aside>
             </div>
           </AppFrame>
@@ -78,17 +91,15 @@ function ScreenPillar() {
 function ManagePillar() {
   const currentIndex = CONNECTION_STAGES.indexOf("Grid Study");
   return (
-    <MarketingSection>
-      <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+    <MarketingSection className="bg-surface">
+      <div className="grid items-start gap-10 lg:grid-cols-[1.05fr_0.95fr]">
         <Reveal>
           <AppFrame path="/projects/sample-bess">
             <div className="bg-canvas p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-semibold">Sample BESS</p>
-                  <p className="text-[11px] text-muted">
-                    Battery Storage · Connection process · customer-entered
-                  </p>
+                  <p className="text-[11px] text-muted">Connection workflow · sample workspace</p>
                 </div>
                 <StageBadge stage="Grid Study" />
               </div>
@@ -114,15 +125,13 @@ function ManagePillar() {
                     Requirements
                   </p>
                   <p className="mt-2 text-sm font-semibold">7 of 10 required items complete</p>
-                  <p className="mt-1 text-[11px] text-muted">
-                    Workflow readiness — not a feasibility assessment.
-                  </p>
+                  <p className="mt-1 text-[11px] text-muted">Workflow readiness — not feasibility.</p>
                 </div>
                 <div className="rounded-md border border-line bg-surface p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                     Connection case
                   </p>
-                  <p className="mt-2 text-xs text-muted">Customer-entered case reference</p>
+                  <p className="mt-2 text-xs text-muted">Customer-entered operator case</p>
                   <p className="mt-1 text-xs text-muted">Next: study workshop</p>
                 </div>
               </div>
@@ -132,17 +141,33 @@ function ManagePillar() {
         <Reveal delay={80}>
           <Eyebrow>Manage</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Track grid-connection process and project readiness.
+            Run the development workflow in one place.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Keep enquiries, studies, offers, deadlines and required checklist items next to the
-            official grid record — without treating readiness as connection viability.
+            Move beyond spreadsheets and disconnected project trackers. Keep each project&apos;s
+            grid-connection process, requirements and development status beside the intelligence
+            that matters to it.
           </p>
-          <div className="mt-6">
-            <CtaLink href="/signup" variant="secondary">
-              Get started
-            </CtaLink>
-          </div>
+          <CapabilityList
+            items={[
+              {
+                title: "Portfolio",
+                copy: "Track projects, MW, technology, target COD and development stage across your portfolio.",
+              },
+              {
+                title: "Grid connection workflow",
+                copy: "Manage connection cases, operators, references, status and key project milestones.",
+              },
+              {
+                title: "Requirements & readiness",
+                copy: "Track required development actions and see workflow completeness across each project.",
+              },
+              {
+                title: "Project record",
+                copy: "Keep project context, document metadata and activity together in one development workspace.",
+              },
+            ]}
+          />
         </Reveal>
       </div>
     </MarketingSection>
@@ -151,23 +176,37 @@ function ManagePillar() {
 
 function MonitorPillar() {
   return (
-    <MarketingSection className="bg-surface">
-      <div className="grid items-start gap-10 lg:grid-cols-[0.85fr_1.15fr]">
+    <MarketingSection>
+      <div className="grid items-start gap-10 lg:grid-cols-[0.95fr_1.05fr]">
         <Reveal>
           <Eyebrow>Monitor</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Review relevant changes in published grid and planning information.
+            Know when published information changes around your projects.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            When an official dataset is refreshed, NOXHEIM can show added, removed and changed
-            records and which portfolio projects intersect the affected area. Pilot refresh is
-            supervised — not continuous live monitoring.
+            Noxheim stores official source snapshots over time, identifies relevant changes and
+            connects them to the projects they may affect.
           </p>
-          <div className="mt-6">
-            <CtaLink href="/#demo" variant="secondary">
-              Book a demo
-            </CtaLink>
-          </div>
+          <CapabilityList
+            items={[
+              {
+                title: "Source history",
+                copy: "Maintain traceable snapshots of published grid and planning information.",
+              },
+              {
+                title: "Change detection",
+                copy: "Compare new source versions against the previous baseline.",
+              },
+              {
+                title: "Portfolio impact",
+                copy: "See which projects intersect the geography affected by a published change.",
+              },
+            ]}
+          />
+          <p className="mt-6 max-w-md text-sm leading-6 text-muted">
+            During the design-partner phase, official sources are refreshed by Noxheim operations.
+            Source retrieval dates are shown in the product.
+          </p>
         </Reveal>
         <Reveal delay={80}>
           <AppFrame path="/changes">
@@ -178,16 +217,16 @@ function MonitorPillar() {
               </h3>
               <p className="mt-2 text-sm leading-6 text-muted">
                 Forecast need for transfer capacity updated for a planning area. This is published
-                need — not available connection capacity or headroom.
+                need — not available connection capacity.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-teal px-2.5 py-1 text-[11px] font-semibold text-white">
-                  1 portfolio project intersects the affected planning area
+                  1 project intersects the affected planning area
                 </span>
                 <span className="rounded-full bg-surface px-2.5 py-1 text-[12px]">Sample BESS</span>
               </div>
               <p className="mt-5 text-[11px] leading-4 text-muted">
-                Sample illustration only. Not a live official event or customer alert.
+                Sample illustration. Not a live official event.
               </p>
             </div>
           </AppFrame>
