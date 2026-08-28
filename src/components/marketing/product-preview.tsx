@@ -1,12 +1,5 @@
 import { AppFrame } from "@/components/marketing/app-frame";
-import { StageBadge } from "@/components/ui/badges";
 import type { ReactNode } from "react";
-
-const PORTFOLIO = [
-  { name: "Sample BESS", detail: "20 MW · Grid Study", active: true },
-  { name: "Sample Wind North", detail: "40 MW · Enquiry", active: false },
-  { name: "Sample Storage", detail: "10 MW · Completeness", active: false },
-];
 
 export function ProductPreview() {
   return (
@@ -32,46 +25,26 @@ export function ProductPreview() {
               <p className="text-lg font-semibold leading-none">Sample BESS</p>
               <p className="mt-1 text-[11px] text-muted">Battery Storage · 20 / 20 MW · sample</p>
             </div>
-            <StageBadge stage="Grid Study" />
+            <span className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+              Sample
+            </span>
           </div>
-          <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
-            <div className="rounded-md border border-line bg-surface p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-                Portfolio
-              </p>
-              <ul className="mt-2 space-y-2">
-                {PORTFOLIO.map((item) => (
-                  <li
-                    key={item.name}
-                    className={
-                      item.active
-                        ? "rounded-md border border-teal bg-teal-soft px-2.5 py-2"
-                        : "rounded-md border border-line bg-canvas px-2.5 py-2"
-                    }
-                  >
-                    <p className="text-xs font-medium">{item.name}</p>
-                    <p className="mt-0.5 text-[11px] text-muted">{item.detail}</p>
-                  </li>
-                ))}
-              </ul>
+          <div className="mt-3 rounded-md border border-line bg-surface p-3 md:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold">Grid Intelligence</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted">Official source</p>
             </div>
-            <div className="rounded-md border border-line bg-surface p-3 md:p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold">Grid Intelligence</p>
-                <p className="text-[10px] uppercase tracking-wide text-muted">Official source</p>
-              </div>
-              <dl className="mt-3 space-y-1.5 text-xs">
-                <Row label="Official local-network context" value="Identified" />
-                <Row label="Network development plan" value="Matched" />
-                <Row label="Forecast need for transfer capacity" value="Published" />
-                <Row label="Workflow readiness" value="7 of 10 required items" />
-                <Row label="Team outlook" value="Customer-entered" />
-              </dl>
-              <p className="mt-3 text-[11px] leading-4 text-muted">
-                Sample workspace. Forecast need for transfer capacity is not available MW or
-                connection capacity.
-              </p>
-            </div>
+            <dl className="mt-3 space-y-1.5 text-xs">
+              <Row label="Official local-network context" value="Identified" />
+              <Row label="Network development plan" value="Matched" />
+              <Row label="Forecast need for transfer capacity" value="Published" />
+              <Row label="Workflow readiness" value="7 of 10 required items" />
+              <Row label="Team outlook" value="Customer-entered" />
+            </dl>
+            <p className="mt-3 text-[11px] leading-4 text-muted">
+              Sample workspace. Forecast need for transfer capacity is not available MW or
+              connection capacity.
+            </p>
           </div>
         </div>
       </div>

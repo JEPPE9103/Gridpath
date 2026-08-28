@@ -1,19 +1,12 @@
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
+import { ArrowRight } from "lucide-react";
 
-const PROBLEMS = [
-  {
-    title: "Fragmented information",
-    copy: "Official grid and planning information is spread across multiple sources.",
-  },
-  {
-    title: "Disconnected workflows",
-    copy: "Connection cases, requirements and project decisions are often tracked separately.",
-  },
-  {
-    title: "Portfolio blind spots",
-    copy: "A published change only becomes actionable when you know which projects it affects.",
-  },
+const SOURCES = [
+  "Fragmented information",
+  "Disconnected workflows",
+  "Portfolio blind spots",
+  "Team decisions",
 ];
 
 export function ValueSection() {
@@ -33,16 +26,31 @@ export function ValueSection() {
           Noxheim connects the information to the projects it affects.
         </p>
       </Reveal>
-      <div className="mt-12 grid gap-4 sm:grid-cols-3">
-        {PROBLEMS.map((item, index) => (
-          <Reveal key={item.title} delay={index * 60}>
-            <article className="h-full rounded-md border border-line bg-surface px-5 py-6">
-              <h3 className="text-base font-semibold">{item.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-muted">{item.copy}</p>
-            </article>
-          </Reveal>
-        ))}
-      </div>
+
+      <Reveal delay={80}>
+        <div className="mt-12 grid items-center gap-4 lg:grid-cols-[1fr_auto_auto_auto_1fr]">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2">
+            {SOURCES.map((label) => (
+              <div
+                key={label}
+                className="rounded-md border border-line bg-surface px-3 py-4 text-center text-sm font-medium"
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+          <ArrowRight className="mx-auto hidden text-muted lg:block" size={18} />
+          <div className="rounded-md bg-ink px-6 py-5 text-center text-white">
+            <p className="text-[11px] tracking-[0.16em]">NOXHEIM</p>
+            <p className="mt-1 text-sm text-white/70">Grid Development Intelligence</p>
+          </div>
+          <ArrowRight className="mx-auto hidden text-muted lg:block" size={18} />
+          <div className="rounded-md border border-teal/30 bg-teal-soft px-5 py-5 text-center">
+            <p className="text-sm font-semibold text-teal">One development portfolio</p>
+            <p className="mt-1 text-xs text-muted">Screen, manage and monitor</p>
+          </div>
+        </div>
+      </Reveal>
     </MarketingSection>
   );
 }

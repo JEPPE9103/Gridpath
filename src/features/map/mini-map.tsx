@@ -8,14 +8,16 @@ import { useEffect, useRef } from "react";
 const STYLE: StyleSpecification = {
   version: 8,
   sources: {
-    carto: {
+    esri: {
       type: "raster",
-      tiles: ["https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png"],
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+      ],
       tileSize: 256,
-      attribution: "© OpenStreetMap © CARTO",
+      attribution: "Tiles © Esri",
     },
   },
-  layers: [{ id: "carto", type: "raster", source: "carto" }],
+  layers: [{ id: "esri", type: "raster", source: "esri" }],
 };
 
 export function markerColor(outlook: Outlook): string {

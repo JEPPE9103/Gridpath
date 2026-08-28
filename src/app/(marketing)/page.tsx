@@ -5,7 +5,6 @@ import { DesignPartnerSection } from "@/components/marketing/design-partner-sect
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { Hero } from "@/components/marketing/hero";
 import { ProductPillars } from "@/components/marketing/product-pillars";
-import { ProductPreviewSection } from "@/components/marketing/product-preview-section";
 import { UseCases } from "@/components/marketing/use-cases";
 import { ValueSection } from "@/components/marketing/value-section";
 import { WhySection } from "@/components/marketing/why-section";
@@ -43,7 +42,6 @@ export default function MarketingHomePage() {
     <main>
       <Hero />
       <ValueSection />
-      <ProductPreviewSection />
       <ProductPillars />
       <WorkflowSection />
       <WhySection />

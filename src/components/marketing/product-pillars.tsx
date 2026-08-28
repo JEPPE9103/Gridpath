@@ -1,7 +1,9 @@
+import { cn } from "@/lib/cn";
 import { AppFrame } from "@/components/marketing/app-frame";
+import { CtaLink } from "@/components/marketing/cta-link";
 import { MarketingMap } from "@/components/marketing/marketing-map";
 import { Reveal } from "@/components/marketing/reveal";
-import { CapabilityList, Eyebrow, MarketingSection } from "@/components/marketing/section";
+import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 import { StageBadge } from "@/components/ui/badges";
 import { projectRepository } from "@/lib/repositories";
 import { CONNECTION_STAGES } from "@/types";
@@ -33,8 +35,8 @@ export function ProductPillars() {
 
 function ScreenPillar() {
   return (
-    <MarketingSection>
-      <div className="grid items-start gap-10 lg:grid-cols-[0.95fr_1.05fr]">
+    <MarketingSection className="bg-surface">
+      <div className="grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
         <Reveal>
           <Eyebrow>Screen</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
@@ -46,29 +48,13 @@ function ScreenPillar() {
             information and your own project status before deciding where to focus further
             diligence.
           </p>
-          <CapabilityList
-            items={[
-              {
-                title: "Official network context",
-                copy: "Identify the official local-network geography relevant to the project location.",
-              },
-              {
-                title: "Network development plans",
-                copy: "Bring published planning information and forecast need for transfer capacity into the project context.",
-              },
-              {
-                title: "Portfolio triage",
-                copy: "Compare projects using your team's development outlook, workflow readiness and connection progress.",
-              },
-            ]}
-          />
-          <p className="mt-6 max-w-md text-sm leading-6 text-muted">
+          <p className="mt-4 max-w-md text-sm leading-6 text-muted">
             Noxheim does not represent available grid capacity or guarantee connection feasibility.
           </p>
         </Reveal>
         <Reveal delay={80} fade>
           <AppFrame path="/map">
-            <div className="grid bg-canvas md:grid-cols-[1fr_220px]">
+            <div className="grid bg-canvas md:grid-cols-[1fr_240px]">
               <MarketingMap selectedId="gavle-bess" sites={mapSites} />
               <aside className="border-t border-line bg-surface p-4 md:border-t-0 md:border-l">
                 <p className="text-sm font-semibold">Sample BESS</p>
@@ -84,6 +70,25 @@ function ScreenPillar() {
           </AppFrame>
         </Reveal>
       </div>
+      <Reveal delay={60}>
+        <div className="mt-8 grid gap-3 sm:grid-cols-3">
+          <Point
+            title="Official network context"
+            copy="Identify the official local-network geography relevant to the project location."
+            cardClassName="bg-canvas"
+          />
+          <Point
+            title="Network development plans"
+            copy="Bring published planning information and forecast need for transfer capacity into the project context."
+            cardClassName="bg-canvas"
+          />
+          <Point
+            title="Portfolio triage"
+            copy="Compare projects using your team's development outlook, workflow readiness and connection progress."
+            cardClassName="bg-canvas"
+          />
+        </div>
+      </Reveal>
     </MarketingSection>
   );
 }
@@ -91,8 +96,8 @@ function ScreenPillar() {
 function ManagePillar() {
   const currentIndex = CONNECTION_STAGES.indexOf("Grid Study");
   return (
-    <MarketingSection className="bg-surface">
-      <div className="grid items-start gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+    <MarketingSection>
+      <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
         <Reveal>
           <AppFrame path="/projects/sample-bess">
             <div className="bg-canvas p-4">
@@ -148,36 +153,41 @@ function ManagePillar() {
             grid-connection process, requirements and development status beside the intelligence
             that matters to it.
           </p>
-          <CapabilityList
-            items={[
-              {
-                title: "Portfolio",
-                copy: "Track projects, MW, technology, target COD and development stage across your portfolio.",
-              },
-              {
-                title: "Grid connection workflow",
-                copy: "Manage connection cases, operators, references, status and key project milestones.",
-              },
-              {
-                title: "Requirements & readiness",
-                copy: "Track required development actions and see workflow completeness across each project.",
-              },
-              {
-                title: "Project record",
-                copy: "Keep project context, document metadata and activity together in one development workspace.",
-              },
-            ]}
-          />
+          <div className="mt-6">
+            <CtaLink href="/signup" variant="secondary">
+              Get started
+            </CtaLink>
+          </div>
         </Reveal>
       </div>
+      <Reveal delay={60}>
+        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Point
+            title="Portfolio"
+            copy="Track projects, MW, technology, target COD and development stage across your portfolio."
+          />
+          <Point
+            title="Grid connection workflow"
+            copy="Manage connection cases, operators, references, status and key project milestones."
+          />
+          <Point
+            title="Requirements & readiness"
+            copy="Track required development actions and see workflow completeness across each project."
+          />
+          <Point
+            title="Project record"
+            copy="Keep project context, document metadata and activity together in one development workspace."
+          />
+        </div>
+      </Reveal>
     </MarketingSection>
   );
 }
 
 function MonitorPillar() {
   return (
-    <MarketingSection>
-      <div className="grid items-start gap-10 lg:grid-cols-[0.95fr_1.05fr]">
+    <MarketingSection className="bg-surface">
+      <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.15fr]">
         <Reveal>
           <Eyebrow>Monitor</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
@@ -187,26 +197,15 @@ function MonitorPillar() {
             Noxheim stores official source snapshots over time, identifies relevant changes and
             connects them to the projects they may affect.
           </p>
-          <CapabilityList
-            items={[
-              {
-                title: "Source history",
-                copy: "Maintain traceable snapshots of published grid and planning information.",
-              },
-              {
-                title: "Change detection",
-                copy: "Compare new source versions against the previous baseline.",
-              },
-              {
-                title: "Portfolio impact",
-                copy: "See which projects intersect the geography affected by a published change.",
-              },
-            ]}
-          />
-          <p className="mt-6 max-w-md text-sm leading-6 text-muted">
+          <p className="mt-4 max-w-md text-sm leading-6 text-muted">
             During the design-partner phase, official sources are refreshed by Noxheim operations.
             Source retrieval dates are shown in the product.
           </p>
+          <div className="mt-6">
+            <CtaLink href="/#demo" variant="secondary">
+              Book a demo
+            </CtaLink>
+          </div>
         </Reveal>
         <Reveal delay={80}>
           <AppFrame path="/changes">
@@ -232,7 +231,43 @@ function MonitorPillar() {
           </AppFrame>
         </Reveal>
       </div>
+      <Reveal delay={60}>
+        <div className="mt-8 grid gap-3 sm:grid-cols-3">
+          <Point
+            title="Source history"
+            copy="Maintain traceable snapshots of published grid and planning information."
+            cardClassName="bg-canvas"
+          />
+          <Point
+            title="Change detection"
+            copy="Compare new source versions against the previous baseline."
+            cardClassName="bg-canvas"
+          />
+          <Point
+            title="Portfolio impact"
+            copy="See which projects intersect the geography affected by a published change."
+            cardClassName="bg-canvas"
+          />
+        </div>
+      </Reveal>
     </MarketingSection>
+  );
+}
+
+function Point({
+  title,
+  copy,
+  cardClassName,
+}: {
+  title: string;
+  copy: string;
+  cardClassName?: string;
+}) {
+  return (
+    <article className={cn("rounded-md border border-line bg-surface px-4 py-4", cardClassName)}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-muted">{copy}</p>
+    </article>
   );
 }
 
