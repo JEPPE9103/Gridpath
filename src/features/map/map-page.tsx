@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { markerColor, STYLE } from "@/features/map/mini-map";
+import { bindMapResize, ensureMapLibreWorker } from "@/features/map/maplibre-setup";
 import { cn } from "@/lib/cn";
 import type { MapProject, MapProjectsResult } from "@/lib/data/map-types";
 import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
@@ -513,18 +514,23 @@ function SwedenMap({
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    const container = containerRef.current;
+    if (!container || mapRef.current) return;
+
+    ensureMapLibreWorker();
     const map = new Map({
-      container: containerRef.current,
+      container,
       style: STYLE,
       center: [16.2, 62.2],
       zoom: 4.35,
       attributionControl: { compact: true },
     });
     map.addControl(new NavigationControl({ showCompass: false }), "bottom-left");
+    const unbindResize = bindMapResize(map, container);
     mapRef.current = map;
     map.once("load", () => setMapReady(true));
     return () => {
+      unbindResize();
       map.remove();
       mapRef.current = null;
     };

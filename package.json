@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node ./scripts/copy-maplibre-worker.mjs",
+    "prebuild": "node ./scripts/copy-maplibre-worker.mjs",
     "dev": "next dev",
     "dev:bootstrap-auth": "node scripts/bootstrap-local-auth.mjs",
     "dev:test-grid-intelligence": "node scripts/test-grid-intelligence.mjs",

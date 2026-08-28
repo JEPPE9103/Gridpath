@@ -1,6 +1,7 @@
 "use client";
 
 import { markerColor, STYLE } from "@/features/map/mini-map";
+import { bindMapResize, ensureMapLibreWorker } from "@/features/map/maplibre-setup";
 import type { Outlook } from "@/types";
 import { Map, Marker } from "maplibre-gl";
 import { useEffect, useRef } from "react";
@@ -27,6 +28,7 @@ export function MarketingMap({
     if (!container) return;
 
     let cancelled = false;
+    ensureMapLibreWorker();
     const map = new Map({
       container,
       style: STYLE,
@@ -37,6 +39,7 @@ export function MarketingMap({
       fadeDuration: 0,
       renderWorldCopies: false,
     });
+    const unbindResize = bindMapResize(map, container);
 
     const markers: Marker[] = [];
 
@@ -79,25 +82,13 @@ export function MarketingMap({
       }
     };
 
-    const resize = () => {
-      if (!cancelled) map.resize();
-    };
-
     map.on("load", () => {
-      resize();
       placeMarkers();
     });
 
-    const frame = requestAnimationFrame(resize);
-    const later = window.setTimeout(resize, 720);
-    const observer = new ResizeObserver(resize);
-    observer.observe(container);
-
     return () => {
       cancelled = true;
-      cancelAnimationFrame(frame);
-      window.clearTimeout(later);
-      observer.disconnect();
+      unbindResize();
       markers.forEach((marker) => marker.remove());
       map.remove();
     };

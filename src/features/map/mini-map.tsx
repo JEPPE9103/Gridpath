@@ -1,11 +1,14 @@
 "use client";
 
+import { bindMapResize, ensureMapLibreWorker } from "@/features/map/maplibre-setup";
 import { outlookTone } from "@/lib/format";
 import type { Outlook } from "@/types";
 import { Map, Marker } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
-/** Light basemap without a vendor API-key watermark (CARTO raster tiles require a key). */
+ensureMapLibreWorker();
+
+/** Light vector basemap without a vendor API-key watermark. */
 const STYLE = "https://tiles.openfreemap.org/styles/positron";
 
 export function markerColor(outlook: Outlook): string {
@@ -28,14 +31,18 @@ export function MiniMap({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    ensureMapLibreWorker();
     const map = new Map({
-      container: containerRef.current,
+      container,
       style: STYLE,
       center: [longitude, latitude],
       zoom: 8,
       attributionControl: { compact: true },
     });
+    const unbindResize = bindMapResize(map, container);
 
     const el = document.createElement("div");
     el.style.width = "14px";
@@ -47,7 +54,10 @@ export function MiniMap({
 
     new Marker({ element: el }).setLngLat([longitude, latitude]).addTo(map);
 
-    return () => map.remove();
+    return () => {
+      unbindResize();
+      map.remove();
+    };
   }, [latitude, longitude, outlook]);
 
   return <div ref={containerRef} className="h-56 w-full" />;
