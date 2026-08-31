@@ -15,6 +15,7 @@ import {
   strongestDevelopmentProfile,
   formatFactorPoints,
 } from "@/lib/domain/development-profile";
+import { buildDevelopmentProfileExplanation } from "@/lib/intelligence/compare-explanation";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { useWorkspace } from "@/lib/workspace-state";
 import {
@@ -451,7 +452,28 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
                 </tbody>
               </table>
               <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
-                {compared.map((project) => (
+                {compared.map((project) => {
+                  const explanation = buildDevelopmentProfileExplanation(
+                    {
+                      outlook: project.outlook,
+                      confidence: project.confidence,
+                      stage: project.stage,
+                      readinessPercent: project.readinessPercent,
+                      openCriticalAlerts: project.openAlerts.filter(
+                        (alert) => alert.severity === "critical",
+                      ).length,
+                      openWarningAlerts: project.openAlerts.filter(
+                        (alert) => alert.severity === "warning",
+                      ).length,
+                      connectionCaseStatus: project.connectionCase?.status ?? null,
+                    },
+                    {
+                      isHighestInComparison: strongest?.slug === project.slug,
+                      comparisonSize: compared.length,
+                    },
+                  );
+
+                  return (
                   <div
                     key={project.slug}
                     className="rounded-md border border-line bg-canvas px-4 py-3 text-sm"
@@ -460,6 +482,7 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
                     <p className="mt-1 text-xs text-muted">
                       Development profile · {project.developmentProfile.score} pts
                     </p>
+                    <p className="mt-2 text-sm leading-6 text-ink">{explanation}</p>
                     <ul className="mt-2 space-y-0.5 text-ink">
                       {project.developmentProfile.factors.map((factor) => (
                         <li key={`${project.slug}-${factor.key}`} className="flex justify-between gap-2">
@@ -471,7 +494,8 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
                       ))}
                     </ul>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               {strongest ? (
                 <div className="mt-4 rounded-md border border-line bg-teal-soft px-4 py-3 text-sm">
@@ -479,13 +503,27 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
                   <p className="mt-1 text-ink">
                     {strongest.name} · {strongest.developmentProfile.score} pts
                   </p>
-                  <ul className="mt-2 space-y-0.5 text-ink">
-                    {strongest.developmentProfile.factors.map((factor) => (
-                      <li key={factor.key}>
-                        {formatFactorPoints(factor.points)} · {factor.label}
-                      </li>
-                    ))}
-                  </ul>
+                  <p className="mt-2 text-sm leading-6 text-ink">
+                    {buildDevelopmentProfileExplanation(
+                      {
+                        outlook: strongest.outlook,
+                        confidence: strongest.confidence,
+                        stage: strongest.stage,
+                        readinessPercent: strongest.readinessPercent,
+                        openCriticalAlerts: strongest.openAlerts.filter(
+                          (alert) => alert.severity === "critical",
+                        ).length,
+                        openWarningAlerts: strongest.openAlerts.filter(
+                          (alert) => alert.severity === "warning",
+                        ).length,
+                        connectionCaseStatus: strongest.connectionCase?.status ?? null,
+                      },
+                      {
+                        isHighestInComparison: true,
+                        comparisonSize: compared.length,
+                      },
+                    )}
+                  </p>
                   <p className="mt-2 text-xs text-muted">
                     Stored project and workflow data only. Not a guarantee of connection or available
                     capacity.

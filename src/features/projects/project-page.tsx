@@ -25,6 +25,7 @@ import {
 } from "@/lib/domain/catalog-labels";
 import { ClientAbsoluteDate, ClientHeaderDate } from "@/components/ui/client-header-date";
 import { ConnectionCasePanel } from "@/features/projects/connection-case-panel";
+import { DevelopmentBrief } from "@/features/projects/development-brief";
 import { RequirementsManager } from "@/features/projects/requirements-manager";
 import type { GridOperatorOption } from "@/lib/data/grid-operators";
 import {
@@ -260,63 +261,67 @@ function Meta({
 
 function OverviewTab({ project }: { project: ProjectDetailViewModel }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-      <RequirementsManager project={project} />
+    <div className="space-y-4">
+      <DevelopmentBrief project={project} />
 
-      <div className="space-y-4">
-        {project.alerts.length > 0 ? (
+      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <RequirementsManager project={project} />
+
+        <div className="space-y-4">
+          {project.alerts.length > 0 ? (
+            <section className="overflow-hidden rounded-md border border-line bg-surface">
+              <div className="border-b border-line px-5 py-3">
+                <h2 className="text-base font-semibold">Open alerts</h2>
+                <p className="text-sm text-muted">Alerts linked to this project.</p>
+              </div>
+              <ul>
+                {project.alerts.map((alert) => {
+                  const style = SEVERITY_STYLES[alert.severity];
+                  const Icon = style.Icon;
+                  return (
+                    <li
+                      key={alert.id}
+                      className={cn(
+                        "flex items-start gap-3 border-b border-line border-l-4 px-5 py-3.5 last:border-b-0",
+                        style.wrap,
+                      )}
+                    >
+                      <Icon size={16} className={cn("mt-0.5 shrink-0", style.icon)} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-ink">{alert.title}</p>
+                        {alert.summary ? (
+                          <p className="mt-0.5 text-sm text-ink/80">{alert.summary}</p>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
+          <section className="rounded-md border border-line bg-surface p-5">
+            <h2 className="text-base font-semibold">Project description</h2>
+            {project.description ? (
+              <p className="mt-2 text-sm leading-6 text-ink/90">{project.description}</p>
+            ) : (
+              <p className="mt-2 text-sm text-muted">No project description recorded.</p>
+            )}
+            <Disclaimer className="mt-4" />
+          </section>
           <section className="overflow-hidden rounded-md border border-line bg-surface">
             <div className="border-b border-line px-5 py-3">
-              <h2 className="text-base font-semibold">Project attention</h2>
-              <p className="text-sm text-muted">Open alerts linked to this project.</p>
+              <h2 className="text-base font-semibold">Location</h2>
+              <p className="text-sm text-muted">
+                {[project.location, project.region].filter(Boolean).join(", ") || "Location not set"}
+              </p>
             </div>
-            <ul>
-              {project.alerts.map((alert) => {
-                const style = SEVERITY_STYLES[alert.severity];
-                const Icon = style.Icon;
-                return (
-                  <li
-                    key={alert.id}
-                    className={cn(
-                      "flex items-start gap-3 border-b border-line border-l-4 px-5 py-3.5 last:border-b-0",
-                      style.wrap,
-                    )}
-                  >
-                    <Icon size={16} className={cn("mt-0.5 shrink-0", style.icon)} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ink">{alert.title}</p>
-                      {alert.summary ? (
-                        <p className="mt-0.5 text-sm text-ink/80">{alert.summary}</p>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            {project.hasCoordinates ? (
+              <MiniMap latitude={project.latitude} longitude={project.longitude} outlook={project.outlook} />
+            ) : (
+              <p className="px-5 py-8 text-sm text-muted">No site coordinates recorded for this project.</p>
+            )}
           </section>
-        ) : null}
-        <section className="rounded-md border border-line bg-surface p-5">
-          <h2 className="text-base font-semibold">Project</h2>
-          {project.description ? (
-            <p className="mt-2 text-sm leading-6 text-ink/90">{project.description}</p>
-          ) : (
-            <p className="mt-2 text-sm text-muted">No project description recorded.</p>
-          )}
-          <Disclaimer className="mt-4" />
-        </section>
-        <section className="overflow-hidden rounded-md border border-line bg-surface">
-          <div className="border-b border-line px-5 py-3">
-            <h2 className="text-base font-semibold">Location</h2>
-            <p className="text-sm text-muted">
-              {[project.location, project.region].filter(Boolean).join(", ") || "Location not set"}
-            </p>
-          </div>
-          {project.hasCoordinates ? (
-            <MiniMap latitude={project.latitude} longitude={project.longitude} outlook={project.outlook} />
-          ) : (
-            <p className="px-5 py-8 text-sm text-muted">No site coordinates recorded for this project.</p>
-          )}
-        </section>
+        </div>
       </div>
     </div>
   );

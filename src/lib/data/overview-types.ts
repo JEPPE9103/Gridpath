@@ -1,3 +1,4 @@
+import type { PortfolioAttentionResult } from "@/lib/intelligence/types";
 import { PIPELINE_STAGES, type AlertSeverity, type Outlook, type Technology } from "@/types";
 
 export const OVERVIEW_PIPELINE_STAGES = [...PIPELINE_STAGES, "Energisation"] as const;
@@ -46,6 +47,7 @@ export type PortfolioOverview =
       alerts: OverviewAlertItem[];
       projects: OverviewProject[];
       recentProjects: OverviewProject[];
+      portfolioAttention: PortfolioAttentionResult;
       error: null;
     }
   | {
@@ -55,6 +57,7 @@ export type PortfolioOverview =
       alerts: OverviewAlertItem[];
       projects: OverviewProject[];
       recentProjects: OverviewProject[];
+      portfolioAttention: PortfolioAttentionResult;
       error: null;
     }
   | {
@@ -64,5 +67,6 @@ export type PortfolioOverview =
       alerts: OverviewAlertItem[];
       projects: OverviewProject[];
       recentProjects: OverviewProject[];
+      portfolioAttention: PortfolioAttentionResult;
       error: string;
     };

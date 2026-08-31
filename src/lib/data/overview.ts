@@ -7,6 +7,15 @@ import {
 } from "@/lib/data/overview-types";
 import { listProjects } from "@/lib/data/projects";
 import { countProjectsNeedingAttention } from "@/lib/domain/attention";
+import { applicationReadinessFromRequirements } from "@/lib/domain/application-readiness";
+import {
+  checklistStatusLabel,
+  confidenceLabel,
+  connectionCaseStatusLabel,
+  pipelineStageLabel,
+} from "@/lib/domain/catalog-labels";
+import { buildPortfolioAttention } from "@/lib/intelligence/portfolio-attention";
+import type { PortfolioAttentionProjectInput } from "@/lib/intelligence/types";
 import { totalPortfolioMW } from "@/lib/domain/portfolio-capacity";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AlertSeverity } from "@/types";
@@ -24,6 +33,23 @@ type ConnectionCaseRow = {
   project_id: string;
   stage: string;
   status: string;
+};
+
+type RequirementRow = {
+  project_id: string;
+  status: string;
+  required: boolean;
+  due_date: string | null;
+};
+
+type ProjectMetaRow = {
+  id: string;
+  slug: string;
+  name: string;
+  connection_stage: string;
+  confidence: string;
+  target_cod: string | null;
+  updated_at: string;
 };
 
 type GridOperatorEmbed = { name: string };
@@ -53,6 +79,8 @@ const SEVERITY_RANK: Record<AlertSeverity, number> = {
   info: 2,
   positive: 3,
 };
+
+const EMPTY_PORTFOLIO_ATTENTION = { needsAttention: [], watch: [] };
 
 const EMPTY_KPIS: OverviewKpis = {
   activeSites: 0,
@@ -86,6 +114,7 @@ function emptyOverview(
       alerts: [],
       projects: [],
       recentProjects: [],
+      portfolioAttention: EMPTY_PORTFOLIO_ATTENTION,
       error: null,
     };
   }
@@ -96,6 +125,7 @@ function emptyOverview(
     alerts: [],
     projects: [],
     recentProjects: [],
+    portfolioAttention: EMPTY_PORTFOLIO_ATTENTION,
     error: error ?? "Could not load overview.",
   };
 }
@@ -142,7 +172,8 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
   }
 
   const supabase = await createSupabaseServerClient();
-  const [projectsResult, casesResult, alertsResult] = await Promise.all([
+  const [projectsResult, casesResult, alertsResult, requirementsResult, projectMetaResult] =
+    await Promise.all([
     listProjects(),
     supabase.from("connection_cases").select("project_id, stage, status"),
     supabase
@@ -162,18 +193,28 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
       `,
       )
       .eq("status", "open"),
+    supabase
+      .from("project_requirements")
+      .select("project_id, status, required, due_date"),
+    supabase
+      .from("projects")
+      .select("id, slug, name, connection_stage, confidence, target_cod, updated_at"),
   ]);
 
   if (
     projectsResult.error ||
     projectsResult.blockedByRls ||
     casesResult.error ||
-    alertsResult.error
+    alertsResult.error ||
+    requirementsResult.error ||
+    projectMetaResult.error
   ) {
     console.error("getPortfolioOverview query failed", {
       projects: projectsResult.error,
       cases: casesResult.error?.message,
       alerts: alertsResult.error?.message,
+      requirements: requirementsResult.error?.message,
+      projectMeta: projectMetaResult.error?.message,
     });
     return emptyOverview("error", "Could not load overview.", organization.name);
   }
@@ -192,9 +233,68 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
 
   const cases = (casesResult.data ?? []) as ConnectionCaseRow[];
   const alertRows = (alertsResult.data ?? []) as AlertRow[];
+  const requirements = (requirementsResult.data ?? []) as RequirementRow[];
+  const projectMeta = (projectMetaResult.data ?? []) as ProjectMetaRow[];
   const alerts = sortAlerts(
     alertRows.map(mapAlert).filter((item): item is OverviewAlertItem => item !== null),
   );
+
+  const casesByProject = new Map<string, ConnectionCaseRow[]>();
+  for (const row of cases) {
+    const existing = casesByProject.get(row.project_id) ?? [];
+    existing.push(row);
+    casesByProject.set(row.project_id, existing);
+  }
+
+  const requirementsByProject = new Map<string, RequirementRow[]>();
+  for (const row of requirements) {
+    const existing = requirementsByProject.get(row.project_id) ?? [];
+    existing.push(row);
+    requirementsByProject.set(row.project_id, existing);
+  }
+
+  const alertsByProject = new Map<string, AlertSeverity[]>();
+  for (const row of alertRows) {
+    if (!row.project_id || !isAlertSeverity(row.severity)) {
+      continue;
+    }
+    const existing = alertsByProject.get(row.project_id) ?? [];
+    existing.push(row.severity);
+    alertsByProject.set(row.project_id, existing);
+  }
+
+  const portfolioAttentionInputs: PortfolioAttentionProjectInput[] = projectMeta.map((row) => {
+    const projectRequirements = requirementsByProject.get(row.id) ?? [];
+    const mappedRequirements = projectRequirements.map((item) => ({
+      required: item.required === true,
+      status: checklistStatusLabel(item.status),
+      dueDate: item.due_date,
+    }));
+    const readiness = applicationReadinessFromRequirements(mappedRequirements);
+    const projectCase = casesByProject.get(row.id)?.[0] ?? null;
+
+    return {
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      stage: pipelineStageLabel(row.connection_stage),
+      connectionCaseStatus: projectCase
+        ? connectionCaseStatusLabel(projectCase.status)
+        : null,
+      connectionCaseStatusValue: projectCase?.status ?? null,
+      hasConnectionCase: Boolean(projectCase),
+      readinessPercent: readiness.percent,
+      readinessCompleteCount: readiness.completeCount,
+      readinessRequiredCount: readiness.requiredCount,
+      confidence: confidenceLabel(row.confidence),
+      targetCOD: row.target_cod ?? "",
+      requirements: mappedRequirements,
+      openAlertSeverities: alertsByProject.get(row.id) ?? [],
+      lastUpdated: row.updated_at,
+    };
+  });
+
+  const portfolioAttention = buildPortfolioAttention(portfolioAttentionInputs);
 
   const connectionEnquiries = cases.filter((row) => row.stage === "enquiry").length;
   const gridStudiesOpen = cases.filter(
@@ -215,6 +315,7 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
     alerts,
     projects,
     recentProjects: projects.slice(0, 6),
+    portfolioAttention,
     error: null,
   };
 }
