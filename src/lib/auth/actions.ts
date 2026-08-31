@@ -10,6 +10,10 @@ import {
   parseWorkspaceName,
   publicAuthError,
 } from "@/lib/auth/validation";
+import {
+  clearActiveOrganizationCookie,
+  writeActiveOrganizationCookie,
+} from "@/lib/organization/active-org-cookie";
 import { slugifyProjectName } from "@/lib/projects/slug";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -200,21 +204,26 @@ export async function createWorkspaceAction(
     return { error: "Sign in to create a workspace.", companyName: name };
   }
 
-  const { error: rpcError } = await supabase.rpc("create_workspace", {
+  const { data: organizationId, error: rpcError } = await supabase.rpc("create_workspace", {
     company_name: name,
     company_slug: workspaceSlugFromName(name),
     user_full_name: null,
     user_job_title: null,
   });
 
-  if (rpcError) {
-    console.error("createWorkspaceAction failed", rpcError.message);
+  if (rpcError || !organizationId) {
+    console.error("createWorkspaceAction failed", rpcError?.message);
     return {
-      error: publicAuthError(rpcError.message, "Could not create the workspace. Try again.", "workspace"),
+      error: publicAuthError(
+        rpcError?.message,
+        "Could not create the workspace. Try again.",
+        "workspace",
+      ),
       companyName: name,
     };
   }
 
+  await writeActiveOrganizationCookie(String(organizationId));
   revalidatePath("/", "layout");
   redirect("/portfolio");
 }
@@ -257,6 +266,7 @@ export async function updateProfileAction(
 export async function signOut() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
+  await clearActiveOrganizationCookie();
   revalidatePath("/", "layout");
   redirect("/login");
 }

@@ -2,6 +2,10 @@
 
 import { CountBadge } from "@/components/ui/badges";
 import { DemoWorkspaceChip } from "@/components/layout/demo-workspace-banner";
+import {
+  WorkspaceSwitcher,
+  type WorkspaceOption,
+} from "@/components/layout/workspace-switcher";
 import { signOut } from "@/lib/auth/actions";
 import type { CurrentUserProfile } from "@/lib/auth/current-user";
 import { cn } from "@/lib/cn";
@@ -39,6 +43,8 @@ export function Sidebar({
   user,
   criticalAlertCount = 0,
   isDemoWorkspace = false,
+  activeOrganization,
+  organizations = [],
 }: {
   collapsed: boolean;
   onToggle: () => void;
@@ -47,6 +53,8 @@ export function Sidebar({
   user: CurrentUserProfile | null;
   criticalAlertCount?: number;
   isDemoWorkspace?: boolean;
+  activeOrganization: WorkspaceOption;
+  organizations?: WorkspaceOption[];
 }) {
   const pathname = usePathname();
 
@@ -60,9 +68,11 @@ export function Sidebar({
       <div className={cn("flex items-start justify-between px-4 pt-6", collapsed && "px-3")}>
         <div className={cn(collapsed && "sr-only")}>
           <p className="text-[15px] font-semibold tracking-[0.18em]">NOXHEIM</p>
-          <p className="mt-1 text-[11px] tracking-wide text-sidebar-muted">
-            Grid Intelligence
-          </p>
+          <WorkspaceSwitcher
+            activeOrganization={activeOrganization}
+            organizations={organizations}
+            collapsed={collapsed}
+          />
           {isDemoWorkspace ? (
             <div className="mt-2">
               <DemoWorkspaceChip />

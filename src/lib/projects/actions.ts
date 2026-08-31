@@ -80,6 +80,7 @@ export async function createProjectAction(
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("create_project_with_primary_site", {
+    p_organization_id: organization.id,
     p_name: parsed.name,
     p_technology: parsed.technology,
     p_location: parsed.location,

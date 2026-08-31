@@ -1,7 +1,8 @@
 "use client";
 
-import { Sidebar } from "@/components/layout/sidebar";
+import type { WorkspaceOption } from "@/components/layout/workspace-switcher";
 import { DemoWorkspaceBanner } from "@/components/layout/demo-workspace-banner";
+import { Sidebar } from "@/components/layout/sidebar";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { ToastViewport } from "@/components/ui/toast-viewport";
 import type { CurrentUserProfile } from "@/lib/auth/current-user";
@@ -34,17 +35,30 @@ function getSidebarMediaKey() {
   return `${mobile ? "m" : "d"}:${desktop ? "xl" : "sm"}`;
 }
 
+const FALLBACK_WORKSPACE: WorkspaceOption = {
+  id: "00000000-0000-4000-8000-000000000000",
+  name: "Workspace",
+  slug: "workspace",
+  role: "viewer",
+};
+
 function ShellFrame({
   children,
   user,
   criticalAlertCount,
   isDemoWorkspace,
+  activeOrganization,
+  organizations,
 }: {
   children: ReactNode;
   user: CurrentUserProfile | null;
   criticalAlertCount: number;
   isDemoWorkspace: boolean;
+  activeOrganization?: WorkspaceOption;
+  organizations?: WorkspaceOption[];
 }) {
+  const resolvedOrganization = activeOrganization ?? FALLBACK_WORKSPACE;
+  const resolvedOrganizations = organizations ?? [];
   const pathname = usePathname();
   const mediaCollapsed = useSyncExternalStore(
     subscribeSidebarCollapse,
@@ -110,6 +124,8 @@ function ShellFrame({
           user={user}
           criticalAlertCount={criticalAlertCount}
           isDemoWorkspace={isDemoWorkspace}
+          activeOrganization={resolvedOrganization}
+          organizations={resolvedOrganizations}
           onToggle={() => setManualCollapsed(!sidebarCollapsed)}
           onNavigate={() => setMobileNavPath(null)}
         />
@@ -142,11 +158,15 @@ export function AppShell({
   user = null,
   criticalAlertCount = 0,
   isDemoWorkspace = false,
+  activeOrganization = FALLBACK_WORKSPACE,
+  organizations = [],
 }: {
   children: ReactNode;
   user?: CurrentUserProfile | null;
   criticalAlertCount?: number;
   isDemoWorkspace?: boolean;
+  activeOrganization?: WorkspaceOption;
+  organizations?: WorkspaceOption[];
 }) {
   return (
     <ToastProvider>
@@ -155,6 +175,8 @@ export function AppShell({
           user={user}
           criticalAlertCount={criticalAlertCount}
           isDemoWorkspace={isDemoWorkspace}
+          activeOrganization={activeOrganization}
+          organizations={organizations}
         >
           {children}
         </ShellFrame>

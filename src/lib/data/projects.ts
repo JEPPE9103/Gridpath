@@ -1,3 +1,4 @@
+import { getCurrentOrganization } from "@/lib/data/organization";
 import {
   confidenceLabel,
   outlookLabel,
@@ -113,10 +114,18 @@ function mapProject(row: ProjectRow): ProjectListItem {
 }
 
 export async function listProjects(): Promise<ListProjectsResult> {
+  const organization = await getCurrentOrganization();
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!organization) {
+    if (!user) {
+      return { projects: [], blockedByRls: true, error: null };
+    }
+    return { projects: [], blockedByRls: false, error: null };
+  }
 
   const { data, error } = await supabase
     .from("projects")
@@ -139,6 +148,7 @@ export async function listProjects(): Promise<ListProjectsResult> {
       project_sites!inner ( name, location, geom, is_primary )
     `,
     )
+    .eq("organization_id", organization.id)
     .eq("project_sites.is_primary", true)
     .order("updated_at", { ascending: false });
 

@@ -175,7 +175,10 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
   const [projectsResult, casesResult, alertsResult, requirementsResult, projectMetaResult] =
     await Promise.all([
     listProjects(),
-    supabase.from("connection_cases").select("project_id, stage, status"),
+    supabase
+      .from("connection_cases")
+      .select("project_id, stage, status, projects!inner ( organization_id )")
+      .eq("projects.organization_id", organization.id),
     supabase
       .from("alerts")
       .select(
@@ -192,13 +195,16 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
         projects ( name, slug, grid_operators ( name ) )
       `,
       )
+      .eq("organization_id", organization.id)
       .eq("status", "open"),
     supabase
       .from("project_requirements")
-      .select("project_id, status, required, due_date"),
+      .select("project_id, status, required, due_date, projects!inner ( organization_id )")
+      .eq("projects.organization_id", organization.id),
     supabase
       .from("projects")
-      .select("id, slug, name, connection_stage, confidence, target_cod, updated_at"),
+      .select("id, slug, name, connection_stage, confidence, target_cod, updated_at")
+      .eq("organization_id", organization.id),
   ]);
 
   if (
