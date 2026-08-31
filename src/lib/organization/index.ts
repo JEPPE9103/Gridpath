@@ -5,6 +5,7 @@ export type {
 } from "@/lib/organization/active-org-context";
 export {
   ACTIVE_ORGANIZATION_COOKIE,
+  activeOrganizationCookieAttributes,
   clearActiveOrganizationCookie,
   isOrganizationId,
   readActiveOrganizationCookie,

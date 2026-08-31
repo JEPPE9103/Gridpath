@@ -362,3 +362,80 @@ grant execute on function public.create_project_with_primary_site(
 grant execute on function public.update_project_with_primary_site(
   uuid, text, text, text, double precision, double precision, numeric, numeric, uuid, text, text, text, text
 ) to authenticated;
+
+-- Backward-compatible overload for the pre-Phase-2A app signature.
+-- Permitted only when the caller has exactly one organization membership.
+create or replace function public.create_project_with_primary_site(
+  p_name text,
+  p_technology text,
+  p_location text default null,
+  p_latitude double precision default null,
+  p_longitude double precision default null,
+  p_import_mw numeric default null,
+  p_export_mw numeric default null,
+  p_grid_operator_id uuid default null,
+  p_connection_stage text default 'prospect',
+  p_connection_outlook text default 'unknown',
+  p_confidence text default 'unknown',
+  p_target_cod text default null
+)
+returns table (project_id uuid, slug text)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_id uuid;
+  v_org_id uuid;
+  v_membership_count integer;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Not authenticated' using errcode = '28000';
+  end if;
+
+  select count(*)::integer
+    into v_membership_count
+  from public.organization_members as m
+  where m.profile_id = v_user_id;
+
+  if v_membership_count = 0 then
+    raise exception 'No organization membership' using errcode = '42501';
+  end if;
+
+  if v_membership_count > 1 then
+    raise exception 'Organization is required' using errcode = '22023';
+  end if;
+
+  select m.organization_id
+    into v_org_id
+  from public.organization_members as m
+  where m.profile_id = v_user_id
+  limit 1;
+
+  return query
+  select cp.project_id, cp.slug
+  from public.create_project_with_primary_site(
+    v_org_id,
+    p_name,
+    p_technology,
+    p_location,
+    p_latitude,
+    p_longitude,
+    p_import_mw,
+    p_export_mw,
+    p_grid_operator_id,
+    p_connection_stage,
+    p_connection_outlook,
+    p_confidence,
+    p_target_cod
+  ) as cp;
+end;
+$$;
+
+revoke all on function public.create_project_with_primary_site(
+  text, text, text, double precision, double precision, numeric, numeric, uuid, text, text, text, text
+) from public, anon;
+grant execute on function public.create_project_with_primary_site(
+  text, text, text, double precision, double precision, numeric, numeric, uuid, text, text, text, text
+) to authenticated;
