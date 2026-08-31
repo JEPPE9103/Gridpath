@@ -1,5 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  ACTIVE_ORGANIZATION_COOKIE,
+  activeOrganizationCookieAttributes,
+  isOrganizationId,
+} from "@/lib/organization/active-org-cookie-constants";
+import { resolveActiveOrganizationId } from "@/lib/organization/active-org-resolve";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -46,6 +52,52 @@ async function userHasOrganization(
   }
 
   return Boolean(data);
+}
+
+async function syncActiveOrganizationCookieOnResponse(
+  request: NextRequest,
+  response: NextResponse,
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<void> {
+  const cookieOrganizationId = isOrganizationId(
+    request.cookies.get(ACTIVE_ORGANIZATION_COOKIE)?.value?.trim(),
+  )
+    ? (request.cookies.get(ACTIVE_ORGANIZATION_COOKIE)?.value?.trim() ?? null)
+    : null;
+
+  const { data, error } = await supabase
+    .from("organization_members")
+    .select("organization_id, created_at")
+    .eq("profile_id", userId)
+    .order("created_at", { ascending: true });
+
+  if (error || !data?.length) {
+    if (error) {
+      console.error("syncActiveOrganizationCookieOnResponse failed", error.message);
+    }
+    return;
+  }
+
+  const memberships = data.map((row) => ({
+    organizationId: row.organization_id as string,
+    createdAt: row.created_at as string,
+  }));
+
+  const activeOrganizationId = resolveActiveOrganizationId(
+    memberships,
+    cookieOrganizationId,
+  );
+
+  if (!activeOrganizationId || cookieOrganizationId === activeOrganizationId) {
+    return;
+  }
+
+  response.cookies.set(
+    ACTIVE_ORGANIZATION_COOKIE,
+    activeOrganizationId,
+    activeOrganizationCookieAttributes(),
+  );
 }
 
 function applyCookies(from: NextResponse, to: NextResponse): NextResponse {
@@ -133,7 +185,26 @@ export async function updateSession(request: NextRequest) {
     const portfolioUrl = request.nextUrl.clone();
     portfolioUrl.pathname = "/portfolio";
     portfolioUrl.search = "";
-    return applyCookies(supabaseResponse, NextResponse.redirect(portfolioUrl));
+    const redirectResponse = applyCookies(
+      supabaseResponse,
+      NextResponse.redirect(portfolioUrl),
+    );
+    await syncActiveOrganizationCookieOnResponse(
+      request,
+      redirectResponse,
+      supabase,
+      user.id,
+    );
+    return redirectResponse;
+  }
+
+  if (user && isWorkspacePath(pathname)) {
+    await syncActiveOrganizationCookieOnResponse(
+      request,
+      supabaseResponse,
+      supabase,
+      user.id,
+    );
   }
 
   return supabaseResponse;

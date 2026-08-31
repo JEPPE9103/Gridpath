@@ -10,6 +10,7 @@ import {
   parseWorkspaceName,
   publicAuthError,
 } from "@/lib/auth/validation";
+import { syncActiveOrganizationCookie } from "@/lib/organization/sync-active-org-cookie";
 import {
   clearActiveOrganizationCookie,
   writeActiveOrganizationCookie,
@@ -77,6 +78,7 @@ export async function signIn(
     return AUTH_ERROR;
   }
 
+  await syncActiveOrganizationCookie();
   revalidatePath("/", "layout");
   redirect(await getPostAuthPath());
 }

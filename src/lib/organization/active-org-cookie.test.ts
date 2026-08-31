@@ -4,7 +4,7 @@ import {
   ACTIVE_ORGANIZATION_COOKIE,
   activeOrganizationCookieAttributes,
   isOrganizationId,
-} from "@/lib/organization/active-org-cookie";
+} from "@/lib/organization/active-org-cookie-constants";
 
 describe("activeOrganizationCookieAttributes", () => {
   it("sets persistent httpOnly lax cookie options for active workspace", () => {

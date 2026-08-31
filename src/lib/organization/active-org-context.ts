@@ -5,10 +5,7 @@ import {
   resolveActiveOrganizationId,
   type MembershipRecord,
 } from "@/lib/organization/active-org-resolve";
-import {
-  readActiveOrganizationCookie,
-  writeActiveOrganizationCookie,
-} from "@/lib/organization/active-org-cookie";
+import { readActiveOrganizationCookie } from "@/lib/organization/active-org-cookie";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type OrganizationMembership = {
@@ -122,10 +119,6 @@ export const getActiveOrganizationContext = cache(
     );
     if (!activeMembership) {
       return null;
-    }
-
-    if (cookieOrganizationId !== activeOrganizationId) {
-      await writeActiveOrganizationCookie(activeOrganizationId);
     }
 
     return {
