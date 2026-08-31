@@ -40,6 +40,7 @@ export type SignupState = {
   fieldErrors?: ReturnType<typeof parseSignupForm>["fieldErrors"];
   values?: ReturnType<typeof parseSignupForm>["values"];
   needsConfirmation?: boolean;
+  inviteToken?: string;
 };
 
 export type WorkspaceState = {
@@ -78,9 +79,10 @@ export async function signIn(
     return AUTH_ERROR;
   }
 
+  const inviteToken = String(formData.get("invite") ?? "").trim() || null;
   await syncActiveOrganizationCookie();
   revalidatePath("/", "layout");
-  redirect(await getPostAuthPath());
+  redirect(await getPostAuthPath(inviteToken));
 }
 
 export async function requestPasswordReset(
@@ -178,15 +180,18 @@ export async function signUp(
     };
   }
 
+  const inviteToken = String(formData.get("invite") ?? "").trim() || null;
+
   if (!data.session) {
     return {
       needsConfirmation: true,
       values: { fullName: parsed.fullName, email: parsed.email, jobTitle: parsed.jobTitle ?? "" },
+      inviteToken: inviteToken ?? undefined,
     };
   }
 
   revalidatePath("/", "layout");
-  redirect("/onboarding");
+  redirect(await getPostAuthPath(inviteToken));
 }
 
 export async function createWorkspaceAction(

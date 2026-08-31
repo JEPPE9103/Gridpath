@@ -4,11 +4,15 @@ import { signIn } from "@/lib/auth/actions";
 import Link from "next/link";
 import { useActionState } from "react";
 
-export function LoginForm() {
+export function LoginForm({ inviteToken }: { inviteToken?: string | null }) {
   const [error, formAction, pending] = useActionState(signIn, null);
+  const signupHref = inviteToken
+    ? `/signup?invite=${encodeURIComponent(inviteToken)}`
+    : "/signup";
 
   return (
     <form action={formAction} className="mt-8 space-y-4">
+      {inviteToken ? <input type="hidden" name="invite" value={inviteToken} /> : null}
       <label className="block">
         <span className="text-sm text-muted">Work email</span>
         <input
@@ -48,7 +52,7 @@ export function LoginForm() {
       </p>
       <p className="pt-2 text-center text-sm text-muted">
         No account yet?{" "}
-        <Link href="/signup" className="font-medium text-teal hover:text-teal-dark">
+        <Link href={signupHref} className="font-medium text-teal hover:text-teal-dark">
           Create account
         </Link>
       </p>

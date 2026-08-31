@@ -7,11 +7,18 @@ import { useActionState } from "react";
 
 const INITIAL: SignupState = {};
 
-export function SignupForm() {
+export function SignupForm({ inviteToken }: { inviteToken?: string | null }) {
   const [state, formAction, pending] = useActionState(signUp, INITIAL);
   const values = state.values;
+  const loginHref = inviteToken
+    ? `/login?invite=${encodeURIComponent(inviteToken)}`
+    : "/login";
 
   if (state.needsConfirmation) {
+    const confirmLoginHref = state.inviteToken
+      ? `/login?invite=${encodeURIComponent(state.inviteToken)}`
+      : loginHref;
+
     return (
       <AuthCard title="Check your email">
         <p className="mt-3 text-sm text-muted">
@@ -22,11 +29,13 @@ export function SignupForm() {
               We sent a message to <span className="text-ink">{values.email}</span>.
             </>
           ) : null}{" "}
-          After you confirm, sign in to create your workspace.
+          {state.inviteToken
+            ? "After you confirm, sign in to accept your workspace invitation."
+            : "After you confirm, sign in to create your workspace."}
         </p>
         <p className="mt-6 text-sm text-muted">
           Already confirmed?{" "}
-          <Link href="/login" className="font-medium text-teal hover:text-teal-dark">
+          <Link href={confirmLoginHref} className="font-medium text-teal hover:text-teal-dark">
             Sign in
           </Link>
         </p>
@@ -37,6 +46,7 @@ export function SignupForm() {
   return (
     <AuthCard title="Create account">
       <form action={formAction} className="mt-6 space-y-4">
+        {inviteToken ? <input type="hidden" name="invite" value={inviteToken} /> : null}
         <label className="block">
           <span className="text-sm text-muted">Full name</span>
           <input
@@ -112,7 +122,7 @@ export function SignupForm() {
       </form>
       <p className="mt-6 text-sm text-muted">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-teal hover:text-teal-dark">
+        <Link href={loginHref} className="font-medium text-teal hover:text-teal-dark">
           Sign in
         </Link>
       </p>

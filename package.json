@@ -18,7 +18,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:intelligence": "node --import tsx --test src/lib/intelligence/project-attention.test.ts src/lib/intelligence/portfolio-attention.test.ts src/lib/intelligence/compare-explanation.test.ts",
-    "test:tenancy": "node --import tsx --test src/lib/organization/active-org-resolve.test.ts src/lib/organization/tenant-authorization.test.ts src/lib/organization/active-org-cookie.test.ts"
+    "test:tenancy": "node --import tsx --test src/lib/organization/active-org-resolve.test.ts src/lib/organization/tenant-authorization.test.ts src/lib/organization/active-org-cookie.test.ts",
+    "test:team": "node --import tsx --test src/lib/organization/team-permissions.test.ts src/lib/organization/invite-token.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

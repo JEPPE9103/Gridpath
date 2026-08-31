@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 export const metadata: Metadata = { title: "Sign in" };
 
 type LoginPageProps = {
-  searchParams: Promise<{ reset?: string }>;
+  searchParams: Promise<{ reset?: string; invite?: string }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
@@ -19,7 +19,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   } = await supabase.auth.getUser();
 
   if (user) {
-    redirect(await getPostAuthPath());
+    redirect(await getPostAuthPath(params.invite));
   }
 
   return (
@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           Your password was updated. Sign in with your new password.
         </p>
       ) : null}
-      <LoginForm />
+      <LoginForm inviteToken={params.invite} />
     </AuthCard>
   );
 }

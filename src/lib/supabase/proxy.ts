@@ -27,6 +27,10 @@ function isWorkspacePath(pathname: string): boolean {
   );
 }
 
+function isInvitePath(pathname: string): boolean {
+  return pathname === "/invite" || pathname.startsWith("/invite/");
+}
+
 function isAuthEntryPath(pathname: string): boolean {
   return pathname === "/login" || pathname === "/signup";
 }
@@ -156,7 +160,7 @@ export async function updateSession(request: NextRequest) {
     return applyCookies(supabaseResponse, NextResponse.redirect(loginUrl));
   }
 
-  if (isAuthCallbackPath(pathname)) {
+  if (isAuthCallbackPath(pathname) || isInvitePath(pathname)) {
     return supabaseResponse;
   }
 

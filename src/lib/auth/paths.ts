@@ -1,6 +1,15 @@
-import { getCurrentOrganization } from "@/lib/data/organization";
+import { userHasAnyOrganizationMembership } from "@/lib/organization/membership";
 
-export async function getPostAuthPath(): Promise<"/portfolio" | "/onboarding"> {
-  const organization = await getCurrentOrganization();
-  return organization ? "/portfolio" : "/onboarding";
+export async function getPostAuthPath(inviteToken?: string | null): Promise<string> {
+  const hasMembership = await userHasAnyOrganizationMembership();
+  if (hasMembership) {
+    return "/portfolio";
+  }
+
+  const token = inviteToken?.trim();
+  if (token) {
+    return `/invite/${encodeURIComponent(token)}`;
+  }
+
+  return "/onboarding";
 }
