@@ -1,10 +1,12 @@
+import { ActivityStrip } from "@/components/marketing/activity-strip";
 import { DataTrustSection } from "@/components/marketing/data-trust-section";
 import { DecisionSupportSection } from "@/components/marketing/decision-support-section";
 import { DemoCTA } from "@/components/marketing/demo-cta";
 import { DesignPartnerSection } from "@/components/marketing/design-partner-section";
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { Hero } from "@/components/marketing/hero";
-import { ProductPillars } from "@/components/marketing/product-pillars";
+import { PortfolioMapSection } from "@/components/marketing/portfolio-map-section";
+import { MonitorPillar, ProductPillars } from "@/components/marketing/product-pillars";
 import { UseCases } from "@/components/marketing/use-cases";
 import { ValueSection } from "@/components/marketing/value-section";
 import { WhySection } from "@/components/marketing/why-section";
@@ -41,8 +43,13 @@ export default function MarketingHomePage() {
   return (
     <main>
       <Hero />
+      <ActivityStrip />
       <ValueSection />
-      <ProductPillars />
+      <div id="product">
+        <ProductPillars />
+        <PortfolioMapSection />
+        <MonitorPillar />
+      </div>
       <WorkflowSection />
       <WhySection />
       <UseCases />

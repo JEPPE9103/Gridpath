@@ -57,17 +57,17 @@ export function MarketingNavbar() {
 
         <nav className="hidden items-center gap-7 text-sm text-muted lg:flex">
           {LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="hover:text-ink">
+            <Link key={link.href} href={link.href} className="hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal">
               {link.label}
             </Link>
           ))}
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <Link href="/login" className="text-sm text-muted hover:text-ink">
+          <Link href="/login" className="text-sm text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal">
             Sign in
           </Link>
-          <Link href="/#demo" className="text-sm text-muted hover:text-ink">
+          <Link href="/#demo" className="text-sm text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal">
             Book a demo
           </Link>
           <CtaLink href="/signup">Get started</CtaLink>
@@ -75,7 +75,7 @@ export function MarketingNavbar() {
 
         <button
           type="button"
-          className="rounded-md p-2 text-ink lg:hidden"
+          className="rounded-md p-2 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal lg:hidden"
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((value) => !value)}
         >

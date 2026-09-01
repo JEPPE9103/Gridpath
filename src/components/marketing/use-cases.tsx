@@ -11,18 +11,21 @@ const CASES = [
     label: "BESS portfolio screening",
     title: "BESS portfolio screening",
     copy: "Bring official grid-development context into every prospective battery project and compare where the team should focus next.",
+    outputs: ["10 active sites", "370 MW portfolio", "2 requiring attention"],
   },
   {
     id: "connection",
     label: "Grid connection management",
     title: "Grid connection management",
     copy: "Keep connection stages, requirements, references and project status together instead of across spreadsheets and inboxes.",
+    outputs: ["Stockholm North BESS", "Grid Study", "4 / 8 required · 50% readiness"],
   },
   {
     id: "changes",
     label: "Portfolio change review",
     title: "Portfolio change review",
     copy: "When published network information changes, understand which development projects may be affected.",
+    outputs: ["Source snapshot", "Geographic match", "2 portfolio projects affected"],
   },
 ];
 
@@ -47,11 +50,12 @@ export function UseCases() {
                 type="button"
                 onClick={() => setActive(item.id)}
                 className={cn(
-                  "shrink-0 rounded-md px-3 py-2.5 text-left text-sm",
+                  "shrink-0 rounded-md px-3 py-2.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal",
                   active === item.id
                     ? "bg-ink text-white"
                     : "border border-line bg-canvas text-muted hover:text-ink",
                 )}
+                aria-pressed={active === item.id}
               >
                 {item.label}
               </button>
@@ -63,6 +67,17 @@ export function UseCases() {
             </p>
             <h3 className="mt-3 text-2xl font-semibold tracking-tight">{current.title}</h3>
             <p className="mt-4 max-w-2xl text-base leading-7 text-muted">{current.copy}</p>
+            <ul className="mt-6 flex flex-wrap gap-2">
+              {current.outputs.map((output) => (
+                <li
+                  key={output}
+                  className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium"
+                >
+                  {output}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-[11px] uppercase tracking-wide text-muted">Sample</p>
           </div>
         </div>
       </Reveal>

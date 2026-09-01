@@ -49,8 +49,10 @@ body {
   line-height: 1.45;
 }
 
-a {
-  color: inherit;
+@layer base {
+  a {
+    color: inherit;
+  }
 }
 
 button,
@@ -105,9 +107,43 @@ textarea {
   animation: marketing-pulse 2.8s ease-in-out infinite;
 }
 
+@keyframes marketing-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marketing-marker-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(42, 122, 111, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(42, 122, 111, 0.08);
+  }
+}
+
+.marketing-marquee-track {
+  animation: marketing-marquee 56s linear infinite;
+}
+
+.marketing-marquee:hover .marketing-marquee-track,
+.marketing-marquee:focus-within .marketing-marquee-track {
+  animation-play-state: paused;
+}
+
+.marketing-marker-pulse {
+  animation: marketing-marker-pulse 2.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .marketing-enter,
-  .marketing-pulse {
+  .marketing-pulse,
+  .marketing-marquee-track,
+  .marketing-marker-pulse {
     animation: none;
   }
 

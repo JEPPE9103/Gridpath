@@ -1,5 +1,27 @@
 import type { Outlook } from "@/types";
 
+/** Sample marketing metrics. Not live portfolio totals. */
+export const SAMPLE_PORTFOLIO_METRICS = {
+  sites: 10,
+  megawatts: 370,
+  requiringAttention: 2,
+};
+
+export const SAMPLE_SELECTED_PROJECT = {
+  id: "stockholm-north-bess",
+  name: "Stockholm North BESS",
+  location: "Stockholm",
+  technology: "Battery Storage",
+  mw: "40 / 40 MW",
+  stage: "Grid Study",
+  readinessComplete: 4,
+  readinessRequired: 8,
+  localNetwork: "Ellevio AB",
+  source: "Ei",
+  nup: "Matched",
+  retrieved: "12 Aug 2026",
+};
+
 /** Sample marketing preview sites. Not the authenticated demo workspace. */
 export const SAMPLE_PORTFOLIO_PREVIEW_SITES: Array<{
   id: string;

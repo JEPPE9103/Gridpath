@@ -2,6 +2,7 @@
 
 import { markerColor, STYLE } from "@/features/map/mini-map";
 import { bindMapResize, ensureMapLibreWorker } from "@/features/map/maplibre-setup";
+import { cn } from "@/lib/cn";
 import type { Outlook } from "@/types";
 import { Map, Marker } from "maplibre-gl";
 import { useEffect, useRef } from "react";
@@ -17,9 +18,13 @@ export type MarketingMapSite = {
 export function MarketingMap({
   sites,
   selectedId,
+  className,
+  size = "default",
 }: {
   sites: MarketingMapSite[];
   selectedId: string;
+  className?: string;
+  size?: "hero" | "default" | "full";
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +77,7 @@ export function MarketingMap({
         dot.style.boxShadow = selected
           ? "0 0 0 4px rgba(42,122,111,0.3)"
           : "0 0 0 1px rgba(26,30,36,0.16)";
+        if (selected) dot.className = "marketing-marker-pulse";
         wrap.appendChild(dot);
 
         markers.push(
@@ -95,8 +101,16 @@ export function MarketingMap({
   }, [selectedId, sites]);
 
   return (
-    <div className="relative h-[240px] overflow-hidden bg-[#e4ebe8] sm:h-[300px] lg:h-[340px]">
-      <div ref={containerRef} className="h-full w-full [&_.maplibregl-canvas]:outline-none" />
+    <div
+      className={cn(
+        "relative overflow-hidden bg-[#e4ebe8]",
+        size === "hero" && "h-[196px] sm:h-[236px] lg:h-[268px]",
+        size === "default" && "h-[240px] sm:h-[300px] lg:h-[340px]",
+        size === "full" && "h-[280px] sm:h-[400px] lg:h-[520px]",
+        className,
+      )}
+    >
+      <div ref={containerRef} className="h-full w-full [&_.maplibregl-canvas]:outline-none" suppressHydrationWarning />
       <div className="pointer-events-none absolute left-3 top-3 rounded-md border border-line bg-surface/95 px-2.5 py-2 text-[10px] leading-4 shadow-[0_8px_20px_-16px_rgba(26,30,36,0.5)]">
         <p className="font-medium">Outlook</p>
         <LegendDot color="#176C4A" label="Favourable" />

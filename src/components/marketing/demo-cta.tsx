@@ -2,7 +2,7 @@
 
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
-import { authInputClass, authSubmitClass } from "@/components/auth/auth-card";
+import { authInputClass } from "@/components/auth/auth-card";
 import { submitDemoRequestAction, type DemoRequestState } from "@/lib/marketing/demo-actions";
 import { cn } from "@/lib/cn";
 import { useActionState } from "react";
@@ -37,11 +37,14 @@ export function DemoCTA() {
                   Request received
                 </p>
                 <h3 className="mt-3 text-2xl font-semibold tracking-tight">
-                  Thanks — your request has been received. We&apos;ll be in touch.
+                  Thanks — your request has been received.
                 </h3>
+                <p className="mt-3 text-sm leading-6 text-muted">
+                  We&apos;ll be in touch at the work email you provided.
+                </p>
               </div>
             ) : (
-              <form action={formAction} noValidate className="space-y-4">
+              <form action={formAction} noValidate className="space-y-5">
                 <Field
                   label="Name"
                   name="name"
@@ -70,12 +73,14 @@ export function DemoCTA() {
                     rows={3}
                     defaultValue={values?.message}
                     className={cn(
-                      "w-full rounded-md border bg-canvas px-3 py-2",
+                      "w-full rounded-md border bg-canvas px-3 py-2.5 text-sm outline-none focus:border-teal",
                       state.fieldErrors?.message ? "border-critical" : "border-line",
                     )}
+                    aria-invalid={state.fieldErrors?.message ? true : undefined}
+                    aria-describedby={state.fieldErrors?.message ? "message-error" : undefined}
                   />
                   {state.fieldErrors?.message ? (
-                    <span className="mt-1 block text-xs text-critical">
+                    <span id="message-error" className="mt-1.5 block text-xs text-critical">
                       {state.fieldErrors.message}
                     </span>
                   ) : null}
@@ -85,7 +90,12 @@ export function DemoCTA() {
                     {state.error}
                   </p>
                 ) : null}
-                <button type="submit" disabled={pending} className={authSubmitClass}>
+                <button
+                  type="submit"
+                  disabled={pending}
+                  aria-busy={pending}
+                  className="flex h-11 w-full items-center justify-center rounded-md bg-ink text-sm font-medium text-white transition-colors hover:bg-[#242a33] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50"
+                >
                   {pending ? "Sending…" : "Request a demo"}
                 </button>
               </form>
@@ -118,9 +128,15 @@ function Field({
         type={type}
         required={name !== "message"}
         defaultValue={defaultValue}
-        className={cn(authInputClass, "mt-0")}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${name}-error` : undefined}
+        className={cn(authInputClass, "mt-0 h-11 focus-visible:outline-none")}
       />
-      {error ? <span className="mt-1 block text-xs text-critical">{error}</span> : null}
+      {error ? (
+        <span id={`${name}-error`} className="mt-1.5 block text-xs text-critical">
+          {error}
+        </span>
+      ) : null}
     </label>
   );
 }

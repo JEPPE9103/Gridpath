@@ -1,135 +1,222 @@
-import { cn } from "@/lib/cn";
 import { AppFrame } from "@/components/marketing/app-frame";
-import { CtaLink } from "@/components/marketing/cta-link";
-import { MarketingMap } from "@/components/marketing/marketing-map";
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
-import { StageBadge } from "@/components/ui/badges";
-import { SAMPLE_PORTFOLIO_PREVIEW_SITES } from "@/lib/demo/sample-portfolio-preview";
+import { SourceBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
+import { SAMPLE_SELECTED_PROJECT } from "@/lib/demo/sample-portfolio-preview";
 import { CONNECTION_STAGES } from "@/types";
-import type { ReactNode } from "react";
-
-const mapSites = SAMPLE_PORTFOLIO_PREVIEW_SITES;
 
 export function ProductPillars() {
   return (
-    <div id="product">
+    <>
       <ScreenPillar />
       <ManagePillar />
-      <MonitorPillar />
-    </div>
+    </>
+  );
+}
+
+export function MonitorPillar() {
+  return (
+    <MarketingSection className="bg-surface">
+      <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+        <Reveal>
+          <Eyebrow>Monitor</Eyebrow>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
+            Know when published information changes around your projects.
+          </h2>
+          <p className="mt-4 max-w-md text-base leading-7 text-muted">
+            Noxheim stores official source snapshots, identifies relevant published changes and
+            connects them to the projects they may affect.
+          </p>
+          <p className="mt-4 max-w-md text-sm leading-6 text-muted">
+            During the design-partner phase, official sources are refreshed by Noxheim operations.
+            Source retrieval dates are shown in the product.
+          </p>
+        </Reveal>
+        <Reveal delay={80} fade>
+          <AppFrame path="/changes">
+            <div className="bg-canvas p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-wide text-muted">
+                  Sample change review
+                </p>
+                <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                  Sample
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
+                <FlowCard
+                  step="Source snapshot"
+                  title="Official network development plan"
+                  detail="Retrieved 12 Aug 2026 · Ei"
+                />
+                <FlowArrow />
+                <FlowCard
+                  step="Change"
+                  title="Published source update"
+                  detail="Geographic match identified"
+                />
+                <FlowArrow />
+                <FlowCard
+                  step="Affected project"
+                  title="2 portfolio projects"
+                  detail="Sample workspace — not a live official event"
+                />
+              </div>
+            </div>
+          </AppFrame>
+        </Reveal>
+      </div>
+    </MarketingSection>
   );
 }
 
 function ScreenPillar() {
+  const project = SAMPLE_SELECTED_PROJECT;
+
   return (
     <MarketingSection className="bg-surface">
-      <div className="grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+      <div className="grid items-start gap-10 lg:grid-cols-[0.86fr_1.14fr] lg:items-center">
         <Reveal>
           <Eyebrow>Screen</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
             Screen projects with context, not guesses.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Add a project location and bring relevant official grid context directly into the
-            development record. Understand network geography, published network-development
-            information and your own project status before deciding where to focus further
-            diligence.
+            Add a project location and bring relevant official grid context into the development
+            record — before deciding where to spend further diligence.
           </p>
-          <p className="mt-4 max-w-md text-sm leading-6 text-muted">
+          <dl className="mt-6 max-w-sm space-y-2 text-sm">
+            <OutputRow label="Official local-network" value={project.localNetwork} />
+            <OutputRow label="Source" value={project.source} />
+            <OutputRow label="NUP context" value={project.nup} />
+            <OutputRow label="Last retrieved" value={project.retrieved} />
+          </dl>
+          <p className="mt-5 max-w-md text-[12px] leading-5 text-muted">
             Noxheim does not represent available grid capacity or guarantee connection feasibility.
           </p>
         </Reveal>
         <Reveal delay={80} fade>
-          <AppFrame path="/map">
-            <div className="grid bg-canvas md:grid-cols-[1fr_240px]">
-              <MarketingMap selectedId="stockholm-north-bess" sites={mapSites} />
-              <aside className="border-t border-line bg-surface p-4 md:border-t-0 md:border-l">
-                <p className="text-sm font-semibold">Sample Stockholm North BESS</p>
-                <p className="text-xs text-muted">Portfolio map · not a capacity map</p>
-                <dl className="mt-3 space-y-1.5 text-xs">
-                  <Row label="Official local network" value="Identified" />
-                  <Row label="Network development plan" value="Matched" />
-                  <Row label="Forecast need" value="Published" />
-                  <Row label="Team outlook" value="Customer-entered" />
-                </dl>
-              </aside>
+          <AppFrame path="/projects/sample-bess">
+            <div className="bg-canvas p-4 md:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-base font-semibold">{project.name}</p>
+                  <p className="mt-1 text-[12px] text-muted">
+                    {project.location} · {project.technology} · {project.mw}
+                  </p>
+                </div>
+                <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                  Sample
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                <section className="rounded-md border border-line bg-surface p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold">Official local network context</h3>
+                    <SourceBadge source="Official" />
+                  </div>
+                  <dl className="mt-3 space-y-2 text-[12px]">
+                    <GiRow label="Official local network company" value={project.localNetwork} />
+                    <GiRow label="Match" value="Identified" />
+                    <GiRow label="Source" value={`Official source · ${project.source}`} />
+                  </dl>
+                </section>
+                <section className="rounded-md border border-line bg-surface p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold">Official network development plan</h3>
+                    <SourceBadge source="Official" />
+                  </div>
+                  <dl className="mt-3 space-y-2 text-[12px]">
+                    <GiRow label="NUP context" value={project.nup} />
+                    <GiRow label="Publisher" value="Energimarknadsinspektionen" />
+                    <GiRow label="Retrieved by NOXHEIM" value={project.retrieved} />
+                  </dl>
+                </section>
+              </div>
+              <p className="mt-3 text-[11px] leading-4 text-muted">
+                Sample illustration. Forecast need for transfer capacity is published need — not
+                available MW or connection capacity.
+              </p>
             </div>
           </AppFrame>
         </Reveal>
       </div>
-      <Reveal delay={60}>
-        <div className="mt-8 grid gap-3 sm:grid-cols-3">
-          <Point
-            title="Official network context"
-            copy="Identify the official local-network geography relevant to the project location."
-            cardClassName="bg-canvas"
-          />
-          <Point
-            title="Network development plans"
-            copy="Bring published planning information and forecast need for transfer capacity into the project context."
-            cardClassName="bg-canvas"
-          />
-          <Point
-            title="Portfolio triage"
-            copy="Compare projects using your team's development outlook, workflow readiness and connection progress."
-            cardClassName="bg-canvas"
-          />
-        </div>
-      </Reveal>
     </MarketingSection>
   );
 }
 
 function ManagePillar() {
+  const project = SAMPLE_SELECTED_PROJECT;
   const currentIndex = CONNECTION_STAGES.indexOf("Grid Study");
+  const readiness = Math.round(
+    (project.readinessComplete / project.readinessRequired) * 100,
+  );
+
   return (
     <MarketingSection>
-      <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-        <Reveal>
-          <AppFrame path="/projects/sample-bess">
-            <div className="bg-canvas p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold">Sample BESS</p>
-                  <p className="text-[11px] text-muted">Connection workflow · sample workspace</p>
-                </div>
-                <StageBadge stage="Grid Study" />
-              </div>
-              <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
-                {CONNECTION_STAGES.map((stage, index) => (
-                  <div
-                    key={stage}
-                    className={
-                      index < currentIndex
-                        ? "min-w-[88px] rounded-md border border-success bg-success-bg px-2 py-1.5 text-[10px] text-success"
-                        : index === currentIndex
-                          ? "min-w-[88px] rounded-md border border-teal bg-teal-soft px-2 py-1.5 text-[10px] text-teal"
-                          : "min-w-[88px] rounded-md border border-line bg-surface px-2 py-1.5 text-[10px] text-muted"
-                    }
-                  >
-                    {stage}
+      <div className="grid items-start gap-12 lg:grid-cols-[1.12fr_0.88fr] lg:items-center">
+        <Reveal fade>
+          <div className="relative lg:pb-8 lg:pt-6">
+            <AppFrame path="/projects/sample-bess">
+              <div className="bg-canvas p-4 md:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-base font-semibold">{project.name}</p>
+                    <p className="mt-1 text-[12px] text-muted">
+                      Connection case · sample workspace
+                    </p>
                   </div>
-                ))}
-              </div>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <div className="rounded-md border border-line bg-surface p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                    Requirements
-                  </p>
-                  <p className="mt-2 text-sm font-semibold">7 of 10 required items complete</p>
-                  <p className="mt-1 text-[11px] text-muted">Workflow readiness — not feasibility.</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StageBadge stage={project.stage} />
+                    <StatusBadge status="In Progress" />
+                  </div>
                 </div>
-                <div className="rounded-md border border-line bg-surface p-3">
+                <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
+                  {CONNECTION_STAGES.map((stage, index) => (
+                    <div
+                      key={stage}
+                      className={
+                        index < currentIndex
+                          ? "min-w-[84px] rounded-md border border-success bg-success-bg px-2 py-1.5 text-[10px] text-success"
+                          : index === currentIndex
+                            ? "min-w-[84px] rounded-md border border-teal bg-teal-soft px-2 py-1.5 text-[10px] text-teal"
+                            : "min-w-[84px] rounded-md border border-line bg-surface px-2 py-1.5 text-[10px] text-muted"
+                      }
+                    >
+                      {stage}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 rounded-md border border-line bg-surface p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                     Connection case
                   </p>
-                  <p className="mt-2 text-xs text-muted">Customer-entered operator case</p>
-                  <p className="mt-1 text-xs text-muted">Next: study workshop</p>
+                  <dl className="mt-2 space-y-1.5 text-[12px]">
+                    <GiRow label="Stage" value={project.stage} />
+                    <GiRow label="Reference" value="ELV-2026-0418" />
+                    <GiRow label="Status" value="In progress" />
+                  </dl>
                 </div>
               </div>
-            </div>
-          </AppFrame>
+            </AppFrame>
+            <article className="mt-3 rounded-md border border-line bg-surface p-4 shadow-[0_16px_32px_-24px_rgba(26,30,36,0.5)] lg:absolute lg:-right-3 lg:-bottom-2 lg:mt-0 lg:w-[260px]">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                Application readiness
+              </p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight">{readiness}%</p>
+              <p className="mt-1 text-[12px] text-muted">
+                {project.readinessComplete} / {project.readinessRequired} required actions complete
+              </p>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-canvas">
+                <div className="h-full bg-teal" style={{ width: `${readiness}%` }} />
+              </div>
+              <p className="mt-2 text-[11px] text-muted">Workflow readiness — not feasibility.</p>
+            </article>
+            <article className="mt-3 hidden rounded-md border border-line bg-surface px-3 py-2.5 shadow-[0_12px_24px_-20px_rgba(26,30,36,0.45)] lg:absolute lg:-top-1 lg:-left-3 lg:block">
+              <p className="text-[10px] uppercase tracking-wide text-muted">Project status</p>
+              <p className="mt-0.5 text-[12px] font-medium">Grid Study · {project.mw}</p>
+            </article>
+          </div>
         </Reveal>
         <Reveal delay={80}>
           <Eyebrow>Manage</Eyebrow>
@@ -137,133 +224,63 @@ function ManagePillar() {
             Run the development workflow in one place.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Move beyond spreadsheets and disconnected project trackers. Keep each project&apos;s
-            grid-connection process, requirements and development status beside the intelligence
-            that matters to it.
+            Keep each project&apos;s connection process, requirements and development status beside
+            the intelligence that matters to it.
           </p>
-          <div className="mt-6">
-            <CtaLink href="/signup" variant="secondary">
-              Get started
-            </CtaLink>
-          </div>
+          <dl className="mt-6 max-w-sm space-y-2 text-sm">
+            <OutputRow label="Selected project" value={project.name} />
+            <OutputRow label="Current stage" value={project.stage} />
+            <OutputRow
+              label="Readiness"
+              value={`${project.readinessComplete} / ${project.readinessRequired} · ${readiness}%`}
+            />
+          </dl>
         </Reveal>
       </div>
-      <Reveal delay={60}>
-        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Point
-            title="Portfolio"
-            copy="Track projects, MW, technology, target COD and development stage across your portfolio."
-          />
-          <Point
-            title="Grid connection workflow"
-            copy="Manage connection cases, operators, references, status and key project milestones."
-          />
-          <Point
-            title="Requirements & readiness"
-            copy="Track required development actions and see workflow completeness across each project."
-          />
-          <Point
-            title="Project record"
-            copy="Keep project context, document metadata and activity together in one development workspace."
-          />
-        </div>
-      </Reveal>
     </MarketingSection>
   );
 }
 
-function MonitorPillar() {
-  return (
-    <MarketingSection className="bg-surface">
-      <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.15fr]">
-        <Reveal>
-          <Eyebrow>Monitor</Eyebrow>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Know when published information changes around your projects.
-          </h2>
-          <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Noxheim stores official source snapshots over time, identifies relevant changes and
-            connects them to the projects they may affect.
-          </p>
-          <p className="mt-4 max-w-md text-sm leading-6 text-muted">
-            During the design-partner phase, official sources are refreshed by Noxheim operations.
-            Source retrieval dates are shown in the product.
-          </p>
-          <div className="mt-6">
-            <CtaLink href="/#demo" variant="secondary">
-              Book a demo
-            </CtaLink>
-          </div>
-        </Reveal>
-        <Reveal delay={80}>
-          <AppFrame path="/changes">
-            <div className="bg-canvas p-4 sm:p-5">
-              <p className="text-[11px] uppercase tracking-wide text-muted">Sample change</p>
-              <h3 className="mt-1 text-xl font-semibold tracking-tight">
-                Published network-development information changed
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-muted">
-                Forecast need for transfer capacity updated for a planning area. This is published
-                need — not available connection capacity.
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-teal px-2.5 py-1 text-[11px] font-semibold text-white">
-                  1 project intersects the affected planning area
-                </span>
-                <span className="rounded-full bg-surface px-2.5 py-1 text-[12px]">Sample BESS</span>
-              </div>
-              <p className="mt-5 text-[11px] leading-4 text-muted">
-                Sample illustration. Not a live official event.
-              </p>
-            </div>
-          </AppFrame>
-        </Reveal>
-      </div>
-      <Reveal delay={60}>
-        <div className="mt-8 grid gap-3 sm:grid-cols-3">
-          <Point
-            title="Source history"
-            copy="Maintain traceable snapshots of published grid and planning information."
-            cardClassName="bg-canvas"
-          />
-          <Point
-            title="Change detection"
-            copy="Compare new source versions against the previous baseline."
-            cardClassName="bg-canvas"
-          />
-          <Point
-            title="Portfolio impact"
-            copy="See which projects intersect the geography affected by a published change."
-            cardClassName="bg-canvas"
-          />
-        </div>
-      </Reveal>
-    </MarketingSection>
-  );
-}
-
-function Point({
+function FlowCard({
+  step,
   title,
-  copy,
-  cardClassName,
+  detail,
 }: {
+  step: string;
   title: string;
-  copy: string;
-  cardClassName?: string;
+  detail: string;
 }) {
   return (
-    <article className={cn("rounded-md border border-line bg-surface px-4 py-4", cardClassName)}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal">{title}</p>
-      <p className="mt-2 text-sm leading-6 text-muted">{copy}</p>
+    <article className="rounded-md border border-line bg-surface px-3 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-teal">{step}</p>
+      <p className="mt-2 text-sm font-semibold leading-5">{title}</p>
+      <p className="mt-1 text-[11px] leading-4 text-muted">{detail}</p>
     </article>
   );
 }
 
-function Row({ label, value }: { label: string; value: ReactNode }) {
+function FlowArrow() {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <p className="hidden text-center text-muted md:block" aria-hidden>
+      →
+    </p>
+  );
+}
+
+function OutputRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-b border-line py-1.5 last:border-b-0">
       <dt className="text-muted">{label}</dt>
-      <dd className="text-right">{value}</dd>
+      <dd className="text-right font-medium">{value}</dd>
+    </div>
+  );
+}
+
+function GiRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <dt className="text-muted">{label}</dt>
+      <dd className="text-right font-medium">{value}</dd>
     </div>
   );
 }

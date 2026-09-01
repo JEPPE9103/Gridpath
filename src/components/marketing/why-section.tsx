@@ -1,44 +1,53 @@
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 
-const ITEMS = [
-  {
-    title: "Across operators",
-    copy: "Your development portfolio does not stop at one network boundary. Noxheim is designed around the developer's projects.",
-  },
-  {
-    title: "Context + workflow",
-    copy: "Official information becomes more useful when it sits beside the connection process and development decisions it affects.",
-  },
-  {
-    title: "Traceable intelligence",
-    copy: "Source, retrieval date and provenance stay attached to the information Noxheim presents.",
-  },
-  {
-    title: "Portfolio-first",
-    copy: "Noxheim is built to show what published information means for your projects — not simply display another dataset.",
-  },
-];
-
 export function WhySection() {
   return (
     <MarketingSection id="why">
       <Reveal>
         <Eyebrow>Why Noxheim</Eyebrow>
-        <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-[40px] sm:leading-[1.15]">
+        <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight sm:text-[40px] sm:leading-[1.15]">
           Built for the developer&apos;s portfolio — not one network operator&apos;s map.
         </h2>
+        <p className="mt-5 max-w-2xl text-base leading-7 text-muted">
+          Your development portfolio does not stop at one network boundary. Noxheim is organised
+          around the developer&apos;s projects — across operators, not inside a single operator map.
+        </p>
       </Reveal>
-      <div className="mt-12 grid gap-4 sm:grid-cols-2">
-        {ITEMS.map((item, index) => (
-          <Reveal key={item.title} delay={index * 60}>
-            <article className="h-full rounded-md border border-line bg-surface px-6 py-7">
-              <h3 className="text-lg font-semibold">{item.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-muted">{item.copy}</p>
-            </article>
-          </Reveal>
-        ))}
-      </div>
+
+      <Reveal delay={80}>
+        <div className="mt-12 grid items-center gap-4 lg:grid-cols-[1fr_auto_1fr]">
+          <article className="rounded-md border border-line bg-surface px-5 py-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+              Your portfolio
+            </p>
+            <ul className="mt-4 space-y-2 text-sm">
+              <li>Vattenfall</li>
+              <li>Ellevio</li>
+              <li>E.ON</li>
+              <li className="text-muted">other networks</li>
+            </ul>
+          </article>
+          <div className="text-center text-sm text-muted">
+            <p>all projects</p>
+            <p className="mt-1 text-lg leading-none" aria-hidden>
+              ↓
+            </p>
+          </div>
+          <article className="rounded-md bg-ink px-5 py-8 text-white">
+            <p className="text-[11px] tracking-[0.18em]">NOXHEIM</p>
+            <p className="mt-3 text-lg font-semibold tracking-tight">
+              One development workspace
+            </p>
+            <p className="mt-2 text-sm leading-6 text-white/70">
+              Screen, manage and monitor across the portfolio.
+            </p>
+          </article>
+        </div>
+        <p className="mt-4 text-[12px] text-muted">
+          Conceptual positioning. This is not a claim of operator integrations.
+        </p>
+      </Reveal>
     </MarketingSection>
   );
 }

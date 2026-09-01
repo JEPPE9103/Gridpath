@@ -9,7 +9,7 @@ export function Hero() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal">
             Grid Development Intelligence
           </p>
-          <h1 className="mt-4 max-w-xl text-[32px] font-semibold leading-[1.1] tracking-tight text-ink sm:text-[40px] md:text-[52px] lg:text-[56px]">
+          <h1 className="mt-4 max-w-xl text-[32px] font-semibold leading-[1.1] tracking-tight text-ink sm:text-[40px] md:text-[48px] lg:text-[52px]">
             Know which projects deserve your development capital.
           </h1>
           <p className="mt-5 max-w-md text-[15px] leading-7 text-muted sm:text-base">

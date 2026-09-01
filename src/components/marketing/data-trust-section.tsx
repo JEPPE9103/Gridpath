@@ -1,18 +1,27 @@
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
+import { SourceBadge } from "@/components/ui/badges";
+import type { DataSourceKind } from "@/types";
 
-const KINDS = [
+const KINDS: Array<{
+  title: string;
+  copy: string;
+  source: DataSourceKind;
+}> = [
   {
     title: "Official source",
     copy: "Published information from authorities and network-related sources.",
+    source: "Official",
   },
   {
     title: "Your team",
     copy: "Project data, development outlook and workflow status entered by your organisation.",
+    source: "Customer Data",
   },
   {
     title: "Noxheim derived",
     copy: "Geographic matching, portfolio impact and workflow calculations created from the underlying data.",
+    source: "NOXHEIM Analysis",
   },
 ];
 
@@ -35,7 +44,8 @@ export function DataTrustSection() {
         {KINDS.map((item, index) => (
           <Reveal key={item.title} delay={index * 50}>
             <article className="h-full rounded-md border border-white/10 bg-white/5 px-5 py-5">
-              <h3 className="text-base font-semibold text-white">{item.title}</h3>
+              <SourceBadge source={item.source} />
+              <h3 className="mt-4 text-base font-semibold text-white">{item.title}</h3>
               <p className="mt-3 text-sm leading-6 text-white/75">{item.copy}</p>
             </article>
           </Reveal>
