@@ -94,7 +94,7 @@ export function DemoCTA() {
                   type="submit"
                   disabled={pending}
                   aria-busy={pending}
-                  className="flex h-11 w-full items-center justify-center rounded-md bg-ink text-sm font-medium text-white transition-colors hover:bg-[#242a33] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-11 w-full items-center justify-center rounded-md bg-teal text-sm font-medium text-white transition-colors hover:bg-teal-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {pending ? "Sending…" : "Request a demo"}
                 </button>
