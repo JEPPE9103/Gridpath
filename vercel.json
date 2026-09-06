@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/internal/monitor/ei-connectivity",
+      "schedule": "0 4 * * *"
+    },
+    {
       "path": "/api/internal/monitor/daily",
       "schedule": "0 6 * * *"
     },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authorizeCronRequest } from "@/lib/monitor/cron-auth";
 import { probeOfficialEiConnectivity } from "@/lib/monitor/ei-connectivity";
+import { logEvent } from "@/lib/observability/log";
 
 type FetchLike = typeof fetch;
 
@@ -25,6 +26,10 @@ export async function handleEiConnectivityRequest(
   }
 
   const result = await probeOfficialEiConnectivity(fetchImpl);
+  logEvent("monitor.ei_connectivity", {
+    ok: result.ok,
+    probes: result.probes,
+  });
   return NextResponse.json(
     {
       ok: result.ok,
