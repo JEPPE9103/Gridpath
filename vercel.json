@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/internal/monitor/ei-connectivity",
+      "path": "/api/internal/monitor/official-source-cache",
       "schedule": "0 4 * * *"
     },
     {

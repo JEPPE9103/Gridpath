@@ -37,6 +37,12 @@ import {
   ingestTriggerType,
 } from "./lib/ingestion-runs.mjs";
 import {
+  loadCachedOfficialArtifact,
+  markArtifactFailedSql,
+  markArtifactProcessedSql,
+  scheduledIngestUsesCache,
+} from "./lib/official-cache.mjs";
+import {
   describeFetchFailure,
   downloadOfficialBuffer,
   fetchOfficialText,
@@ -61,6 +67,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 let ingestTarget = null;
 /** @type {string | null} */
 let ingestionRunId = null;
+/** @type {string | null} */
+let cachedArtifactSha = null;
 
 function quoteSql(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
@@ -382,15 +390,38 @@ async function main() {
   }
   ingestionRunId = begun?.run_id ?? null;
 
-  console.log(`\nDiscovering current distribution from:\n  ${LANDING_URL}`);
-  const landing = await fetchOfficialText(LANDING_URL, { phase: "lokalnat-discovery" });
-  const downloadUrl = discoverLokalnatZipUrl(landing.text, landing.finalUrl || LANDING_URL);
-  if (!isAllowedOfficialFetchUrl(downloadUrl)) {
-    throw new Error("Discovered lokalnät ZIP URL is not on an allowlisted official Ei host.");
+  let downloadUrl;
+  let downloaded;
+  if (scheduledIngestUsesCache()) {
+    console.log(
+      "Scheduled mode: loading official lokalnät ZIP from the Noxheim source cache. Not contacting ei.se.",
+    );
+    const cached = await loadCachedOfficialArtifact({
+      query: queryLocal,
+      slug: SOURCE_SLUG,
+      kind: "zip",
+      supabaseUrl: ingestTarget.url,
+    });
+    cachedArtifactSha = cached.sha256;
+    downloadUrl = cached.officialSourceUrl;
+    downloaded = {
+      bytes: cached.bytes,
+      filename: cached.filename,
+      finalUrl: cached.officialSourceUrl,
+    };
+    console.log(`Official source remains Ei:\n  ${downloadUrl}`);
+    console.log(`Retrieved by Noxheim (cache transport): ${cached.fetchedAt}`);
+    console.log(`Artifact SHA-256: ${cached.sha256}`);
+  } else {
+    console.log(`\nDiscovering current distribution from:\n  ${LANDING_URL}`);
+    const landing = await fetchOfficialText(LANDING_URL, { phase: "lokalnat-discovery" });
+    downloadUrl = discoverLokalnatZipUrl(landing.text, landing.finalUrl || LANDING_URL);
+    if (!isAllowedOfficialFetchUrl(downloadUrl)) {
+      throw new Error("Discovered lokalnät ZIP URL is not on an allowlisted official Ei host.");
+    }
+    console.log(`Official lokalnät ZIP discovered:\n  ${downloadUrl}`);
+    downloaded = await downloadOfficialBuffer(downloadUrl, { phase: "lokalnat-zip", kind: "zip" });
   }
-  console.log(`Official lokalnät ZIP discovered:\n  ${downloadUrl}`);
-
-  const downloaded = await downloadOfficialBuffer(downloadUrl, { phase: "lokalnat-zip", kind: "zip" });
   const contentHash = createHash("sha256").update(downloaded.bytes).digest("hex");
   console.log(`Downloaded ${downloaded.filename} (${downloaded.bytes.length} bytes)`);
   console.log(`Content hash (SHA-256): ${contentHash}`);
@@ -560,6 +591,11 @@ where source_id = ${quoteSql(source.id)}::uuid
       source_update_date: parsed.publishedDate,
       landing_page_url: LANDING_URL,
       download_url: downloadUrl,
+      official_publisher: SOURCE_PUBLISHER,
+      official_source_url: downloadUrl,
+      artifact_sha256: contentHash,
+      transport: scheduledIngestUsesCache() ? "noxheim_official_source_cache" : "direct_ei",
+      cache_is_transport_only: scheduledIngestUsesCache(),
       distribution: "official_zip",
       field_names: parsed.fieldNames,
       prj: parsed.prj,
@@ -866,6 +902,9 @@ order by p.name;
     });
     ingestionRunId = null;
   }
+  if (cachedArtifactSha) {
+    queryLocal(markArtifactProcessedSql(SOURCE_SLUG, cachedArtifactSha));
+  }
 }
 
 try {
@@ -887,6 +926,20 @@ try {
       });
     } catch (completeError) {
       console.error(completeError.message || completeError);
+    }
+  }
+  if (cachedArtifactSha) {
+    try {
+      queryLocal(
+        markArtifactFailedSql(
+          SOURCE_SLUG,
+          cachedArtifactSha,
+          classifyIngestError(error),
+          error.message || String(error),
+        ),
+      );
+    } catch {
+      // Keep the cached official artifact even if status update fails.
     }
   }
   console.error(

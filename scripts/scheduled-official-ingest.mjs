@@ -11,6 +11,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveIngestTarget } from "./lib/ingest-target.mjs";
+import { scheduledIngestUsesCache } from "./lib/official-cache.mjs";
 import { preferIpv4 } from "./lib/official-fetch.mjs";
 import { resolveScheduledTrigger, scheduledIngestIsAllowed } from "./lib/scheduled-ingest-guard.mjs";
 
@@ -43,6 +44,9 @@ console.log(
     event: "ingest.scheduled.start",
     trigger,
     projectRef: target.projectRef,
+    officialArtifactTransport: scheduledIngestUsesCache()
+      ? "noxheim_official_source_cache"
+      : "direct_ei",
     sources: ["ei-network-development-plans", "ei-network-area-concessions"],
   }),
 );

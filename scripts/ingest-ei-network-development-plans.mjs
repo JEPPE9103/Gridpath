@@ -50,6 +50,12 @@ import {
   OFFICIAL_USER_AGENT,
   preferIpv4,
 } from "./lib/official-fetch.mjs";
+import {
+  loadCachedOfficialArtifact,
+  markArtifactFailedSql,
+  markArtifactProcessedSql,
+  scheduledIngestUsesCache,
+} from "./lib/official-cache.mjs";
 
 const LANDING_URL = NUP_DISCOVERY_URLS[0];
 const SOURCE_NAME = "Energimarknadsinspektionen — Nätutvecklingsplaner";
@@ -83,6 +89,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 let ingestTarget = null;
 /** @type {string | null} */
 let ingestionRunId = null;
+/** @type {string | null} */
+let cachedArtifactSha = null;
 
 function quoteSql(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
@@ -679,19 +687,46 @@ from public.projects as p;
     "project fingerprint before",
   );
 
-  console.log(`\nDiscovering current Excel from official Ei pages:`);
-  for (const pageUrl of NUP_DISCOVERY_URLS) {
-    console.log(`  ${pageUrl}`);
+  let landingUrl;
+  let downloadUrl;
+  let downloaded;
+  let landing;
+  if (scheduledIngestUsesCache()) {
+    console.log(
+      "Scheduled mode: loading official NUP Excel from the Noxheim source cache. Not contacting ei.se.",
+    );
+    const cached = await loadCachedOfficialArtifact({
+      query: queryLocal,
+      slug: SOURCE_SLUG,
+      kind: "xlsx",
+      supabaseUrl: ingestTarget.url,
+    });
+    cachedArtifactSha = cached.sha256;
+    landingUrl = cached.discoveryPageUrl;
+    downloadUrl = cached.officialSourceUrl;
+    downloaded = {
+      bytes: cached.bytes,
+      filename: cached.filename,
+      finalUrl: cached.officialSourceUrl,
+    };
+    landing = { text: "", finalUrl: landingUrl };
+    console.log(`Official source remains Ei:\n  ${downloadUrl}`);
+    console.log(`Retrieved by Noxheim (cache transport): ${cached.fetchedAt}`);
+    console.log(`Artifact SHA-256: ${cached.sha256}`);
+  } else {
+    console.log(`\nDiscovering current Excel from official Ei pages:`);
+    for (const pageUrl of NUP_DISCOVERY_URLS) {
+      console.log(`  ${pageUrl}`);
+    }
+    const discovered = await discoverOfficialNupXlsxUrl(async (pageUrl) =>
+      fetchOfficialText(pageUrl, { phase: "nup-discovery" }),
+    );
+    landingUrl = discovered.landingUrl;
+    downloadUrl = discovered.xlsxUrl;
+    landing = { text: discovered.text, finalUrl: discovered.finalLandingUrl };
+    console.log(`Official NUP Excel discovered from:\n  ${landingUrl}\n  ${downloadUrl}`);
+    downloaded = await downloadOfficialBuffer(downloadUrl, { phase: "nup-xlsx", kind: "xlsx" });
   }
-  const discovered = await discoverOfficialNupXlsxUrl(async (pageUrl) =>
-    fetchOfficialText(pageUrl, { phase: "nup-discovery" }),
-  );
-  const landingUrl = discovered.landingUrl;
-  const downloadUrl = discovered.xlsxUrl;
-  const landing = { text: discovered.text, finalUrl: discovered.finalLandingUrl };
-  console.log(`Official NUP Excel discovered from:\n  ${landingUrl}\n  ${downloadUrl}`);
-
-  const downloaded = await downloadOfficialBuffer(downloadUrl, { phase: "nup-xlsx", kind: "xlsx" });
   const contentHash = createHash("sha256").update(downloaded.bytes).digest("hex");
   console.log(`Downloaded ${downloaded.filename} (${downloaded.bytes.length} bytes)`);
   console.log(`Content hash (SHA-256): ${contentHash}`);
@@ -977,6 +1012,12 @@ where source_id = ${quoteSql(source.id)}::uuid
     landing_page_url: landingUrl,
     discovery_page_urls: NUP_DISCOVERY_URLS,
     download_url: downloadUrl,
+    official_publisher: SOURCE_PUBLISHER,
+    official_source_url: downloadUrl,
+    retrieved_by_noxheim_at: retrievedAt,
+    artifact_sha256: contentHash,
+    transport: scheduledIngestUsesCache() ? "noxheim_official_source_cache" : "direct_ei",
+    cache_is_transport_only: scheduledIngestUsesCache(),
     distribution: "official_xlsx",
     geography_source: "official_arcgis_featureserver",
     feature_server_url: featureServer.url,
@@ -1978,6 +2019,13 @@ where source_id = ${quoteSql(source.id)}::uuid
     });
     ingestionRunId = null;
   }
+  if (cachedArtifactSha) {
+    queryLocal(
+      completeness.complete
+        ? markArtifactProcessedSql(SOURCE_SLUG, cachedArtifactSha)
+        : markArtifactFailedSql(SOURCE_SLUG, cachedArtifactSha, "incomplete_snapshot", "Normalized snapshot is incomplete."),
+    );
+  }
 
   if (!completeness.complete) {
     process.exitCode = 1;
@@ -2003,6 +2051,20 @@ try {
       });
     } catch (completeError) {
       console.error(completeError.message || completeError);
+    }
+  }
+  if (cachedArtifactSha) {
+    try {
+      queryLocal(
+        markArtifactFailedSql(
+          SOURCE_SLUG,
+          cachedArtifactSha,
+          classifyIngestError(error),
+          error.message || String(error),
+        ),
+      );
+    } catch {
+      // Keep the cached official artifact even if status update fails.
     }
   }
   console.error(
