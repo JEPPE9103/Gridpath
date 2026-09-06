@@ -17,14 +17,13 @@
  *   npm run cloud:ingest-ei-network-areas
  */
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { extractZipBytes } from "./lib/extract-zip.mjs";
 import {
   existsSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
   rmSync,
-  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -129,9 +128,7 @@ function discoverLokalnatZipUrl(html, landingUrl) {
 }
 
 function extractZip(zipBytes, destDir) {
-  const zipPath = path.join(destDir, "source.zip");
-  writeFileSync(zipPath, zipBytes);
-  execFileSync("tar", ["-xf", zipPath, "-C", destDir], { stdio: "ignore" });
+  extractZipBytes(zipBytes, destDir);
 }
 
 function findShapefileBase(dir) {

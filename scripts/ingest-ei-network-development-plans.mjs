@@ -22,13 +22,12 @@
  *   npm run cloud:ingest-ei-nup
  */
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { extractZipBytes } from "./lib/extract-zip.mjs";
 import {
   existsSync,
   mkdtempSync,
   readFileSync,
   rmSync,
-  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -421,9 +420,7 @@ async function discoverPrognosFeatureServer(pageUrls) {
 }
 
 function extractZip(zipBytes, destDir) {
-  const zipPath = path.join(destDir, "source.xlsx");
-  writeFileSync(zipPath, zipBytes);
-  execFileSync("tar", ["-xf", zipPath, "-C", destDir], { stdio: "ignore" });
+  extractZipBytes(zipBytes, destDir);
 }
 
 function parseSharedStrings(xml) {
