@@ -14,6 +14,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseSupabaseDbQueryRows } from "./supabase-query-json.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const supabaseCli = path.join(repoRoot, "node_modules", "supabase", "dist", "supabase.js");
@@ -177,12 +178,7 @@ export function queryIngestSql(target, sql) {
       "-f",
       file,
     ]);
-    const jsonStart = raw.indexOf("{");
-    if (jsonStart === -1) {
-      return [];
-    }
-    const parsed = JSON.parse(raw.slice(jsonStart));
-    return parsed.rows ?? [];
+    return parseSupabaseDbQueryRows(raw);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
