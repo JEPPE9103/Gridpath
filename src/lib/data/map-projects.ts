@@ -1,4 +1,6 @@
+import { applyArchiveFilter } from "@/lib/data/archive-filter";
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { fetchAllInChunks, fetchAllQueryPages, uniqueIds } from "@/lib/data/paged-select";
 import type {
   MapProject,
   MapProjectAlert,
@@ -43,6 +45,7 @@ type ProjectRow = {
   confidence: string;
   target_cod: string | null;
   updated_at: string;
+  archived_at: string | null;
   grid_operators: GridOperatorRow | GridOperatorRow[] | null;
   project_sites: SiteRow[] | null;
 };
@@ -148,6 +151,7 @@ function mapProject(
     confidence,
     targetCOD: row.target_cod ?? "",
     lastUpdated: row.updated_at,
+    archivedAt: row.archived_at,
     latitude: point?.latitude ?? 0,
     longitude: point?.longitude ?? 0,
     hasCoordinates: point !== null,
@@ -173,6 +177,56 @@ export async function getMapProjectsForCurrentOrganization(): Promise<MapProject
   }
 
   const supabase = await createSupabaseServerClient();
+  const projectsPage = await fetchAllQueryPages<ProjectRow>(async (from, to) => {
+    const page = await applyArchiveFilter(
+      supabase
+        .from("projects")
+        .select(
+          `
+          id,
+          slug,
+          name,
+          location,
+          technology,
+          import_mw,
+          export_mw,
+          connection_stage,
+          connection_outlook,
+          confidence,
+          target_cod,
+          updated_at,
+          archived_at,
+          grid_operators ( name ),
+          project_sites!inner ( name, location, geom, is_primary )
+        `,
+        )
+        .eq("organization_id", organization.id)
+        .eq("project_sites.is_primary", true)
+        .order("name", { ascending: true }),
+      "active",
+    ).range(from, to);
+    return { data: page.data as ProjectRow[] | null, error: page.error };
+  });
+
+  if (projectsPage.error) {
+    console.error("getMapProjectsForCurrentOrganization failed", projectsPage.error);
+    return { kind: "error", message: "Could not load map projects." };
+  }
+
+  const projectRows = projectsPage.rows;
+  return hydrateMapProjects(supabase, projectRows);
+}
+
+export async function getMapProjectsByIds(
+  organizationId: string,
+  projectIds: string[],
+): Promise<MapProjectsResult> {
+  const ids = uniqueIds(projectIds);
+  if (ids.length === 0) {
+    return { kind: "ok", projects: [] };
+  }
+
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("projects")
     .select(
@@ -189,58 +243,74 @@ export async function getMapProjectsForCurrentOrganization(): Promise<MapProject
       confidence,
       target_cod,
       updated_at,
+      archived_at,
       grid_operators ( name ),
       project_sites ( name, location, geom, is_primary )
     `,
     )
-    .eq("organization_id", organization.id)
-    .order("name", { ascending: true });
+    .eq("organization_id", organizationId)
+    .in("id", ids);
 
   if (error) {
-    console.error("getMapProjectsForCurrentOrganization failed", error.message);
-    return { kind: "error", message: "Could not load map projects." };
+    console.error("getMapProjectsByIds failed", error.message);
+    return { kind: "error", message: "Could not load comparison projects." };
   }
 
-  const projectRows = (data ?? []) as ProjectRow[];
-  const ids = projectRows.map((row) => row.id);
+  const rows = (data ?? []) as ProjectRow[];
+  const ordered = ids
+    .map((id) => rows.find((row) => row.id === id))
+    .filter((row): row is ProjectRow => Boolean(row));
+  return hydrateMapProjects(supabase, ordered);
+}
+
+async function hydrateMapProjects(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  projectRows: ProjectRow[],
+): Promise<MapProjectsResult> {
+  const ids = uniqueIds(projectRows.map((row) => row.id));
 
   if (ids.length === 0) {
     return { kind: "ok", projects: [] };
   }
 
   const [requirementsResult, casesResult, alertsResult] = await Promise.all([
-    supabase
-      .from("project_requirements")
-      .select("project_id, status, required")
-      .in("project_id", ids),
-    supabase
-      .from("connection_cases")
-      .select("project_id, case_id, status, next_milestone, deadline")
-      .in("project_id", ids),
-    supabase
-      .from("alerts")
-      .select("id, project_id, severity, status, title")
-      .eq("status", "open")
-      .in("project_id", ids),
+    fetchAllInChunks<RequirementRow>(ids, async (chunk) => {
+      const page = await supabase
+        .from("project_requirements")
+        .select("project_id, status, required")
+        .in("project_id", chunk);
+      return { data: page.data as RequirementRow[] | null, error: page.error };
+    }),
+    fetchAllInChunks<CaseRow>(ids, async (chunk) => {
+      const page = await supabase
+        .from("connection_cases")
+        .select("project_id, case_id, status, next_milestone, deadline")
+        .in("project_id", chunk);
+      return { data: page.data as CaseRow[] | null, error: page.error };
+    }),
+    fetchAllInChunks<AlertRow>(ids, async (chunk) => {
+      const page = await supabase
+        .from("alerts")
+        .select("id, project_id, severity, status, title")
+        .eq("status", "open")
+        .in("project_id", chunk);
+      return { data: page.data as AlertRow[] | null, error: page.error };
+    }),
   ]);
 
   if (requirementsResult.error || casesResult.error || alertsResult.error) {
     console.error("getMapProjectsForCurrentOrganization related queries failed", {
-      requirements: requirementsResult.error?.message,
-      cases: casesResult.error?.message,
-      alerts: alertsResult.error?.message,
+      requirements: requirementsResult.error,
+      cases: casesResult.error,
+      alerts: alertsResult.error,
     });
     return { kind: "error", message: "Could not load map projects." };
   }
 
-  const requirementsByProject = groupByProjectId(
-    (requirementsResult.data ?? []) as RequirementRow[],
-  );
-  const casesByProject = groupByProjectId((casesResult.data ?? []) as CaseRow[]);
+  const requirementsByProject = groupByProjectId(requirementsResult.rows);
+  const casesByProject = groupByProjectId(casesResult.rows);
   const alertsByProject = groupByProjectId(
-    ((alertsResult.data ?? []) as AlertRow[]).filter(
-      (row): row is AlertRow & { project_id: string } => Boolean(row.project_id),
-    ),
+    alertsResult.rows.filter((row): row is AlertRow & { project_id: string } => Boolean(row.project_id)),
   );
 
   return {

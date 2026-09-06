@@ -1,6 +1,12 @@
 "use server";
 
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { organizationRoleLabel } from "@/lib/data/organization-role";
+import {
+  inviteCreatedMessage,
+  inviteResentMessage,
+  sendOrganizationInviteEmail,
+} from "@/lib/organization/invite-email";
 import { generateInviteToken } from "@/lib/organization/invite-token";
 import {
   canAssignMemberRole,
@@ -19,6 +25,7 @@ export type TeamActionState = {
   error?: string;
   success?: string;
   inviteUrl?: string;
+  emailSent?: boolean;
 };
 
 function mapTeamError(message: string | undefined, fallback: string): string {
@@ -46,6 +53,12 @@ function mapTeamError(message: string | undefined, fallback: string): string {
   }
   if (text.includes("member not found")) {
     return "Could not update that team member.";
+  }
+  if (text.includes("invite already accepted")) {
+    return "This invitation has already been used.";
+  }
+  if (text.includes("invite revoked")) {
+    return "This invitation is no longer active.";
   }
   if (text.includes("invite not active") || text.includes("invite not found")) {
     return "Could not revoke that invitation.";
@@ -92,9 +105,61 @@ export async function createOrganizationInviteAction(
   }
 
   revalidatePath("/settings");
+  const inviteUrl = `${getPublicSiteUrl()}/invite/${encodeURIComponent(rawToken)}`;
+  const delivery = await sendOrganizationInviteEmail({
+    to: email,
+    organizationName: organization.name,
+    inviteUrl,
+    roleLabel: organizationRoleLabel(role),
+  });
   return {
-    success: "Invitation created.",
-    inviteUrl: `${getPublicSiteUrl()}/invite/${encodeURIComponent(rawToken)}`,
+    success: inviteCreatedMessage(delivery),
+    inviteUrl,
+    emailSent: delivery.sent,
+  };
+}
+
+export async function resendOrganizationInviteAction(
+  inviteId: string,
+): Promise<TeamActionState> {
+  const organization = await getCurrentOrganization();
+  if (!organization || !canManageTeam(organization.role)) {
+    return { error: "You do not have permission to resend invitations." };
+  }
+
+  const { rawToken, tokenHash } = generateInviteToken();
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("resend_organization_invite", {
+    p_invite_id: inviteId,
+    p_token_hash: tokenHash,
+  });
+
+  if (error || !data) {
+    console.error("resendOrganizationInviteAction failed", error?.message);
+    return {
+      error: mapTeamError(error?.message, "Could not resend the invitation."),
+    };
+  }
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { invite_id: string; email: string; invite_role: string }
+    | undefined;
+  if (!row?.email) {
+    return { error: "Could not resend the invitation." };
+  }
+
+  revalidatePath("/settings");
+  const inviteUrl = `${getPublicSiteUrl()}/invite/${encodeURIComponent(rawToken)}`;
+  const delivery = await sendOrganizationInviteEmail({
+    to: row.email,
+    organizationName: organization.name,
+    inviteUrl,
+    roleLabel: organizationRoleLabel(row.invite_role),
+  });
+  return {
+    success: inviteResentMessage(delivery),
+    inviteUrl,
+    emailSent: delivery.sent,
   };
 }
 

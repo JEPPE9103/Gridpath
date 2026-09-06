@@ -145,9 +145,9 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
                 className="text-left"
               >
                 <KpiCard
-                  label="Needs Attention"
+                  label="Workflow attention"
                   value={kpis.needsAttention}
-                  hint="Deadline or data issue"
+                  hint="Projects needing workflow attention — not the open-alert count"
                   icon={AlertTriangle}
                   tone="critical"
                 />
@@ -163,6 +163,9 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
                   <CountBadge tone="critical">{criticalCount} critical</CountBadge>
                   <CountBadge>{alerts.length} total</CountBadge>
                 </div>
+                <Link href="/alerts" className="ml-auto text-sm font-medium text-teal hover:underline">
+                  View all alerts
+                </Link>
               </div>
 
               {alerts.length === 0 ? (

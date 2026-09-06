@@ -1,7 +1,7 @@
 # NOXHEIM Design Partner Cloud — Operator Runbook
 
 Supervised pilot operations for the hosted Design Partner environment.
-This is **not** a full production worker or source-health UI.
+Source Health lives in Settings → Data sources. Internal run history lives at `/internal/operations` for allowlisted operator emails only (`OPERATOR_EMAILS`).
 
 ## Official sources active
 
@@ -12,15 +12,53 @@ This is **not** a full production worker or source-health UI.
 
 Semantics remain: **forecast need ≠ available capacity / headroom / connection offer**.
 
-## Manual refresh cadence
+**Noxheim refresh cadence ≠ official source publication cadence.** Schedulers may run daily; each source is due on `refresh_interval_hours` (default 168). Unchanged published content is a successful refresh.
 
-For the first design-partner pilot:
+## Normal production ingest (automatic)
 
-- **Baseline**: already loaded into Design Partner Cloud during go-live.
-- **Re-check**: weekly, or after known Ei publication updates.
-- **NUP change detection**: only when a **new** workbook content hash is ingested after a successful baseline.
+GitHub Actions workflow `.github/workflows/official-ingest.yml`:
 
-Tell customers: “Official Grid Intelligence was last refreshed on \<date\> by NOXHEIM operations.”
+1. Daily 05:00 UTC (and `workflow_dispatch`)
+2. Links the allowlisted cloud project
+3. Runs full NUP ingest then full local-network ingest
+4. Writes `source_ingestion_runs`, snapshots, versions, diffs, `external_changes`, geographic `change_impacts`, and alerts (NUP only)
+
+Local-network ingest still does **not** create project `external_changes`.
+
+This is the default operating model. Humans are not required when sources are healthy.
+
+## Vercel cron (alerts + email, not full ingest)
+
+- `GET/POST /api/internal/monitor/daily` — workflow-alert reconciliation + important-impact emails
+- `GET/POST /api/internal/monitor/weekly` — owner/admin digest (if org has not opted out)
+
+Both require `Authorization: Bearer $CRON_SECRET`. Vercel Cron typically requires a paid plan. `vercel.json` uses daily 06:00 UTC and weekly Monday 07:00 UTC.
+
+Required app env: `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `NOTIFICATION_FROM_EMAIL` (or `INVITE_FROM_EMAIL`).
+
+Sales-demo org (`ea5096a9-8da3-42e6-9dbd-64097414cb03`) is excluded from scheduled email. Owners/admins can disable weekly digest without disabling in-app alerts (Settings → Email notifications).
+
+## Operator fallback (manual)
+
+Use when a run failed, after a source-format change, or to investigate:
+
+```bash
+# PowerShell — force full ingest against allowlisted cloud
+$env:NOXHEIM_ALLOW_REMOTE_INGEST = "true"
+$env:NOXHEIM_REMOTE_PROJECT_REF = "krgzpgqmnzljwlwptmcn"
+$env:NOXHEIM_SCHEDULED_INGEST = "true"
+$env:INGEST_FORCE = "true"
+npm run cloud:ingest-official
+```
+
+Or GitHub Actions → Official source ingest → Run workflow → Force.
+
+Individual scripts remain:
+
+```bash
+npm run cloud:ingest-ei-nup
+npm run cloud:ingest-ei-network-areas
+```
 
 ## Trusted remote ingest (no secrets in commands)
 
@@ -121,7 +159,7 @@ CLI cannot safely inspect/change Cloud Auth. Configure in Supabase Dashboard →
 | Confirm email | OFF for tightly supervised pilot smoke (acceptable); if ON, SMTP must work before relying on signup |
 | Minimum password length | ≥ 8 (app validates 8+) |
 
-Password reset is not implemented in the app UI yet — treat as a known pilot limitation (operator-assisted reset via Supabase Dashboard if needed).
+Password reset is implemented in the app (`/forgot-password`, `/reset-password`). Supabase Auth Site URL and Redirect URLs must include `https://www.noxheim.com/**`. SMTP is required for reset emails in production.
 
 Do **not** use `.local` emails — GoTrue rejects them as invalid. Use a normal domain for smoke identities.
 

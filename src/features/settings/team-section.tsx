@@ -6,6 +6,7 @@ import {
   changeOrganizationMemberRoleAction,
   createOrganizationInviteAction,
   removeOrganizationMemberAction,
+  resendOrganizationInviteAction,
   revokeOrganizationInviteAction,
   type TeamActionState,
 } from "@/lib/organization/team-actions";
@@ -75,7 +76,7 @@ function InviteTeammateForm({ actorRole }: { actorRole: string }) {
           </p>
         ) : null}
         <Button type="submit" disabled={pending}>
-          {pending ? "Creating invitation…" : "Create invitation"}
+          {pending ? "Creating invitation…" : "Send invitation"}
         </Button>
       </form>
       {state.inviteUrl ? (
@@ -97,9 +98,17 @@ function InviteTeammateForm({ actorRole }: { actorRole: string }) {
               Copy invite link
             </Button>
           </div>
-          <p className="mt-2 text-xs text-muted">
-            Email delivery is not configured yet. Share this link securely with your teammate.
-          </p>
+          {state.emailSent ? (
+            <p className="mt-2 text-xs text-muted">
+              The recipient can use the email or this link. The link is the fallback if the inbox
+              is slow.
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-muted">
+              Email delivery is configuration required. Share this link securely — the app did not
+              send an email.
+            </p>
+          )}
         </div>
       ) : null}
     </div>
@@ -187,34 +196,79 @@ function PendingInviteRow({
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const isPendingInvite = invite.status === "pending";
 
   return (
     <tr className="border-t border-line">
       <td className="px-3 py-3 text-sm">{invite.email}</td>
       <td className="px-3 py-3 text-sm">{invite.roleLabel}</td>
-      <td className="px-3 py-3 text-sm text-muted">{invite.invitedByName}</td>
+      <td className="px-3 py-3 text-sm text-muted">{formatDate(invite.createdAt)}</td>
       <td className="px-3 py-3 text-sm text-muted">{formatDate(invite.expiresAt)}</td>
       <td className="px-3 py-3 text-sm capitalize">{invite.status}</td>
       <td className="px-3 py-3 text-right">
-        {canManage && invite.status === "pending" ? (
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={pending}
-            onClick={() => {
-              if (!window.confirm(`Revoke the invitation for ${invite.email}?`)) {
-                return;
-              }
-              startTransition(async () => {
-                const result = await revokeOrganizationInviteAction(invite.inviteId);
-                setMessage(result.error ?? result.success ?? null);
-              });
-            }}
-          >
-            Revoke
-          </Button>
+        {canManage && (isPendingInvite || invite.status === "expired") ? (
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => {
+                  startTransition(async () => {
+                    const result = await resendOrganizationInviteAction(invite.inviteId);
+                    setMessage(result.error ?? result.success ?? null);
+                    setInviteUrl(result.inviteUrl ?? null);
+                  });
+                }}
+              >
+                Resend
+              </Button>
+              {isPendingInvite ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={pending}
+                  onClick={() => {
+                    if (!window.confirm(`Revoke the invitation for ${invite.email}?`)) {
+                      return;
+                    }
+                    startTransition(async () => {
+                      const result = await revokeOrganizationInviteAction(invite.inviteId);
+                      setMessage(result.error ?? result.success ?? null);
+                      setInviteUrl(null);
+                    });
+                  }}
+                >
+                  Revoke
+                </Button>
+              ) : null}
+            </div>
+            {inviteUrl ? (
+              <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row">
+                <input
+                  readOnly
+                  value={inviteUrl}
+                  className="h-8 min-w-0 flex-1 rounded-md border border-line bg-canvas px-2 text-xs text-ink"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(inviteUrl);
+                  }}
+                >
+                  Copy invite link
+                </Button>
+              </div>
+            ) : (
+              <p className="text-xs text-muted">
+                Resend to generate a new link. The previous token is not stored.
+              </p>
+            )}
+            {message ? <p className="text-xs text-muted">{message}</p> : null}
+          </div>
         ) : null}
-        {message ? <p className="mt-1 text-xs text-muted">{message}</p> : null}
       </td>
     </tr>
   );
@@ -228,6 +282,7 @@ export function TeamSection({
   organizationName,
   actorRole,
   currentUserId,
+  inviteEmailConfigured,
 }: {
   members: TeamMemberItem[];
   pendingInvites: PendingInviteItem[];
@@ -236,6 +291,7 @@ export function TeamSection({
   organizationName: string;
   actorRole: string;
   currentUserId: string;
+  inviteEmailConfigured: boolean;
 }) {
   const activePending = pendingInvites.filter((invite) => invite.status === "pending");
 
@@ -243,8 +299,17 @@ export function TeamSection({
     <section className="max-w-3xl rounded-md border border-line bg-surface p-5">
       <h2 className="text-base font-semibold">Team</h2>
       <p className="mt-1 text-sm text-muted">
-        Manage who can access {organizationName}.
+        Manage who can access {organizationName}. Active members and pending invitations are listed
+        separately.
       </p>
+      {!canManageTeam ? (
+        <p className="mt-2 text-xs text-muted">
+          Viewers and members can see the team list. Only Owners and Admins can change roles or
+          invitations.
+        </p>
+      ) : null}
+
+      <h3 className="mt-5 text-sm font-semibold">Members</h3>
 
       <div className="mt-4 overflow-x-auto rounded-md border border-line">
         <table className="min-w-full text-left text-sm">
@@ -253,7 +318,7 @@ export function TeamSection({
               <th className="px-3 py-2 font-medium">Name</th>
               <th className="px-3 py-2 font-medium">Email</th>
               <th className="px-3 py-2 font-medium">Role</th>
-              <th className="px-3 py-2 font-medium">Joined</th>
+              <th className="px-3 py-2 font-medium">Member since</th>
               <th className="px-3 py-2 text-right font-medium">Actions</th>
             </tr>
           </thead>
@@ -293,6 +358,11 @@ export function TeamSection({
       {canManageTeam ? (
         <div className="mt-6">
           <h3 className="text-sm font-semibold">Pending invitations</h3>
+          <p className="mt-1 text-xs text-muted">
+            These people are not members yet. {inviteEmailConfigured
+              ? "Invitation email is configured for this environment."
+              : "Email delivery is configuration required — use Copy invite link after Send or Resend."}
+          </p>
           {activePending.length === 0 ? (
             <p className="mt-2 text-sm text-muted">No pending invitations.</p>
           ) : (
@@ -302,7 +372,7 @@ export function TeamSection({
                   <tr>
                     <th className="px-3 py-2 font-medium">Email</th>
                     <th className="px-3 py-2 font-medium">Role</th>
-                    <th className="px-3 py-2 font-medium">Invited by</th>
+                    <th className="px-3 py-2 font-medium">Created</th>
                     <th className="px-3 py-2 font-medium">Expires</th>
                     <th className="px-3 py-2 font-medium">Status</th>
                     <th className="px-3 py-2 text-right font-medium">Actions</th>

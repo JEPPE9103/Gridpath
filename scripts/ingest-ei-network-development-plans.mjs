@@ -11,8 +11,8 @@
  * no external_changes, and does not generate alerts.
  *
  * A later NEW workbook hash stores versions, diffs against the previous
- * snapshot, and may create external_changes + geographic change_impacts.
- * It still does not create customer alerts.
+ * snapshot, and may create external_changes + geographic change_impacts +
+ * customer alerts (one per relevant impact).
  *
  * Default: refuses any non-localhost Supabase target.
  * Design Partner Cloud: requires explicit remote opt-in (see scripts/lib/ingest-target.mjs).
@@ -34,6 +34,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { queryIngestSql, resolveIngestTarget } from "./lib/ingest-target.mjs";
+import {
+  beginIngestionRun,
+  classifyIngestError,
+  completeIngestionRun,
+  ingestTriggerType,
+} from "./lib/ingestion-runs.mjs";
 
 const LANDING_URL =
   "https://ei.se/bransch/natutvecklingsplaner/karttjanst-natutvecklingsplaner";
@@ -67,6 +73,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 /** @type {{ mode: string, url: string, projectRef: string | null, dbFlag: string } | null} */
 let ingestTarget = null;
+/** @type {string | null} */
+let ingestionRunId = null;
 
 function quoteSql(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
@@ -690,6 +698,20 @@ async function main() {
   console.log(`Ei NUP ingest against ${url} (mode=${mode})`);
   console.log("Source class: official regulator NUP (not a NOXHEIM fixture)");
   console.log("Semantics: forecast MW = forecast transfer-capacity NEED, not available capacity.");
+
+  const begun = beginIngestionRun(queryLocal, quoteSql, {
+    slug: SOURCE_SLUG,
+    trigger: ingestTriggerType(),
+  });
+  if (begun?.outcome === "skipped_locked") {
+    console.log("Skipped: an ingestion run is already active for this source.");
+    return;
+  }
+  if (begun?.outcome === "skipped_not_due") {
+    console.log("Skipped: this source is not due for a scheduled refresh.");
+    return;
+  }
+  ingestionRunId = begun?.run_id ?? null;
 
   const projectFingerprintBefore = requireRow(
     queryLocal(`
@@ -1613,7 +1635,7 @@ select
 from private.apply_observation_snapshot_changes(
   ${quoteSql(previous[0].id)}::uuid,
   ${quoteSql(snapshotId)}::uuid,
-  false,
+  true,
   ${quoteSql(NUP_IMPACT_REASON)},
   'high'
 );
@@ -1911,7 +1933,7 @@ where source_id = ${quoteSql(source.id)}::uuid
   console.log(`CRS transformation: ${SOURCE_CRS_LABEL} → ${TARGET_CRS} via PostGIS ST_Transform`);
   console.log(`FeatureServer: ${featureServer.url}`);
   console.log(`external_changes for this source: ${changeCount.count}`);
-  console.log(`alerts for this source: ${alertCount.count} (official NUP ingest does not create alerts)`);
+  console.log(`alerts for this source: ${alertCount.count}`);
   console.log(
     `Supporting REL overlap with Ei concession unit_id: ${relJoin.rel_also_in_concessions} of ${relJoin.nup_rel_tokens} NUP REL tokens (identity context only; not used for site matching)`,
   );
@@ -1982,6 +2004,26 @@ where source_id = ${quoteSql(source.id)}::uuid
   console.log("It does not prove available MW, connection capacity, headroom, or time-to-power.");
   console.log("Customer project rows were not modified.");
 
+  if (ingestionRunId) {
+    completeIngestionRun(queryLocal, quoteSql, quoteSqlNullable, {
+      runId: ingestionRunId,
+      status: completeness.complete ? "success" : "failed",
+      snapshotId,
+      sourceChanged: !reusedExistingHash && snapshotStatus !== "unchanged",
+      observationsProcessed: completeness.observationCount,
+      externalChangesCreated: changeDetection?.insertedChanges ?? 0,
+      impactsCreated: changeDetection?.impactRows ?? 0,
+      errorCode: completeness.complete ? null : "incomplete_snapshot",
+      errorMessage: completeness.complete ? null : "Normalized snapshot is incomplete.",
+      metadata: {
+        engine: "cli-nup",
+        create_alerts: true,
+        reused_existing_hash: reusedExistingHash,
+      },
+    });
+    ingestionRunId = null;
+  }
+
   if (!completeness.complete) {
     process.exitCode = 1;
   }
@@ -1990,6 +2032,19 @@ where source_id = ${quoteSql(source.id)}::uuid
 try {
   await main();
 } catch (error) {
+  if (ingestionRunId) {
+    try {
+      completeIngestionRun(queryLocal, quoteSql, quoteSqlNullable, {
+        runId: ingestionRunId,
+        status: "failed",
+        errorCode: classifyIngestError(error),
+        errorMessage: error.message || String(error),
+        metadata: { engine: "cli-nup" },
+      });
+    } catch (completeError) {
+      console.error(completeError.message || completeError);
+    }
+  }
   console.error(error.message || error);
   process.exit(1);
 }

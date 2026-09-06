@@ -128,12 +128,12 @@ type SnapshotRow = {
   source_id: string;
   retrieved_at: string;
   published_at: string | null;
-  content_hash: string;
-  raw_content: unknown;
+  content_hash?: string;
+  raw_content?: unknown;
   storage_path: string | null;
   status: string;
-  metadata: unknown;
-  created_at: string;
+  metadata?: unknown;
+  created_at?: string;
 };
 
 type ChangeRow = {
@@ -253,12 +253,12 @@ function mapSnapshot(row: SnapshotRow): SourceSnapshot {
     sourceId: row.source_id,
     retrievedAt: row.retrieved_at,
     publishedAt: row.published_at,
-    contentHash: row.content_hash,
-    rawContent: asRecordOrNull(row.raw_content),
+    contentHash: row.content_hash ?? "",
+    rawContent: null,
     storagePath: row.storage_path,
     status: row.status as SourceSnapshotStatus,
     metadata: asRecord(row.metadata),
-    createdAt: row.created_at,
+    createdAt: row.created_at ?? row.retrieved_at,
   };
 }
 

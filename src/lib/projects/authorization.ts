@@ -2,6 +2,14 @@ export function canCreateOrEditProjects(role: string | null | undefined): boolea
   return role === "owner" || role === "admin" || role === "member";
 }
 
+export function canArchiveProjects(role: string | null | undefined): boolean {
+  return canCreateOrEditProjects(role);
+}
+
+export function canImportProjects(role: string | null | undefined): boolean {
+  return canCreateOrEditProjects(role);
+}
+
 export function canDeleteProjects(role: string | null | undefined): boolean {
   return role === "owner" || role === "admin";
 }

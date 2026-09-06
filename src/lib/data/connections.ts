@@ -1,4 +1,6 @@
+import { applyArchiveFilter } from "@/lib/data/archive-filter";
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { fetchAllQueryPages } from "@/lib/data/paged-select";
 import type {
   ConnectionCaseListItem,
   ConnectionCasesResult,
@@ -88,33 +90,40 @@ export async function getConnectionCasesForCurrentOrganization(): Promise<Connec
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("connection_cases")
-    .select(
-      `
-      id,
-      case_id,
-      stage,
-      status,
-      submitted_at,
-      next_milestone,
-      deadline,
-      notes,
-      owner_id,
-      updated_at,
-      grid_operators ( name ),
-      projects!inner ( id, name, slug, organization_id )
-    `,
-    )
-    .eq("projects.organization_id", organization.id)
-    .order("deadline", { ascending: true, nullsFirst: false });
+  const casesPage = await fetchAllQueryPages<CaseRow>(async (from, to) => {
+    const page = await applyArchiveFilter(
+      supabase
+        .from("connection_cases")
+        .select(
+          `
+          id,
+          case_id,
+          stage,
+          status,
+          submitted_at,
+          next_milestone,
+          deadline,
+          notes,
+          owner_id,
+          updated_at,
+          grid_operators ( name ),
+          projects!inner ( id, name, slug, organization_id, archived_at )
+        `,
+        )
+        .eq("projects.organization_id", organization.id)
+        .order("deadline", { ascending: true, nullsFirst: false }),
+      "active",
+      "projects.archived_at",
+    ).range(from, to);
+    return { data: page.data as CaseRow[] | null, error: page.error };
+  });
 
-  if (error) {
-    console.error("getConnectionCasesForCurrentOrganization failed", error.message);
+  if (casesPage.error) {
+    console.error("getConnectionCasesForCurrentOrganization failed", casesPage.error);
     return { kind: "error", message: "Could not load connection cases." };
   }
 
-  const rows = (data ?? []) as CaseRow[];
+  const rows = casesPage.rows;
   const ownerIds = [
     ...new Set(rows.map((row) => row.owner_id).filter((id): id is string => Boolean(id))),
   ];

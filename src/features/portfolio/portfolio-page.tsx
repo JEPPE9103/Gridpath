@@ -2,97 +2,111 @@
 
 import { BellButton } from "@/components/layout/app-shell";
 import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badges";
-import { buttonClassName } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
-import { formatCapacity, formatDate } from "@/lib/format";
+import { formatCapacity, formatDate, formatMWTotal } from "@/lib/format";
+import type { ListProjectsResult, PortfolioSortKey } from "@/lib/data/projects";
+import { PORTFOLIO_PAGE_SIZE } from "@/lib/data/paged-select";
+import type { ArchiveView } from "@/lib/projects/archive-scope";
 import {
   OUTLOOKS,
   PIPELINE_STAGES,
   TECHNOLOGIES,
-  type Outlook,
-  type PipelineStage,
-  type ProjectListItem,
-  type Technology,
 } from "@/types";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-type SortKey =
-  | "name"
-  | "location"
-  | "technology"
-  | "capacity"
-  | "gridOperator"
-  | "stage"
-  | "outlook"
-  | "targetCOD"
-  | "lastUpdated";
-
 export function PortfolioPage({
-  projects,
+  result,
+  activeCount,
+  archivedCount,
+  activeMw,
   blockedByRls,
   error,
   canCreate,
+  canImport,
 }: {
-  projects: ProjectListItem[];
+  result: ListProjectsResult;
+  activeCount: number;
+  archivedCount: number;
+  activeMw: number;
   blockedByRls: boolean;
   error: string | null;
   canCreate: boolean;
+  canImport: boolean;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [technology, setTechnology] = useState<Technology | "All">("All");
-  const [operator, setOperator] = useState("All");
-  const [stage, setStage] = useState<PipelineStage | "All">("All");
-  const [outlook, setOutlook] = useState<Outlook | "All">("All");
-  const [sortKey, setSortKey] = useState<SortKey>("lastUpdated");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const pathname = usePathname();
+  const [query, setQuery] = useState(result.query);
 
-  const operators = useMemo(
-    () => ["All", ...new Set(projects.map((project) => project.gridOperator))].sort(),
-    [projects],
-  );
+  const pageCount = Math.max(1, Math.ceil(result.matchingCount / result.pageSize));
+  const from = result.matchingCount === 0 ? 0 : (result.page - 1) * result.pageSize + 1;
+  const to = Math.min(result.page * result.pageSize, result.matchingCount);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const rows = projects.filter((project) => {
-      const matchesQuery =
-        !q ||
-        project.name.toLowerCase().includes(q) ||
-        project.location.toLowerCase().includes(q) ||
-        project.gridOperator.toLowerCase().includes(q);
-      return (
-        matchesQuery &&
-        (technology === "All" || project.technology === technology) &&
-        (operator === "All" || project.gridOperator === operator) &&
-        (stage === "All" || project.stage === stage) &&
-        (outlook === "All" || project.outlook === outlook)
-      );
-    });
+  function href(overrides: Record<string, string | null | undefined>): string {
+    const params = new URLSearchParams();
+    const next = {
+      view: result.view,
+      q: result.query,
+      technology: result.technology === "All" ? "" : result.technology,
+      operator: result.operator === "All" ? "" : result.operator,
+      stage: result.stage === "All" ? "" : result.stage,
+      outlook: result.outlook === "All" ? "" : result.outlook,
+      sort: result.sortKey,
+      dir: result.sortDir,
+      page: String(result.page),
+      ...overrides,
+    };
+    for (const [key, value] of Object.entries(next)) {
+      if (value && value !== "All" && !(key === "page" && value === "1") && !(key === "view" && value === "active") && !(key === "sort" && value === "lastUpdated") && !(key === "dir" && value === "desc")) {
+        params.set(key, value);
+      }
+    }
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  }
 
-    const dir = sortDir === "asc" ? 1 : -1;
-    return [...rows].sort((a, b) => compareProjects(a, b, sortKey) * dir);
-  }, [projects, query, technology, operator, stage, outlook, sortKey, sortDir]);
+  function update(overrides: Record<string, string | null | undefined>) {
+    router.push(href({ ...overrides, page: overrides.page ?? "1" }));
+  }
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
+  function toggleSort(key: PortfolioSortKey) {
+    if (result.sortKey === key) {
+      update({ sort: key, dir: result.sortDir === "asc" ? "desc" : "asc" });
     } else {
-      setSortKey(key);
-      setSortDir(key === "name" || key === "location" ? "asc" : "desc");
+      update({
+        sort: key,
+        dir: key === "name" || key === "location" ? "asc" : "desc",
+      });
     }
   }
+
+  const subtitle = useMemo(() => {
+    const active = `${activeCount} active · ${formatMWTotal(activeMw)}`;
+    if (result.view === "archived") {
+      return `${archivedCount} archived · ${active}`;
+    }
+    if (result.view === "all") {
+      return `${activeCount + archivedCount} total · ${active}`;
+    }
+    return active;
+  }, [activeCount, activeMw, archivedCount, result.view]);
 
   return (
     <>
       <PageHeader
         title="Portfolio"
-        subtitle={`${filtered.length} of ${projects.length} sites`}
+        subtitle={subtitle}
         actions={
           <>
+            {canImport ? (
+              <Link href="/portfolio/import" className={buttonClassName("secondary")}>
+                Import projects
+              </Link>
+            ) : null}
             {canCreate ? (
               <Link href="/projects/new" className={buttonClassName()}>
                 Add project
@@ -105,37 +119,66 @@ export function PortfolioPage({
       />
       <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <div className="flex flex-wrap gap-2">
+          {(["active", "archived", "all"] as ArchiveView[]).map((view) => (
+            <Link
+              key={view}
+              href={href({ view, page: "1" })}
+              className={
+                result.view === view
+                  ? buttonClassName()
+                  : buttonClassName("secondary")
+              }
+            >
+              {view === "active" ? "Active" : view === "archived" ? "Archived" : "All"}
+            </Link>
+          ))}
+        </div>
+        <form
+          className="flex flex-wrap gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            update({ q: query, page: "1" });
+          }}
+        >
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search project, location or operator"
+            placeholder="Search project or location"
             className="h-9 w-full rounded-md border border-line bg-surface px-3 text-sm sm:w-64"
           />
+          <Button type="submit" variant="secondary">
+            Search
+          </Button>
           <Select
-            value={technology}
-            onChange={(value) => setTechnology(value as Technology | "All")}
+            value={result.technology}
+            onChange={(value) => update({ technology: value === "All" ? "" : value, page: "1" })}
             options={["All", ...TECHNOLOGIES]}
             label="Technology"
           />
           <Select
-            value={operator}
-            onChange={setOperator}
-            options={operators}
+            value={result.operator}
+            onChange={(value) => update({ operator: value === "All" ? "" : value, page: "1" })}
+            options={["All", ...result.operators]}
             label="Operator"
           />
           <Select
-            value={stage}
-            onChange={(value) => setStage(value as PipelineStage | "All")}
+            value={result.stage}
+            onChange={(value) => update({ stage: value === "All" ? "" : value, page: "1" })}
             options={["All", ...PIPELINE_STAGES]}
             label="Stage"
           />
           <Select
-            value={outlook}
-            onChange={(value) => setOutlook(value as Outlook | "All")}
+            value={result.outlook}
+            onChange={(value) => update({ outlook: value === "All" ? "" : value, page: "1" })}
             options={["All", ...OUTLOOKS]}
             label="Team outlook"
           />
-        </div>
+        </form>
+        <p className="text-sm text-muted">
+          {result.matchingCount === 0
+            ? "No matching projects"
+            : `Showing ${from}–${to} of ${result.matchingCount} matching · page ${result.page} of ${pageCount} · ${PORTFOLIO_PAGE_SIZE} per page`}
+        </p>
 
         {blockedByRls ? (
           <EmptyState
@@ -143,23 +186,24 @@ export function PortfolioPage({
             description="Sign in to a workspace to view the organization portfolio."
           />
         ) : error ? (
+          <EmptyState title="Could not load projects" description={error} />
+        ) : result.matchingCount === 0 && !result.query && result.technology === "All" && result.operator === "All" && result.stage === "All" && result.outlook === "All" ? (
           <EmptyState
-            title="Could not load projects"
-            description={error}
-          />
-        ) : projects.length === 0 ? (
-          <EmptyState
-            title="No projects yet"
-            description="Add your first development project to start building your portfolio."
+            title={result.view === "archived" ? "No archived projects" : "No projects yet"}
+            description={
+              result.view === "archived"
+                ? "Archived projects will appear here. Active projects remain in the Active view."
+                : "Add your first development project to start building your portfolio."
+            }
             action={
-              canCreate ? (
+              canCreate && result.view === "active" ? (
                 <Link href="/projects/new" className={buttonClassName()}>
                   Add project
                 </Link>
               ) : undefined
             }
           />
-        ) : filtered.length === 0 ? (
+        ) : result.projects.length === 0 ? (
           <EmptyState
             title="No projects match these filters"
             description="Clear search or filters to see all projects in this workspace."
@@ -169,42 +213,47 @@ export function PortfolioPage({
             <table className="w-full min-w-[1100px] text-left text-sm">
               <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
                 <tr>
-                  <Th onClick={() => toggleSort("name")} active={sortKey === "name"} dir={sortDir}>
+                  <Th onClick={() => toggleSort("name")} active={result.sortKey === "name"} dir={result.sortDir}>
                     Project
                   </Th>
-                  <Th onClick={() => toggleSort("location")} active={sortKey === "location"} dir={sortDir}>
+                  <Th onClick={() => toggleSort("location")} active={result.sortKey === "location"} dir={result.sortDir}>
                     Location
                   </Th>
-                  <Th onClick={() => toggleSort("technology")} active={sortKey === "technology"} dir={sortDir}>
+                  <Th onClick={() => toggleSort("technology")} active={result.sortKey === "technology"} dir={result.sortDir}>
                     Technology
                   </Th>
-                  <Th onClick={() => toggleSort("capacity")} active={sortKey === "capacity"} dir={sortDir}>
+                  <Th onClick={() => toggleSort("capacity")} active={result.sortKey === "capacity"} dir={result.sortDir}>
                     Capacity
                   </Th>
-                  <Th onClick={() => toggleSort("gridOperator")} active={sortKey === "gridOperator"} dir={sortDir}>
+                  <Th onClick={() => toggleSort("gridOperator")} active={result.sortKey === "gridOperator"} dir={result.sortDir}>
                     Grid Operator
                   </Th>
-                  <Th onClick={() => toggleSort("stage")} active={sortKey === "stage"} dir={sortDir}>
+                  <Th onClick={() => toggleSort("stage")} active={result.sortKey === "stage"} dir={result.sortDir}>
                     Stage
                   </Th>
                   <Th>Team outlook</Th>
                   <Th>Team confidence</Th>
-                  <Th onClick={() => toggleSort("targetCOD")} active={sortKey === "targetCOD"} dir={sortDir}>
+                  <Th onClick={() => toggleSort("targetCOD")} active={result.sortKey === "targetCOD"} dir={result.sortDir}>
                     Target COD
                   </Th>
-                  <Th onClick={() => toggleSort("lastUpdated")} active={sortKey === "lastUpdated"} dir={sortDir}>
+                  <Th onClick={() => toggleSort("lastUpdated")} active={result.sortKey === "lastUpdated"} dir={result.sortDir}>
                     Last Update
                   </Th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((project) => (
+                {result.projects.map((project) => (
                   <tr
-                    key={project.id}
+                    key={project.projectId}
                     className="cursor-pointer border-b border-line last:border-0 hover:bg-canvas"
                     onClick={() => router.push(`/projects/${project.id}`)}
                   >
-                    <td className="px-4 py-3 font-medium">{project.name}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {project.name}
+                      {project.archivedAt ? (
+                        <span className="ml-2 text-xs font-normal text-muted">Archived</span>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-3 text-muted">{project.location}</td>
                     <td className="px-4 py-3">{project.technology}</td>
                     <td className="px-4 py-3 font-mono text-[13px]">{formatCapacity(project)}</td>
@@ -226,22 +275,28 @@ export function PortfolioPage({
             </table>
           </div>
         )}
+
+        {pageCount > 1 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={href({ page: String(Math.max(1, result.page - 1)) })}
+              className={buttonClassName("secondary")}
+              aria-disabled={result.page <= 1}
+            >
+              Previous
+            </Link>
+            <Link
+              href={href({ page: String(Math.min(pageCount, result.page + 1)) })}
+              className={buttonClassName("secondary")}
+              aria-disabled={result.page >= pageCount}
+            >
+              Next
+            </Link>
+          </div>
+        ) : null}
       </div>
     </>
   );
-}
-
-function compareProjects(a: ProjectListItem, b: ProjectListItem, key: SortKey): number {
-  if (key === "capacity") {
-    return Math.max(a.importMW, a.exportMW) - Math.max(b.importMW, b.exportMW);
-  }
-  if (key === "lastUpdated") {
-    return new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime();
-  }
-
-  const left = a[key];
-  const right = b[key];
-  return String(left).localeCompare(String(right), "sv");
 }
 
 function Select({

@@ -1,4 +1,5 @@
 import type { OverviewPipelineStage } from "@/lib/data/overview-types";
+import type { DocumentFileKind } from "@/lib/documents/file-types";
 import type {
   OfficialGridAreaContext,
   OfficialNupContext,
@@ -33,6 +34,14 @@ export type ProjectDocumentItem = {
   createdAt: string;
   updatedAt: string;
   owner: string | null;
+  storagePath: string | null;
+  originalFilename: string | null;
+  mimeType: string | null;
+  fileKind: DocumentFileKind;
+  fileSizeBytes: number | null;
+  uploadedAt: string | null;
+  uploadedByName: string | null;
+  hasStoredFile: boolean;
 };
 
 export type ProjectEventItem = {
@@ -98,7 +107,9 @@ export type ProjectDetailViewModel = {
   alerts: ProjectAlertItem[];
   canUpdateRequirements: boolean;
   canEdit: boolean;
+  canArchive: boolean;
   canDelete: boolean;
+  archivedAt: string | null;
   canDeleteRequirements: boolean;
   canManageConnectionCase: boolean;
   canDeleteConnectionCase: boolean;

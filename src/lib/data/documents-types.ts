@@ -1,3 +1,4 @@
+import type { DocumentFileKind } from "@/lib/documents/file-types";
 import type { DocumentCategory, DocumentStatus } from "@/types";
 
 export type DocumentListCategory = DocumentCategory | "Other";
@@ -10,6 +11,13 @@ export type DocumentListItem = {
   createdAt: string;
   updatedAt: string;
   storagePath: string | null;
+  originalFilename: string | null;
+  mimeType: string | null;
+  fileKind: DocumentFileKind;
+  fileSizeBytes: number | null;
+  uploadedAt: string | null;
+  uploadedByName: string | null;
+  hasStoredFile: boolean;
   projectId: string;
   projectName: string;
   projectSlug: string;

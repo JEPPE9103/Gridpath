@@ -15,11 +15,11 @@ export function DeferredMarketingMap({
   eager?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [ready, setReady] = useState(false);
+  const [intersected, setIntersected] = useState(false);
+  const ready = eager || intersected;
 
   useEffect(() => {
     if (eager) {
-      setReady(true);
       return;
     }
 
@@ -29,7 +29,7 @@ export function DeferredMarketingMap({
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setReady(true);
+          setIntersected(true);
           observer.disconnect();
         }
       },

@@ -7,7 +7,9 @@ import { ToastProvider } from "@/components/ui/toast-provider";
 import { ToastViewport } from "@/components/ui/toast-viewport";
 import type { CurrentUserProfile } from "@/lib/auth/current-user";
 import { WorkspaceProvider } from "@/lib/workspace-state";
-import { Bell, Menu } from "lucide-react";
+import { AlertCenterProvider } from "@/components/layout/alert-center";
+import type { AlertCenterSnapshot } from "@/lib/data/open-alerts";
+import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 
@@ -157,6 +159,12 @@ export function AppShell({
   children,
   user = null,
   criticalAlertCount = 0,
+  alertCenter = {
+    openCount: 0,
+    criticalCount: 0,
+    recent: [],
+    canWrite: false,
+  },
   isDemoWorkspace = false,
   activeOrganization = FALLBACK_WORKSPACE,
   organizations = [],
@@ -164,6 +172,7 @@ export function AppShell({
   children: ReactNode;
   user?: CurrentUserProfile | null;
   criticalAlertCount?: number;
+  alertCenter?: AlertCenterSnapshot;
   isDemoWorkspace?: boolean;
   activeOrganization?: WorkspaceOption;
   organizations?: WorkspaceOption[];
@@ -171,29 +180,21 @@ export function AppShell({
   return (
     <ToastProvider>
       <WorkspaceProvider>
-        <ShellFrame
-          user={user}
-          criticalAlertCount={criticalAlertCount}
-          isDemoWorkspace={isDemoWorkspace}
-          activeOrganization={activeOrganization}
-          organizations={organizations}
-        >
-          {children}
-        </ShellFrame>
-        <ToastViewport />
+        <AlertCenterProvider snapshot={alertCenter}>
+          <ShellFrame
+            user={user}
+            criticalAlertCount={criticalAlertCount}
+            isDemoWorkspace={isDemoWorkspace}
+            activeOrganization={activeOrganization}
+            organizations={organizations}
+          >
+            {children}
+          </ShellFrame>
+          <ToastViewport />
+        </AlertCenterProvider>
       </WorkspaceProvider>
     </ToastProvider>
   );
 }
 
-export function BellButton() {
-  return (
-    <button
-      type="button"
-      className="rounded-md p-2 text-muted hover:bg-surface hover:text-ink"
-      aria-label="Notifications"
-    >
-      <Bell size={16} strokeWidth={1.75} />
-    </button>
-  );
-}
+export { BellButton } from "@/components/layout/alert-center";

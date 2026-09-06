@@ -1,37 +1,17 @@
 /**
- * Projects needing attention — same definition as Overview.
+ * Portfolio attention — single product definition.
  *
- * A project is counted once if it has:
- * - an open critical or warning alert, or
- * - a connection case with status at_risk or overdue
+ * Authoritative implementation: `deriveProjectAttention` in
+ * `src/lib/intelligence/project-attention.ts`.
+ *
+ * Overview KPI "Workflow attention", Portfolio Attention, project Development Brief,
+ * and Reports "projects needing workflow attention" all use that function. Open
+ * alerts are a separate count. It is rule-based workflow hygiene, not grid
+ * feasibility or connection probability.
+ *
+ * See `docs/attention-model.md`.
  */
-export function projectIdsNeedingAttention(
-  cases: Array<{ project_id: string; status: string }>,
-  alerts: Array<{ project_id: string | null; severity: string }>,
-): Set<string> {
-  const projectIds = new Set<string>();
-
-  for (const row of alerts) {
-    if (
-      row.project_id &&
-      (row.severity === "critical" || row.severity === "warning")
-    ) {
-      projectIds.add(row.project_id);
-    }
-  }
-
-  for (const row of cases) {
-    if (row.status === "at_risk" || row.status === "overdue") {
-      projectIds.add(row.project_id);
-    }
-  }
-
-  return projectIds;
-}
-
-export function countProjectsNeedingAttention(
-  cases: Array<{ project_id: string; status: string }>,
-  alerts: Array<{ project_id: string | null; severity: string }>,
-): number {
-  return projectIdsNeedingAttention(cases, alerts).size;
-}
+export {
+  countNeedsAttentionProjects,
+  projectIdsNeedingAttention,
+} from "@/lib/intelligence/portfolio-attention";

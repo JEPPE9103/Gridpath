@@ -1,26 +1,27 @@
 # NOXHEIM
 
-Grid connection intelligence for professional energy developers.
+B2B Grid Development Intelligence for BESS, renewable and other grid-dependent development teams.
 
-NOXHEIM is a B2B workspace for screening sites, comparing connection opportunities, tracking operator processes, monitoring grid-information change, and keeping project documents in one place.
+NOXHEIM is a multi-tenant workspace: **Screen** (portfolio + map + compare), **Manage** (projects, connection cases, requirements, project documents), **Monitor** (official source snapshots and geographic change impacts).
 
-It does **not** guarantee grid capacity. The product distinguishes official data, indicative information, customer-provided files, and NOXHEIM analysis, and it surfaces confidence as High / Medium / Low.
+It does **not** guarantee grid capacity. Distinguish:
 
-This repository is a demonstration MVP with seeded Swedish portfolio data. It is built so a real API and database can replace the demo repositories later without rewriting the UI.
+- **Customer entered** — projects, outlook, confidence, cases, requirements, uploaded documents
+- **Official source** — Energimarknadsinspektionen (Ei) local-network geography and NUP forecast **need for transfer capacity** (not available connection MW)
+- **NOXHEIM derived** — readiness %, Development Profile triage, attention, geographic matching
 
 ## Tech stack
 
 - Next.js 16 (App Router)
-- TypeScript
-- React 19
-- Tailwind CSS 4
-- Lucide icons
-- MapLibre GL
-- Recharts (reports only)
+- TypeScript, React 19, Tailwind CSS 4
+- Supabase (Postgres 17, PostGIS, Auth, RLS)
+- MapLibre GL, Recharts
 
-## Local Supabase development
+Live product data path: `src/features/*` → `src/lib/data/*` and server actions → Supabase with RLS. There is no in-app mock repository layer.
 
-Keep this against the local instance only. Do not run `db push` for this workflow.
+## Local development
+
+Against **local** Supabase only. Do not `db reset --linked` or apply `supabase/seed.sql` to cloud.
 
 ```bash
 npx supabase start
@@ -29,89 +30,104 @@ npm run dev:bootstrap-auth
 npm run dev
 ```
 
-`npm run dev:bootstrap-auth` recreates the local development login after a reset. It talks only to `http://127.0.0.1:54321` (or localhost) and refuses any other URL.
+`npm run dev:bootstrap-auth` recreates the local login. It talks only to `http://127.0.0.1:54321` (or localhost).
 
-Local login:
+Local seed login (from `supabase/seed.sql` + bootstrap, not production):
 
 - Email: `anna@noxheim-demo.local`
 - Password: `NoxheimDemo2026!`
-- User: Anna Hellström, Portfolio Manager
 - Organization: NorthGrid Development AB (owner)
 
-Then open [http://localhost:3000/login](http://localhost:3000/login) and sign in. The workspace routes require this session.
-
-## Install and run
+Hosted app: [https://www.noxheim.com](https://www.noxheim.com) — sign up creates an **empty** workspace. Sales demo data is a separate internal org (`noxheim-demo-development`).
 
 ```bash
 npm install
 npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-```bash
 npm run build
-npm start
+npm run lint
+npm run test:intelligence
+npm run test:tenancy
+npm run test:team
 ```
 
-```bash
-npm run lint
-```
+## Auth and workspaces
+
+- Sign up / sign in / forgot password / reset password are implemented (`src/lib/auth/actions.ts`).
+- `create_workspace` RPC creates the first organization (owner).
+- Team invites and roles: Settings → team RPCs (`organization_invites`). Copy invite link is always available. Invitation email sends only when `RESEND_API_KEY` and `INVITE_FROM_EMAIL` are configured; otherwise the UI reports configuration required and does not claim email was sent.
+- Active workspace: httpOnly cookie, membership-validated (`src/lib/organization/active-org-resolve.ts`).
+- Membership row writes are RPC-only (not direct PostgREST).
 
 ## Project structure
 
 ```
-src/
-  app/            App Router pages and layouts
-  components/     Shared shell and UI primitives
-  features/       Page-level feature views
-  data/           Seeded demo dataset
-  lib/            Repositories, persistence, formatting, ranking
-  types/          Domain models
+src/app/              App Router (marketing, auth, workspace)
+src/components/       Shared UI
+src/features/         Page views
+src/lib/data/         Supabase loaders (organization-scoped)
+src/lib/*/actions.ts  Server mutations
+src/lib/intelligence/ Attention, briefs, compare copy
+src/lib/domain/       Readiness, development profile, GI types
+supabase/migrations/  Schema, RLS, RPCs
+scripts/              Ei ingest, sales-demo reset (guarded)
+docs/                 Demo, ops, schema, attention model
 ```
 
-## Demo data architecture
+## Official Grid Intelligence
 
-Seeded data lives in `src/data/` (`projects`, `alerts`, `changes`, `connectionCases`, impact metrics).
+Normal production path is **automatic full ingest** via GitHub Actions (`.github/workflows/official-ingest.yml`): snapshot → normalize → versions → diff → external changes → geographic impacts → alerts.
 
-UI components do not import seed files directly. They go through repository functions in `src/lib/repositories.ts`:
+Noxheim’s check cadence (default every 168 hours per source, with a daily scheduler that skips when not due) is **not** Ei’s publication cadence.
 
-- `projectRepository`
-- `alertRepository`
-- `documentRepository`
-- `changeRepository`
-- `connectionRepository`
-- `impactRepository`
+Vercel cron (`/api/internal/monitor/daily` and `/weekly`) reconciles workflow alerts and sends eligible emails. It does **not** run Excel/shapefile ingest.
 
-Browser persistence (`localStorage`) stores lightweight demo mutations:
+Operator fallback (local/debug/disaster recovery only):
 
-- dismissed alerts
-- application-readiness checklist updates
-- placeholder documents and status changes
-- map compare selections
-
-Those overlays are applied in the repositories so the UI always reads a consistent `Project` model.
-
-## Replacing demo repositories later
-
-Keep the TypeScript types in `src/types/index.ts` as the contract.
-
-Swap repository implementations to call a real API, for example:
-
-```ts
-export const projectRepository = {
-  async list(): Promise<Project[]> {
-    const response = await fetch("/api/projects");
-    return response.json();
-  },
-};
+```bash
+npm run cloud:ingest-ei-network-areas
+npm run cloud:ingest-ei-nup
 ```
 
-The feature views already consume repository outputs rather than hardcoded page data. Persistence should then move from `localStorage` to authenticated backend writes.
+Or force the same worker GitHub uses:
 
-## Product notes for demos
+```bash
+$env:NOXHEIM_ALLOW_REMOTE_INGEST = "true"
+$env:NOXHEIM_REMOTE_PROJECT_REF = "krgzpgqmnzljwlwptmcn"
+$env:NOXHEIM_SCHEDULED_INGEST = "true"
+$env:INGEST_FORCE = "true"
+npm run cloud:ingest-official
+```
 
-- Default user: Jesper Persson, Portfolio Manager
-- Portfolio: 11 Swedish sites (BESS, solar, wind, EV charging, industrial)
-- Strongest screens: Overview alerts, project control centre, Map & Compare, Changes feed
-- Capacity figures on public maps are labelled **indicative** unless an official offer or agreement exists
+See `docs/design-partner-operations.md`, `docs/v1-release-checklist.md`, and `.env.example`. NUP numeric values are forecast transfer-capacity **need**, never available MW.
+
+Monitor is **not active in production until deployed and configured**. Required env:
+
+- `CRON_SECRET` — Vercel Cron `Authorization: Bearer` (and/or `x-cron-secret`)
+- `SUPABASE_SERVICE_ROLE_KEY` — server-only; never `NEXT_PUBLIC_*`
+- `RESEND_API_KEY`
+- `NOTIFICATION_FROM_EMAIL` (falls back to `INVITE_FROM_EMAIL` if unset)
+- GitHub Actions secrets `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` for full ingest
+
+`vercel.json` defines daily (`0 6 * * *`) and weekly Monday (`0 7 * * 1`) crons. Vercel Cron availability is plan-dependent.
+
+Sales-demo organisation emails are disabled.
+
+## Tests
+
+```bash
+npm test
+npm run test:integration   # local Supabase + Docker only; refuses production
+npm run test:e2e           # Playwright; skip unless E2E_EMAIL / E2E_PASSWORD set
+```
+
+## Sales demo reset (internal org only)
+
+```bash
+npm run demo:reset
+```
+
+Allowlisted cloud project + demo organization only. Does not write official grid tables.
+
+## Attention
+
+One model for Overview KPI, Portfolio Attention, Development Brief, and Reports: `docs/attention-model.md`.

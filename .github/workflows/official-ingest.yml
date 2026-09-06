@@ -1,0 +1,57 @@
+# Default production official-source ingest.
+# Noxheim refresh cadence ≠ Ei publication cadence.
+# This workflow checks whether a source is due (via DB locks/cadence) and then
+# runs FULL NUP + local-network ingest — not a landing-page probe.
+name: Official source ingest
+
+on:
+  schedule:
+    # Daily UTC check; per-source refresh_interval_hours (default 168) skips when not due.
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Force a full ingest even if the source is not due (operator fallback)
+        type: boolean
+        default: false
+
+concurrency:
+  group: official-source-ingest
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    name: Full official ingest
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      NOXHEIM_ALLOW_REMOTE_INGEST: "true"
+      NOXHEIM_REMOTE_PROJECT_REF: krgzpgqmnzljwlwptmcn
+      NOXHEIM_SCHEDULED_INGEST: "true"
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Link Design Partner Cloud
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: npx supabase link --project-ref krgzpgqmnzljwlwptmcn --password "$SUPABASE_DB_PASSWORD" --yes
+
+      - name: Run full official ingest
+        env:
+          INGEST_FORCE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force == 'true' }}
+          MONITOR_TRIGGER: scheduled
+        run: node scripts/scheduled-official-ingest.mjs

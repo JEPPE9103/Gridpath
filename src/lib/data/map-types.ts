@@ -29,6 +29,7 @@ export type MapProject = {
   confidence: Confidence;
   targetCOD: string;
   lastUpdated: string;
+  archivedAt: string | null;
   latitude: number;
   longitude: number;
   hasCoordinates: boolean;

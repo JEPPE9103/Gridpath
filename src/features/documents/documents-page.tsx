@@ -1,11 +1,10 @@
 "use client";
 
+import { DocumentTable } from "@/features/documents/document-table";
+import { DocumentUploadForm } from "@/features/documents/document-upload-form";
 import { BellButton } from "@/components/layout/app-shell";
-import { StatusBadge } from "@/components/ui/badges";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { useToast } from "@/components/ui/toast-provider";
 import {
   DOCUMENT_CATEGORY_FILTERS,
   DOCUMENT_STATUS_FILTERS,
@@ -14,13 +13,9 @@ import {
   type DocumentProjectOption,
   type DocumentsResult,
 } from "@/lib/data/documents-types";
-import { createDocumentRecord, updateDocumentStatus } from "@/lib/documents/actions";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
-import { formatDate } from "@/lib/format";
 import type { DocumentStatus } from "@/types";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 
 export function DocumentsPage({ result }: { result: DocumentsResult }) {
   if (result.kind === "no_organization") {
@@ -69,17 +64,10 @@ function LoadedDocumentsPage({
   projects: DocumentProjectOption[];
   canWrite: boolean;
 }) {
-  const router = useRouter();
-  const { pushToast } = useToast();
-  const [isPending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [projectFilter, setProjectFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState<DocumentListCategory | "All">("All");
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | "All">("All");
-  const [name, setName] = useState("");
-  const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
-  const [category, setCategory] = useState<DocumentListCategory>("Technical");
-  const [createStatus, setCreateStatus] = useState<DocumentStatus>("Missing");
 
   const projectOptions = useMemo(
     () => ["All", ...projects.map((project) => project.name)],
@@ -102,60 +90,11 @@ function LoadedDocumentsPage({
     });
   }, [documents, query, projectFilter, categoryFilter, statusFilter]);
 
-  function onCreate(event: FormEvent) {
-    event.preventDefault();
-    if (!name.trim() || !projectId || !canWrite) {
-      return;
-    }
-    startTransition(async () => {
-      const result = await createDocumentRecord({
-        name: name.trim(),
-        projectId,
-        category,
-        status: createStatus,
-      });
-      if (!result.ok) {
-        pushToast({
-          title: "Could not create document record",
-          description: "The metadata was not saved.",
-          tone: "warning",
-        });
-        return;
-      }
-      setName("");
-      router.refresh();
-      pushToast({
-        title: "Document record added",
-        description: "Metadata only. No file was uploaded.",
-        tone: "success",
-      });
-    });
-  }
-
-  function onStatusChange(documentId: string, status: DocumentStatus) {
-    if (!canWrite) {
-      return;
-    }
-    startTransition(async () => {
-      const result = await updateDocumentStatus(documentId, status);
-      if (!result.ok) {
-        pushToast({
-          title: "Could not update document",
-          description: "The change was not saved.",
-          tone: "warning",
-        });
-        return;
-      }
-      router.refresh();
-      pushToast({ title: "Document status updated", tone: "success" });
-    });
-  }
-
   return (
     <>
       <PageHeader
         title="Documents"
-        subtitle={`${documents.length} metadata records across ${projects.length} projects`}
+        subtitle={`${documents.length} customer-provided documents across ${projects.length} projects`}
         actions={
           <>
             <BellButton />
@@ -164,70 +103,7 @@ function LoadedDocumentsPage({
         }
       />
       <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-        {canWrite ? (
-          <form
-            className="flex flex-wrap items-end gap-2 rounded-md border border-line bg-surface p-4"
-            onSubmit={onCreate}
-          >
-            <label className="text-sm">
-              <span className="mb-1 block text-xs text-muted">Document</span>
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Document name"
-                className="h-9 w-56 rounded-md border border-line px-3"
-              />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block text-xs text-muted">Project</span>
-              <select
-                value={projectId}
-                onChange={(event) => setProjectId(event.target.value)}
-                className="h-9 rounded-md border border-line bg-surface px-2"
-              >
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block text-xs text-muted">Category</span>
-              <select
-                value={category}
-                onChange={(event) =>
-                  setCategory(event.target.value as DocumentListCategory)
-                }
-                className="h-9 rounded-md border border-line bg-surface px-2"
-              >
-                {DOCUMENT_CATEGORY_FILTERS.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block text-xs text-muted">Status</span>
-              <select
-                value={createStatus}
-                onChange={(event) =>
-                  setCreateStatus(event.target.value as DocumentStatus)
-                }
-                className="h-9 rounded-md border border-line bg-surface px-2"
-              >
-                {DOCUMENT_STATUS_FILTERS.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </label>
-            <Button type="submit" disabled={isPending || !projectId}>
-              Add document record
-            </Button>
-            <p className="text-xs text-muted">
-              Metadata register only — file storage/upload is not connected.
-            </p>
-          </form>
-        ) : null}
+        {canWrite ? <DocumentUploadForm projects={projects} /> : null}
 
         <div className="flex flex-wrap gap-2">
           <input
@@ -283,7 +159,11 @@ function LoadedDocumentsPage({
         {documents.length === 0 ? (
           <EmptyState
             title="No documents"
-            description="Add a document record to see it listed against a project. Files are not stored yet."
+            description={
+              canWrite
+                ? "Upload a PDF, Word, Excel, or image file to store it privately on a project."
+                : "No project documents have been uploaded in this workspace yet."
+            }
           />
         ) : rows.length === 0 ? (
           <EmptyState
@@ -291,57 +171,7 @@ function LoadedDocumentsPage({
             description="Clear search or filters to see the full document workspace."
           />
         ) : (
-          <div className="overflow-x-auto rounded-md border border-line bg-surface">
-            <table className="w-full min-w-[960px] text-left text-sm">
-              <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Document</th>
-                  <th className="px-4 py-2 font-medium">Project</th>
-                  <th className="px-4 py-2 font-medium">Category</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                  <th className="px-4 py-2 font-medium">Updated</th>
-                  <th className="px-4 py-2 font-medium">Owner</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((doc) => (
-                  <tr key={doc.id} className="border-b border-line last:border-0">
-                    <td className="px-4 py-3 font-medium">{doc.name}</td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/projects/${doc.projectSlug}?tab=documents`}
-                        className="hover:text-teal"
-                      >
-                        {doc.projectName}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">{doc.category}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={doc.status} />
-                        {canWrite ? (
-                          <select
-                            value={doc.status}
-                            onChange={(event) =>
-                              onStatusChange(doc.id, event.target.value as DocumentStatus)
-                            }
-                            disabled={isPending}
-                            className="rounded-md border border-line bg-surface px-1 py-0.5 text-xs"
-                          >
-                            {DOCUMENT_STATUS_FILTERS.map((status) => (
-                              <option key={status}>{status}</option>
-                            ))}
-                          </select>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted">{formatDate(doc.updatedAt)}</td>
-                    <td className="px-4 py-3">{doc.ownerName ?? "Unassigned"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DocumentTable rows={rows} canWrite={canWrite} showProject />
         )}
       </div>
     </>

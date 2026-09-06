@@ -72,7 +72,7 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
     <>
       <PageHeader
         title="Reports"
-        subtitle={`${report.organizationName} · portfolio reporting for development and grid process review`}
+        subtitle={`${report.organizationName} · active portfolio reporting. Attention is workflow hygiene, not connection feasibility.`}
         actions={
           <>
             <Button variant="secondary" onClick={() => downloadPortfolioCsv(report.exportRows)}>
@@ -88,7 +88,10 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
           <Stat label="Projects" value={summary.projectCount} />
           <Stat label="Portfolio MW" value={formatMWTotal(summary.portfolioMW)} />
           <Stat label="Active connection cases" value={summary.activeConnectionCases} />
-          <Stat label="Projects needing attention" value={summary.needsAttention} />
+          <Stat
+            label="Projects needing workflow attention"
+            value={summary.needsAttention}
+          />
           <Stat label="Open alerts" value={summary.openAlerts} />
           <Stat
             label="Average application readiness"

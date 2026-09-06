@@ -22,6 +22,9 @@ export function PortfolioAttentionSection({
         <h2 id="portfolio-attention-heading" className="text-base font-semibold">
           Portfolio Attention
         </h2>
+        <p className="mt-1 text-sm text-muted">
+          NOXHEIM-derived workflow review. This is not a grid feasibility score.
+        </p>
         {total > 0 ? (
           <p className="mt-1 text-sm text-muted">
             {attention.needsAttention.length > 0

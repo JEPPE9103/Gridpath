@@ -1,5 +1,6 @@
 "use server";
 
+import { logError } from "@/lib/observability/log";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
@@ -24,12 +25,13 @@ export async function dismissOrganizationAlert(
 
   if (error || !data) {
     if (error) {
-      console.error("dismissOrganizationAlert failed", error.message);
+      logError("alerts.dismiss_failed", { message: error.message });
     }
     return { ok: false, error: "Could not dismiss alert." };
   }
 
   revalidatePath("/overview");
+  revalidatePath("/alerts");
   revalidatePath("/", "layout");
   return { ok: true };
 }

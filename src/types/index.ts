@@ -213,6 +213,7 @@ export interface Project {
 
 export interface ProjectListItem {
   id: string;
+  projectId: string;
   name: string;
   location: string;
   latitude: number;
@@ -227,6 +228,7 @@ export interface ProjectListItem {
   confidence: Confidence;
   targetCOD: string;
   lastUpdated: string;
+  archivedAt: string | null;
 }
 
 export const PIPELINE_STAGES: PipelineStage[] = [

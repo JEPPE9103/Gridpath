@@ -5,8 +5,10 @@ import {
   type OverviewProject,
   type PortfolioOverview,
 } from "@/lib/data/overview-types";
-import { listProjects } from "@/lib/data/projects";
-import { countProjectsNeedingAttention } from "@/lib/domain/attention";
+import { applyArchiveFilter } from "@/lib/data/archive-filter";
+import { fetchAllQueryPages } from "@/lib/data/paged-select";
+import { getOrganizationProjectAggregates } from "@/lib/data/project-aggregates";
+import { listAllProjectsForOrganization } from "@/lib/data/projects";
 import { applicationReadinessFromRequirements } from "@/lib/domain/application-readiness";
 import {
   checklistStatusLabel,
@@ -16,7 +18,6 @@ import {
 } from "@/lib/domain/catalog-labels";
 import { buildPortfolioAttention } from "@/lib/intelligence/portfolio-attention";
 import type { PortfolioAttentionProjectInput } from "@/lib/intelligence/types";
-import { totalPortfolioMW } from "@/lib/domain/portfolio-capacity";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AlertSeverity } from "@/types";
 
@@ -50,6 +51,7 @@ type ProjectMetaRow = {
   confidence: string;
   target_cod: string | null;
   updated_at: string;
+  archived_at?: string | null;
 };
 
 type GridOperatorEmbed = { name: string };
@@ -57,6 +59,7 @@ type GridOperatorEmbed = { name: string };
 type AlertProjectEmbed = {
   name: string;
   slug: string;
+  archived_at: string | null;
   grid_operators: GridOperatorEmbed | GridOperatorEmbed[] | null;
 };
 
@@ -172,55 +175,82 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
   }
 
   const supabase = await createSupabaseServerClient();
-  const [projectsResult, casesResult, alertsResult, requirementsResult, projectMetaResult] =
+  const [aggregatesResult, projectsResult, casesResult, alertsResult, requirementsResult, projectMetaResult] =
     await Promise.all([
-    listProjects(),
-    supabase
-      .from("connection_cases")
-      .select("project_id, stage, status, projects!inner ( organization_id )")
-      .eq("projects.organization_id", organization.id),
-    supabase
-      .from("alerts")
-      .select(
-        `
-        id,
-        severity,
-        title,
-        summary,
-        detail,
-        cta_label,
-        href,
-        created_at,
-        project_id,
-        projects ( name, slug, grid_operators ( name ) )
-      `,
-      )
-      .eq("organization_id", organization.id)
-      .eq("status", "open"),
-    supabase
-      .from("project_requirements")
-      .select("project_id, status, required, due_date, projects!inner ( organization_id )")
-      .eq("projects.organization_id", organization.id),
-    supabase
-      .from("projects")
-      .select("id, slug, name, connection_stage, confidence, target_cod, updated_at")
-      .eq("organization_id", organization.id),
+    getOrganizationProjectAggregates(false),
+    listAllProjectsForOrganization("active"),
+    fetchAllQueryPages<ConnectionCaseRow>(async (from, to) => {
+      const page = await applyArchiveFilter(
+        supabase
+          .from("connection_cases")
+          .select("project_id, stage, status, projects!inner ( organization_id, archived_at )")
+          .eq("projects.organization_id", organization.id),
+        "active",
+        "projects.archived_at",
+      ).range(from, to);
+      return { data: page.data as ConnectionCaseRow[] | null, error: page.error };
+    }),
+    fetchAllQueryPages<AlertRow>(async (from, to) => {
+      const page = await supabase
+        .from("alerts")
+        .select(
+          `
+          id,
+          severity,
+          title,
+          summary,
+          detail,
+          cta_label,
+          href,
+          created_at,
+          project_id,
+          projects ( name, slug, archived_at, grid_operators ( name ) )
+        `,
+        )
+        .eq("organization_id", organization.id)
+        .eq("status", "open")
+        .range(from, to);
+      return { data: page.data as AlertRow[] | null, error: page.error };
+    }),
+    fetchAllQueryPages<RequirementRow>(async (from, to) => {
+      const page = await applyArchiveFilter(
+        supabase
+          .from("project_requirements")
+          .select("project_id, status, required, due_date, projects!inner ( organization_id, archived_at )")
+          .eq("projects.organization_id", organization.id),
+        "active",
+        "projects.archived_at",
+      ).range(from, to);
+      return { data: page.data as RequirementRow[] | null, error: page.error };
+    }),
+    fetchAllQueryPages<ProjectMetaRow>(async (from, to) => {
+      const page = await applyArchiveFilter(
+        supabase
+          .from("projects")
+          .select("id, slug, name, connection_stage, confidence, target_cod, updated_at, archived_at")
+          .eq("organization_id", organization.id)
+          .order("updated_at", { ascending: false }),
+        "active",
+      ).range(from, to);
+      return { data: page.data as ProjectMetaRow[] | null, error: page.error };
+    }),
   ]);
 
   if (
+    aggregatesResult.error ||
     projectsResult.error ||
-    projectsResult.blockedByRls ||
     casesResult.error ||
     alertsResult.error ||
     requirementsResult.error ||
     projectMetaResult.error
   ) {
     console.error("getPortfolioOverview query failed", {
+      aggregates: aggregatesResult.error,
       projects: projectsResult.error,
-      cases: casesResult.error?.message,
-      alerts: alertsResult.error?.message,
-      requirements: requirementsResult.error?.message,
-      projectMeta: projectMetaResult.error?.message,
+      cases: casesResult.error,
+      alerts: alertsResult.error,
+      requirements: requirementsResult.error,
+      projectMeta: projectMetaResult.error,
     });
     return emptyOverview("error", "Could not load overview.", organization.name);
   }
@@ -237,10 +267,13 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
     lastUpdated: project.lastUpdated,
   }));
 
-  const cases = (casesResult.data ?? []) as ConnectionCaseRow[];
-  const alertRows = (alertsResult.data ?? []) as AlertRow[];
-  const requirements = (requirementsResult.data ?? []) as RequirementRow[];
-  const projectMeta = (projectMetaResult.data ?? []) as ProjectMetaRow[];
+  const cases = casesResult.rows;
+  const alertRows = alertsResult.rows.filter((row) => {
+    const project = asSingle(row.projects);
+    return !project?.archived_at;
+  });
+  const requirements = requirementsResult.rows;
+  const projectMeta = projectMetaResult.rows;
   const alerts = sortAlerts(
     alertRows.map(mapAlert).filter((item): item is OverviewAlertItem => item !== null),
   );
@@ -302,21 +335,15 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
 
   const portfolioAttention = buildPortfolioAttention(portfolioAttentionInputs);
 
-  const connectionEnquiries = cases.filter((row) => row.stage === "enquiry").length;
-  const gridStudiesOpen = cases.filter(
-    (row) =>
-      row.stage === "grid_study" && row.status !== "complete" && row.status !== "cancelled",
-  ).length;
-
   return {
     kind: "ok",
     organizationName: organization.name,
     kpis: {
-      activeSites: projects.length,
-      totalMW: totalPortfolioMW(projects),
-      connectionEnquiries,
-      gridStudiesOpen,
-      needsAttention: countProjectsNeedingAttention(cases, alertRows),
+      activeSites: aggregatesResult.aggregates.activeCount,
+      totalMW: aggregatesResult.aggregates.activeMw,
+      connectionEnquiries: aggregatesResult.aggregates.enquiryCount,
+      gridStudiesOpen: aggregatesResult.aggregates.openGridStudyCount,
+      needsAttention: portfolioAttention.needsAttention.length,
     },
     alerts,
     projects,

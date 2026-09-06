@@ -10,9 +10,11 @@ import { getSupabaseEnv } from "@/lib/supabase/env";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const WORKSPACE_PREFIXES = [
+  "/alerts",
   "/overview",
   "/portfolio",
   "/map",
+  "/compare",
   "/connections",
   "/changes",
   "/documents",
@@ -25,6 +27,10 @@ function isWorkspacePath(pathname: string): boolean {
   return WORKSPACE_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
+}
+
+function isInternalOperationsPath(pathname: string): boolean {
+  return pathname === "/internal" || pathname.startsWith("/internal/");
 }
 
 function isInvitePath(pathname: string): boolean {
@@ -118,6 +124,10 @@ function applyCookies(from: NextResponse, to: NextResponse): NextResponse {
 }
 
 export async function updateSession(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/internal/")) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -153,7 +163,7 @@ export async function updateSession(request: NextRequest) {
     ? await userHasOrganization(supabase, user.id)
     : false;
 
-  if (!user && (isWorkspacePath(pathname) || pathname === "/onboarding")) {
+  if (!user && (isWorkspacePath(pathname) || pathname === "/onboarding" || isInternalOperationsPath(pathname))) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";

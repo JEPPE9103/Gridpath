@@ -17,6 +17,7 @@ interface WorkspaceContextValue {
   addToCompare: (id: string, name?: string) => boolean;
   removeFromCompare: (id: string) => void;
   clearCompare: () => void;
+  setCompareIds: (ids: string[]) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -66,6 +67,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     compareStore.set([]);
   }, []);
 
+  const setCompareIds = useCallback(
+    (ids: string[]) => {
+      const unique = [...new Set(ids)].slice(0, MAX_COMPARE);
+      compareStore.set(unique);
+      pushToast({
+        title: "Temporary compare updated",
+        description: "Saved in this browser only until you save it for the team.",
+        tone: "success",
+      });
+    },
+    [pushToast],
+  );
+
   const value = useMemo(
     () => ({
       ready: true,
@@ -73,8 +87,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       addToCompare,
       removeFromCompare,
       clearCompare,
+      setCompareIds,
     }),
-    [compareIds, addToCompare, removeFromCompare, clearCompare],
+    [compareIds, addToCompare, removeFromCompare, clearCompare, setCompareIds],
   );
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

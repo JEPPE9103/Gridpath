@@ -1,5 +1,8 @@
 "use client";
 
+import { DevelopmentCompareTable } from "@/features/compare/development-compare-table";
+import { SaveComparisonForm } from "@/features/compare/save-comparison-form";
+import { SavedComparisonsList } from "@/features/compare/saved-comparisons-list";
 import { BellButton } from "@/components/layout/app-shell";
 import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
@@ -9,13 +12,8 @@ import { markerColor, STYLE } from "@/features/map/mini-map";
 import { bindMapResize, ensureMapLibreWorker } from "@/features/map/maplibre-setup";
 import { cn } from "@/lib/cn";
 import type { MapProject, MapProjectsResult } from "@/lib/data/map-types";
+import type { SavedComparisonsResult } from "@/lib/data/portfolio-comparisons";
 import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
-import {
-  rankingExplanation,
-  strongestDevelopmentProfile,
-  formatFactorPoints,
-} from "@/lib/domain/development-profile";
-import { buildDevelopmentProfileExplanation } from "@/lib/intelligence/compare-explanation";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { useWorkspace } from "@/lib/workspace-state";
 import {
@@ -42,7 +40,13 @@ const EMPTY_FILTERS = {
   minExport: "",
 };
 
-export function MapPage({ result }: { result: MapProjectsResult }) {
+export function MapPage({
+  result,
+  savedComparisons,
+}: {
+  result: MapProjectsResult;
+  savedComparisons: SavedComparisonsResult;
+}) {
   if (result.kind === "no_organization") {
     return (
       <>
@@ -75,20 +79,37 @@ export function MapPage({ result }: { result: MapProjectsResult }) {
     return (
       <>
         <PageHeader title="Map & Compare" subtitle="Portfolio map" />
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <div className="space-y-4 px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
             title="No projects in this workspace"
-            description="Add a project to the portfolio to place it on Map & Compare."
+            description="Add a project to the portfolio to place it on Map & Compare. Saved team comparisons still appear below."
           />
+          {savedComparisons.kind === "ok" ? (
+            <SavedComparisonsList
+              comparisons={savedComparisons.comparisons}
+              canWrite={savedComparisons.canWrite}
+            />
+          ) : null}
         </div>
       </>
     );
   }
 
-  return <LoadedMapPage projects={result.projects} />;
+  return (
+    <LoadedMapPage
+      projects={result.projects}
+      savedComparisons={savedComparisons.kind === "ok" ? savedComparisons : null}
+    />
+  );
 }
 
-function LoadedMapPage({ projects }: { projects: MapProject[] }) {
+function LoadedMapPage({
+  projects,
+  savedComparisons,
+}: {
+  projects: MapProject[];
+  savedComparisons: Extract<SavedComparisonsResult, { kind: "ok" }> | null;
+}) {
   const { compareIds, addToCompare, removeFromCompare, clearCompare } = useWorkspace();
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -117,7 +138,6 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
     ? (projects.find((project) => project.slug === visibleSelectedSlug) ?? null)
     : null;
   const compared = projects.filter((project) => compareIds.includes(project.slug));
-  const strongest = strongestDevelopmentProfile(compared);
   const filtersActive = hasActiveFilters(filters);
 
   return (
@@ -128,8 +148,11 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
         actions={
           <>
             <Button variant="secondary" onClick={() => setCompareOpen(true)} disabled={compared.length === 0}>
-              Compare ({compared.length}/4)
+              Temporary compare ({compared.length}/4)
             </Button>
+            <Link href="/compare">
+              <Button variant="secondary">Saved comparisons</Button>
+            </Link>
             <BellButton />
             <ClientHeaderDate />
           </>
@@ -355,6 +378,20 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
             triage. They are not an official grid score or capacity assessment. Official local-network
             and NUP context live on the project Grid Intelligence tab.
           </p>
+          {savedComparisons && savedComparisons.comparisons.length > 0 ? (
+            <div className="mt-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">Saved team comparisons</h3>
+                <Link href="/compare" className="text-xs text-teal hover:text-teal-dark">
+                  View all
+                </Link>
+              </div>
+              <SavedComparisonsList
+                comparisons={savedComparisons.comparisons.slice(0, 5)}
+                canWrite={savedComparisons.canWrite}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -363,11 +400,11 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
           <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <div>
               <h2 className="text-base font-semibold">
-                Portfolio comparison ({compared.length}/4)
+                Temporary comparison ({compared.length}/4)
               </h2>
-              <p className="text-xs text-muted">{rankingExplanation()}</p>
               <p className="mt-1 text-xs text-muted">
-                Compare selection is saved in this browser only — not shared with your team.
+                This panel is a temporary comparison in this browser. Save it to share with your
+                team. Development Profile ranking is not official grid intelligence.
               </p>
             </div>
             <div className="flex gap-2">
@@ -379,157 +416,23 @@ function LoadedMapPage({ projects }: { projects: MapProject[] }) {
               </Button>
             </div>
           </div>
+          <div className="px-4 pb-3 sm:px-6 lg:px-8">
+            {savedComparisons?.canWrite ? (
+              <SaveComparisonForm projectIds={compared.map((project) => project.id)} />
+            ) : (
+              <p className="text-xs text-muted">Viewers can open saved comparisons but cannot save new ones.</p>
+            )}
+          </div>
           {compared.length === 0 ? (
             <p className="px-4 pb-6 text-sm text-muted sm:px-6 lg:px-8">
               Select up to four sites from the map to compare development profiles.
             </p>
           ) : (
-            <div className="overflow-x-auto px-4 pb-6 sm:px-6 lg:px-8">
-              <table className="w-full min-w-[960px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
-                    <th className="py-2 pr-4 font-medium">Field</th>
-                    {compared.map((project) => (
-                      <th key={project.slug} className="py-2 pr-4 font-medium text-ink">
-                        <div className="flex items-start justify-between gap-2">
-                          <Link href={`/projects/${project.slug}`} className="hover:text-teal">
-                            {project.name}
-                          </Link>
-                          <button type="button" onClick={() => removeFromCompare(project.slug)}>
-                            <X size={12} />
-                          </button>
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <CompareRow label="Location" values={compared.map((p) => locationLabel(p))} />
-                  <CompareRow label="Technology" values={compared.map((p) => p.technology)} />
-                  <CompareRow
-                    label="Import MW"
-                    values={compared.map((p) => `${p.importMW} MW`)}
-                  />
-                  <CompareRow
-                    label="Export MW"
-                    values={compared.map((p) => `${p.exportMW} MW`)}
-                  />
-                  <CompareRow
-                    label="Grid operator"
-                    values={compared.map((p) => p.gridOperator || "—")}
-                  />
-                  <CompareRow
-                    label="Team outlook"
-                    values={compared.map((p) => <OutlookBadge key={p.slug} outlook={p.outlook} />)}
-                  />
-                  <CompareRow
-                    label="Team confidence"
-                    values={compared.map((p) => (
-                      <ConfidenceBadge key={p.slug} confidence={p.confidence} />
-                    ))}
-                  />
-                  <CompareRow
-                    label="Connection stage"
-                    values={compared.map((p) => p.stage)}
-                  />
-                  <CompareRow
-                    label="Application readiness"
-                    values={compared.map((p) => readinessLabel(p.readinessPercent))}
-                  />
-                  <CompareRow label="Target COD" values={compared.map((p) => p.targetCOD || "—")} />
-                  <CompareRow
-                    label="Development profile score"
-                    values={compared.map((p) => `${p.developmentProfile.score} pts`)}
-                  />
-                  <CompareRow
-                    label="Open alerts / attention"
-                    values={compared.map((p) => attentionLabel(p))}
-                  />
-                  <CompareRow
-                    label="Next connection milestone"
-                    values={compared.map((p) => milestoneLabel(p))}
-                  />
-                </tbody>
-              </table>
-              <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
-                {compared.map((project) => {
-                  const explanation = buildDevelopmentProfileExplanation(
-                    {
-                      outlook: project.outlook,
-                      confidence: project.confidence,
-                      stage: project.stage,
-                      readinessPercent: project.readinessPercent,
-                      openCriticalAlerts: project.openAlerts.filter(
-                        (alert) => alert.severity === "critical",
-                      ).length,
-                      openWarningAlerts: project.openAlerts.filter(
-                        (alert) => alert.severity === "warning",
-                      ).length,
-                      connectionCaseStatus: project.connectionCase?.status ?? null,
-                    },
-                    {
-                      isHighestInComparison: strongest?.slug === project.slug,
-                      comparisonSize: compared.length,
-                    },
-                  );
-
-                  return (
-                  <div
-                    key={project.slug}
-                    className="rounded-md border border-line bg-canvas px-4 py-3 text-sm"
-                  >
-                    <p className="font-medium text-ink">{project.name}</p>
-                    <p className="mt-1 text-xs text-muted">
-                      Development profile · {project.developmentProfile.score} pts
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-ink">{explanation}</p>
-                    <ul className="mt-2 space-y-0.5 text-ink">
-                      {project.developmentProfile.factors.map((factor) => (
-                        <li key={`${project.slug}-${factor.key}`} className="flex justify-between gap-2">
-                          <span>{factor.label}</span>
-                          <span className="shrink-0 font-mono text-xs text-muted">
-                            {formatFactorPoints(factor.points)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  );
-                })}
-              </div>
-              {strongest ? (
-                <div className="mt-4 rounded-md border border-line bg-teal-soft px-4 py-3 text-sm">
-                  <p className="font-medium text-teal">Strongest current development profile</p>
-                  <p className="mt-1 text-ink">
-                    {strongest.name} · {strongest.developmentProfile.score} pts
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-ink">
-                    {buildDevelopmentProfileExplanation(
-                      {
-                        outlook: strongest.outlook,
-                        confidence: strongest.confidence,
-                        stage: strongest.stage,
-                        readinessPercent: strongest.readinessPercent,
-                        openCriticalAlerts: strongest.openAlerts.filter(
-                          (alert) => alert.severity === "critical",
-                        ).length,
-                        openWarningAlerts: strongest.openAlerts.filter(
-                          (alert) => alert.severity === "warning",
-                        ).length,
-                        connectionCaseStatus: strongest.connectionCase?.status ?? null,
-                      },
-                      {
-                        isHighestInComparison: true,
-                        comparisonSize: compared.length,
-                      },
-                    )}
-                  </p>
-                  <p className="mt-2 text-xs text-muted">
-                    Stored project and workflow data only. Not a guarantee of connection or available
-                    capacity.
-                  </p>
-                </div>
-              ) : null}
+            <div className="max-h-[50vh] overflow-auto px-4 pb-6 sm:px-6 lg:px-8">
+              <DevelopmentCompareTable
+                projects={compared}
+                onRemove={(slug) => removeFromCompare(slug)}
+              />
             </div>
           )}
         </div>
@@ -669,23 +572,6 @@ function readinessLabel(percent: number | null): string {
   return percent == null ? "Not available" : `${percent}%`;
 }
 
-function attentionLabel(project: MapProject): string {
-  const attention = project.openAlerts.filter(
-    (alert) => alert.severity === "critical" || alert.severity === "warning",
-  );
-  if (attention.length === 0) {
-    return "None recorded";
-  }
-  return attention.map((alert) => alert.title).join("; ");
-}
-
-function milestoneLabel(project: MapProject): string {
-  if (!project.connectionCase) {
-    return "No connection case";
-  }
-  return project.connectionCase.nextMilestone?.trim() || "—";
-}
-
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <p className="mt-1 flex items-center gap-2">
@@ -701,19 +587,6 @@ function Line({ label, value }: { label: string; value: ReactNode }) {
       <dt className="text-muted">{label}</dt>
       <dd className="text-right">{value}</dd>
     </div>
-  );
-}
-
-function CompareRow({ label, values }: { label: string; values: ReactNode[] }) {
-  return (
-    <tr className="border-b border-line align-top">
-      <td className={cn("py-2 pr-4 font-medium text-muted")}>{label}</td>
-      {values.map((value, index) => (
-        <td key={index} className="py-2 pr-4">
-          {value}
-        </td>
-      ))}
-    </tr>
   );
 }
 

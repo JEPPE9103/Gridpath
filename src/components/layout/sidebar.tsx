@@ -28,7 +28,7 @@ import { usePathname } from "next/navigation";
 const NAV = [
   { href: "/overview", label: "Overview", icon: LayoutGrid, match: ["/overview"] },
   { href: "/portfolio", label: "Portfolio", icon: Briefcase, match: ["/portfolio", "/projects"] },
-  { href: "/map", label: "Map & Compare", icon: Map, match: ["/map"] },
+  { href: "/map", label: "Map & Compare", icon: Map, match: ["/map", "/compare"] },
   { href: "/connections", label: "Connections", icon: Zap, match: ["/connections"] },
   { href: "/changes", label: "Changes", icon: Radio, match: ["/changes"] },
   { href: "/documents", label: "Documents", icon: FileText, match: ["/documents"] },

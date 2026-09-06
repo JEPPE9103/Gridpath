@@ -25,7 +25,9 @@ export {
 
 export {
   buildPortfolioAttention,
+  countNeedsAttentionProjects,
   portfolioAttentionCounts,
+  projectIdsNeedingAttention,
 } from "@/lib/intelligence/portfolio-attention";
 
 export {

@@ -41,7 +41,7 @@ export function ChangesPage({
       <>
         <PageHeader
           title="Changes"
-          subtitle="Published grid and network-planning updates mapped to your development portfolio. Official layers are refreshed by NOXHEIM operations for this pilot."
+          subtitle="Published grid and network-planning updates mapped to your development portfolio. A geographic match means this published change is relevant to the project's location — not that the project will be negatively affected."
           actions={<span className="hidden text-sm text-muted sm:inline">{headerDate}</span>}
         />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
@@ -59,7 +59,7 @@ export function ChangesPage({
       <>
         <PageHeader
           title="Changes"
-          subtitle="Published grid and network-planning updates mapped to your development portfolio. Official layers are refreshed by NOXHEIM operations for this pilot."
+          subtitle="Published grid and network-planning updates mapped to your development portfolio. A geographic match means this published change is relevant to the project's location — not that the project will be negatively affected."
           actions={<span className="hidden text-sm text-muted sm:inline">{headerDate}</span>}
         />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
@@ -160,7 +160,7 @@ function LoadedChangesPage({
     <>
       <PageHeader
         title="Changes"
-        subtitle="Published grid and network-planning updates mapped to your development portfolio. Official layers are refreshed by NOXHEIM operations for this pilot."
+        subtitle="Published grid and network-planning updates mapped to your development portfolio. A geographic match means this published change is relevant to the project's location — not that the project will be negatively affected."
         actions={
           <>
             <BellButton />
@@ -199,9 +199,10 @@ function LoadedChangesPage({
               ))}
             </div>
             <p className="mt-3 text-xs leading-5 text-muted">
-              Future official source snapshots are compared against this baseline. Relevant changes
-              are matched to portfolio projects when detected. Official source data is refreshed by
-              NOXHEIM operations during the design partner phase.
+              Noxheim compares later official snapshots against this baseline. A geographic match
+              means the published change overlaps the project&apos;s location. It is not a claim of
+              available capacity, connection outcome, or that the project will be negatively
+              affected.
             </p>
           </section>
         ) : null}
@@ -311,12 +312,14 @@ function ChangeCard({
     <li className="rounded-md border border-line bg-surface p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-wide text-muted">{change.changeTypeLabel}</p>
+          <p className="text-xs uppercase tracking-wide text-muted">
+            Potentially relevant external change · {change.changeTypeLabel}
+          </p>
           <h2 className="mt-1 text-base font-semibold">{change.title}</h2>
         </div>
         <div className="text-right text-xs text-muted">
           <p>{change.source.name}</p>
-          <p className="mt-1">{change.detectedAtLabel}</p>
+          <p className="mt-1">Noxheim detected {change.detectedAtLabel}</p>
         </div>
       </div>
 
@@ -338,7 +341,7 @@ function ChangeCard({
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <CountBadge tone="teal">
-          Affected projects {change.affectedProjectCount}
+          Geographically matched projects {change.affectedProjectCount}
         </CountBadge>
         <CountBadge>
           Review {change.reviewSummary}
@@ -350,7 +353,7 @@ function ChangeCard({
 
       <div className="mt-4 space-y-3">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-          Affected projects
+          Geographically matched projects
         </p>
         {change.impacts.map((impact) => (
           <ImpactBlock key={impact.id} impact={impact} canWrite={canWrite} />
@@ -550,7 +553,8 @@ function ImpactBlock({
         </dl>
         <p className="mt-2 text-sm leading-6 text-ink/90">{impact.reason}</p>
         <p className="mt-1 text-xs text-muted">
-          The official publisher did not determine project impact. NOXHEIM derived this match.
+          This is a geographic match to the project&apos;s location. Noxheim is not stating that
+          this change will impact the project&apos;s connection outcome.
         </p>
       </div>
 

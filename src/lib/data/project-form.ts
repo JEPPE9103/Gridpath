@@ -15,6 +15,9 @@ type ProjectRow = {
   connection_outlook: string;
   confidence: string;
   target_cod: string | null;
+  description: string | null;
+  region: string | null;
+  voltage_level: string | null;
   grid_operator_id: string | null;
 };
 
@@ -52,6 +55,9 @@ export async function getProjectFormBySlug(slug: string): Promise<ProjectFormRec
       connection_outlook,
       confidence,
       target_cod,
+      description,
+      region,
+      voltage_level,
       grid_operator_id
     `,
     )
@@ -98,6 +104,9 @@ export async function getProjectFormBySlug(slug: string): Promise<ProjectFormRec
       connectionOutlook: row.connection_outlook || "unknown",
       confidence: row.confidence || "unknown",
       targetCod: row.target_cod ?? "",
+      description: row.description ?? "",
+      region: row.region ?? "",
+      voltageLevel: row.voltage_level ?? "",
     },
   };
 }

@@ -31,16 +31,16 @@ This is a supervised design-partner pilot, not a self-serve SaaS rollout.
 - Manual / supervised official Ei source refresh
 - Bug triage and trust-copy fixes
 - Weekly feedback call
-- Operator-assisted password reset if needed (no in-app reset yet)
+- Operator-assisted password reset if needed; in-app reset is at `/forgot-password` and `/reset-password`
 
 ## NOXHEIM does not promise in pilot
 
 - Available capacity / headroom / feasibility
 - Continuous live monitoring
-- File hosting
-- Invitations / multi-org switching
+- File hosting (document **metadata** exists; uploads are not stored yet)
+- Invite **email** delivery (copy-link invites and role management exist)
 - New external sources (SvK, Vattenfall APIs, SGU, environment)
-- AI scoring or automatic alerts
+- AI scoring or automatic alerts from official ingest
 
 ---
 

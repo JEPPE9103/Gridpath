@@ -1,4 +1,5 @@
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { fetchAllInChunks, fetchAllQueryPages } from "@/lib/data/paged-select";
 import type {
   GridChangeAreaView,
   GridChangeImpactView,
@@ -262,38 +263,44 @@ export async function getGridChangesForCurrentOrganization(): Promise<GridChange
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: impactData, error: impactError } = await supabase
-    .from("change_impacts")
-    .select(
-      "id, external_change_id, organization_id, project_id, match_type, impact_level, reason, confidence, review_status, reviewed_at",
-    )
-    .eq("organization_id", organization.id)
-    .order("created_at", { ascending: false });
+  const impactsPage = await fetchAllQueryPages<ImpactRow>(async (from, to) => {
+    const page = await supabase
+      .from("change_impacts")
+      .select(
+        "id, external_change_id, organization_id, project_id, match_type, impact_level, reason, confidence, review_status, reviewed_at",
+      )
+      .eq("organization_id", organization.id)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    return { data: page.data as ImpactRow[] | null, error: page.error };
+  });
 
-  if (impactError) {
-    console.error("getGridChangesForCurrentOrganization impacts failed", impactError.message);
+  if (impactsPage.error) {
+    console.error("getGridChangesForCurrentOrganization impacts failed", impactsPage.error);
     return { kind: "error", message: "Could not load changes." };
   }
 
-  const impactRows = (impactData ?? []) as ImpactRow[];
+  const impactRows = impactsPage.rows;
   const changeIds = unique(impactRows.map((row) => row.external_change_id));
   const projectIds = unique(impactRows.map((row) => row.project_id));
 
   let changeRows: ChangeRow[] = [];
   if (changeIds.length > 0) {
-    const { data, error } = await supabase
-      .from("external_changes")
-      .select(
-        "id, source_id, previous_snapshot_id, current_snapshot_id, change_type, title, summary, severity, grid_area_id, detected_at, published_at, confidence, source_url, before_value, after_value, metadata, observation_external_id",
-      )
-      .in("id", changeIds)
-      .order("detected_at", { ascending: false });
-
-    if (error) {
-      console.error("getGridChangesForCurrentOrganization changes failed", error.message);
+    const changesPage = await fetchAllInChunks<ChangeRow>(changeIds, async (chunk) => {
+      const page = await supabase
+        .from("external_changes")
+        .select(
+          "id, source_id, previous_snapshot_id, current_snapshot_id, change_type, title, summary, severity, grid_area_id, detected_at, published_at, confidence, source_url, before_value, after_value, metadata, observation_external_id",
+        )
+        .in("id", chunk)
+        .order("detected_at", { ascending: false });
+      return { data: page.data as ChangeRow[] | null, error: page.error };
+    });
+    if (changesPage.error) {
+      console.error("getGridChangesForCurrentOrganization changes failed", changesPage.error);
       return { kind: "error", message: "Could not load changes." };
     }
-    changeRows = (data ?? []) as ChangeRow[];
+    changeRows = changesPage.rows;
   }
 
   const sourceIds = unique(changeRows.map((row) => row.source_id));
@@ -306,33 +313,52 @@ export async function getGridChangesForCurrentOrganization(): Promise<GridChange
   const [sourcesResult, areasResult, geometryResult, snapshotsResult, projectsResult] =
     await Promise.all([
       sourceIds.length
-        ? supabase
-            .from("grid_sources")
-            .select("id, name, slug, publisher, base_url, authority_level")
-            .in("id", sourceIds)
-        : Promise.resolve({ data: [], error: null }),
+        ? fetchAllInChunks<SourceRow>(sourceIds, async (chunk) => {
+            const page = await supabase
+              .from("grid_sources")
+              .select("id, name, slug, publisher, base_url, authority_level")
+              .in("id", chunk);
+            return { data: page.data as SourceRow[] | null, error: page.error };
+          })
+        : Promise.resolve({ rows: [] as SourceRow[], error: null }),
       areaIds.length
-        ? supabase
-            .from("grid_areas")
-            .select("id, name, area_type, metadata")
-            .in("id", areaIds)
-        : Promise.resolve({ data: [], error: null }),
+        ? fetchAllInChunks<AreaRow>(areaIds, async (chunk) => {
+            const page = await supabase
+              .from("grid_areas")
+              .select("id, name, area_type, metadata")
+              .in("id", chunk);
+            return { data: page.data as AreaRow[] | null, error: page.error };
+          })
+        : Promise.resolve({ rows: [] as AreaRow[], error: null }),
       areaIds.length
-        ? supabase.from("grid_areas").select("id").in("id", areaIds).not("geometry", "is", null)
-        : Promise.resolve({ data: [], error: null }),
+        ? fetchAllInChunks<{ id: string }>(areaIds, async (chunk) => {
+            const page = await supabase
+              .from("grid_areas")
+              .select("id")
+              .in("id", chunk)
+              .not("geometry", "is", null);
+            return { data: page.data as Array<{ id: string }> | null, error: page.error };
+          })
+        : Promise.resolve({ rows: [] as Array<{ id: string }>, error: null }),
       snapshotIds.length
-        ? supabase
-            .from("source_snapshots")
-            .select("id, source_id, retrieved_at, published_at, status")
-            .in("id", snapshotIds)
-        : Promise.resolve({ data: [], error: null }),
+        ? fetchAllInChunks<SnapshotRow>(snapshotIds, async (chunk) => {
+            const page = await supabase
+              .from("source_snapshots")
+              .select("id, source_id, retrieved_at, published_at, status")
+              .in("id", chunk);
+            return { data: page.data as SnapshotRow[] | null, error: page.error };
+          })
+        : Promise.resolve({ rows: [] as SnapshotRow[], error: null }),
       projectIds.length
-        ? supabase
-            .from("projects")
-            .select("id, slug, name, import_mw, export_mw, connection_stage, connection_outlook")
-            .eq("organization_id", organization.id)
-            .in("id", projectIds)
-        : Promise.resolve({ data: [], error: null }),
+        ? fetchAllInChunks<ProjectRow>(projectIds, async (chunk) => {
+            const page = await supabase
+              .from("projects")
+              .select("id, slug, name, import_mw, export_mw, connection_stage, connection_outlook")
+              .eq("organization_id", organization.id)
+              .in("id", chunk);
+            return { data: page.data as ProjectRow[] | null, error: page.error };
+          })
+        : Promise.resolve({ rows: [] as ProjectRow[], error: null }),
     ]);
 
   if (
@@ -344,26 +370,20 @@ export async function getGridChangesForCurrentOrganization(): Promise<GridChange
   ) {
     console.error(
       "getGridChangesForCurrentOrganization related lookup failed",
-      sourcesResult.error?.message ??
-        areasResult.error?.message ??
-        geometryResult.error?.message ??
-        snapshotsResult.error?.message ??
-        projectsResult.error?.message,
+      sourcesResult.error ??
+        areasResult.error ??
+        geometryResult.error ??
+        snapshotsResult.error ??
+        projectsResult.error,
     );
     return { kind: "error", message: "Could not load changes." };
   }
 
-  const sources = new Map(((sourcesResult.data ?? []) as SourceRow[]).map((row) => [row.id, row]));
-  const areas = new Map(((areasResult.data ?? []) as AreaRow[]).map((row) => [row.id, row]));
-  const areasWithGeometry = new Set(
-    ((geometryResult.data ?? []) as Array<{ id: string }>).map((row) => row.id),
-  );
-  const snapshots = new Map(
-    ((snapshotsResult.data ?? []) as SnapshotRow[]).map((row) => [row.id, row]),
-  );
-  const projects = new Map(
-    ((projectsResult.data ?? []) as ProjectRow[]).map((row) => [row.id, mapProject(row)]),
-  );
+  const sources = new Map(sourcesResult.rows.map((row) => [row.id, row]));
+  const areas = new Map(areasResult.rows.map((row) => [row.id, row]));
+  const areasWithGeometry = new Set(geometryResult.rows.map((row) => row.id));
+  const snapshots = new Map(snapshotsResult.rows.map((row) => [row.id, row]));
+  const projects = new Map(projectsResult.rows.map((row) => [row.id, mapProject(row)]));
 
   const impactsByChange = new Map<string, GridChangeImpactView[]>();
   for (const row of impactRows) {

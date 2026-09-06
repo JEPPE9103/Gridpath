@@ -13,13 +13,20 @@
     "dev:ingest-ei-nup": "node scripts/ingest-ei-network-development-plans.mjs",
     "cloud:ingest-ei-network-areas": "node scripts/cloud-ingest-ei-network-areas.mjs",
     "cloud:ingest-ei-nup": "node scripts/cloud-ingest-ei-nup.mjs",
+    "cloud:ingest-official": "node scripts/scheduled-official-ingest.mjs",
     "demo:reset": "node scripts/cloud-seed-sales-demo.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test:intelligence": "node --import tsx --test src/lib/intelligence/project-attention.test.ts src/lib/intelligence/portfolio-attention.test.ts src/lib/intelligence/compare-explanation.test.ts",
     "test:tenancy": "node --import tsx --test src/lib/organization/active-org-resolve.test.ts src/lib/organization/tenant-authorization.test.ts src/lib/organization/active-org-cookie.test.ts",
-    "test:team": "node --import tsx --test src/lib/organization/team-permissions.test.ts src/lib/organization/invite-token.test.ts"
+    "test:portfolio": "node --import tsx --test src/lib/data/paged-select.test.ts src/lib/data/archive-filter.test.ts src/lib/import/import.test.ts src/lib/documents/storage-path.test.ts src/lib/documents/authorization.test.ts src/lib/compare/comparison-rules.test.ts",
+    "test:team": "node --import tsx --test src/lib/organization/team-permissions.test.ts src/lib/organization/invite-token.test.ts src/lib/organization/member-rls-contract.test.ts src/lib/organization/invite-email.test.ts",
+    "test:monitor": "node --import tsx --test src/lib/monitor/monitor.test.ts",
+    "test:rc": "node --import tsx --test src/lib/observability/log.test.ts src/lib/operator/authorize.test.ts src/lib/security/headers.test.ts src/lib/notifications/preferences.test.ts scripts/lib/scheduled-ingest-guard.test.mjs",
+    "test": "npm run test:intelligence && npm run test:tenancy && npm run test:team && npm run test:portfolio && npm run test:monitor && npm run test:rc",
+    "test:integration": "node scripts/test-integration.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
@@ -29,7 +36,8 @@
     "next": "16.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -41,6 +49,7 @@
     "supabase": "^2.115.0",
     "tailwindcss": "^4",
     "tsx": "^4.20.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@playwright/test": "^1.55.0"
   }
 }

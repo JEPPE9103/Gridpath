@@ -118,6 +118,19 @@ export function portfolioAttentionCounts(result: PortfolioAttentionResult): {
   };
 }
 
+/** Overview / Reports KPI — same list as Portfolio Attention “Needs attention”. */
+export function countNeedsAttentionProjects(
+  projects: PortfolioAttentionProjectInput[],
+): number {
+  return buildPortfolioAttention(projects).needsAttention.length;
+}
+
+export function projectIdsNeedingAttention(
+  projects: PortfolioAttentionProjectInput[],
+): Set<string> {
+  return new Set(buildPortfolioAttention(projects).needsAttention.map((item) => item.id));
+}
+
 export function stageLabelForSummary(stage: OverviewPipelineStage): string {
   return stage;
 }

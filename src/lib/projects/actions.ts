@@ -1,7 +1,7 @@
 "use server";
 
 import { getCurrentOrganization } from "@/lib/data/organization";
-import { canCreateOrEditProjects, canDeleteProjects } from "@/lib/projects/authorization";
+import { canArchiveProjects, canCreateOrEditProjects, canDeleteProjects } from "@/lib/projects/authorization";
 import { parseProjectForm, type ProjectFormFieldErrors, type ProjectFormInput } from "@/lib/projects/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -93,6 +93,9 @@ export async function createProjectAction(
     p_connection_outlook: parsed.connectionOutlook,
     p_confidence: parsed.confidence,
     p_target_cod: parsed.targetCod,
+    p_description: parsed.description,
+    p_region: parsed.region,
+    p_voltage_level: parsed.voltageLevel,
   });
 
   if (error || !data) {
@@ -163,6 +166,9 @@ export async function updateProjectAction(
     p_connection_outlook: parsed.connectionOutlook,
     p_confidence: parsed.confidence,
     p_target_cod: parsed.targetCod,
+    p_description: parsed.description,
+    p_region: parsed.region,
+    p_voltage_level: parsed.voltageLevel,
   });
 
   if (error || !data) {
@@ -222,4 +228,84 @@ export async function deleteProjectAction(
 
   revalidateProjectPaths(existing.slug);
   redirect("/portfolio");
+}
+
+export async function archiveProjectAction(
+  projectId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!UUID_PATTERN.test(projectId)) {
+    return { ok: false, error: "Could not archive the project." };
+  }
+
+  const organization = await getCurrentOrganization();
+  if (!organization) {
+    return { ok: false, error: "Sign in to archive a project." };
+  }
+  if (!canArchiveProjects(organization.role)) {
+    return { ok: false, error: "You do not have permission to archive projects." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: existing, error: loadError } = await supabase
+    .from("projects")
+    .select("id, slug, organization_id")
+    .eq("id", projectId)
+    .eq("organization_id", organization.id)
+    .maybeSingle();
+
+  if (loadError || !existing) {
+    if (loadError) {
+      console.error("archiveProjectAction load failed", loadError.message);
+    }
+    return { ok: false, error: "Could not archive the project." };
+  }
+
+  const { error } = await supabase.rpc("archive_project", { p_project_id: existing.id });
+  if (error) {
+    console.error("archiveProjectAction failed", error.message);
+    return { ok: false, error: publicError(error.message, "Could not archive the project.") };
+  }
+
+  revalidateProjectPaths(existing.slug);
+  return { ok: true };
+}
+
+export async function restoreProjectAction(
+  projectId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!UUID_PATTERN.test(projectId)) {
+    return { ok: false, error: "Could not restore the project." };
+  }
+
+  const organization = await getCurrentOrganization();
+  if (!organization) {
+    return { ok: false, error: "Sign in to restore a project." };
+  }
+  if (!canArchiveProjects(organization.role)) {
+    return { ok: false, error: "You do not have permission to restore projects." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: existing, error: loadError } = await supabase
+    .from("projects")
+    .select("id, slug, organization_id")
+    .eq("id", projectId)
+    .eq("organization_id", organization.id)
+    .maybeSingle();
+
+  if (loadError || !existing) {
+    if (loadError) {
+      console.error("restoreProjectAction load failed", loadError.message);
+    }
+    return { ok: false, error: "Could not restore the project." };
+  }
+
+  const { error } = await supabase.rpc("restore_project", { p_project_id: existing.id });
+  if (error) {
+    console.error("restoreProjectAction failed", error.message);
+    return { ok: false, error: publicError(error.message, "Could not restore the project.") };
+  }
+
+  revalidateProjectPaths(existing.slug);
+  return { ok: true };
 }

@@ -1,4 +1,7 @@
+import { applyArchiveFilter } from "@/lib/data/archive-filter";
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { fetchAllQueryPages } from "@/lib/data/paged-select";
+import { getOrganizationProjectAggregates } from "@/lib/data/project-aggregates";
 import { OVERVIEW_PIPELINE_STAGES } from "@/lib/data/overview-types";
 import type {
   PortfolioReportResult,
@@ -13,10 +16,6 @@ import { asSingle, toNumber } from "@/lib/data/row-utils";
 import { isActiveConnectionCase } from "@/lib/data/connections-types";
 import { applicationReadinessFromRequirements } from "@/lib/domain/application-readiness";
 import {
-  countProjectsNeedingAttention,
-  projectIdsNeedingAttention,
-} from "@/lib/domain/attention";
-import {
   checklistStatusLabel,
   confidenceLabel,
   connectionCaseStatusLabel,
@@ -26,9 +25,11 @@ import {
   technologyLabel,
 } from "@/lib/domain/catalog-labels";
 import { deadlineAttention } from "@/lib/domain/connection-deadlines";
-import { portfolioCapacityMW, totalPortfolioMW } from "@/lib/domain/portfolio-capacity";
+import { buildPortfolioAttention } from "@/lib/intelligence/portfolio-attention";
+import type { PortfolioAttentionProjectInput } from "@/lib/intelligence/types";
+import { portfolioCapacityMW } from "@/lib/domain/portfolio-capacity";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { ChecklistStatus, DocumentStatus, Outlook, Technology } from "@/types";
+import type { AlertSeverity, ChecklistStatus, DocumentStatus, Outlook, Technology } from "@/types";
 import { TECHNOLOGIES } from "@/types";
 
 export type { PortfolioReportResult } from "@/lib/data/report-types";
@@ -62,6 +63,7 @@ type RequirementRow = {
   project_id: string;
   status: string;
   required: boolean;
+  due_date: string | null;
 };
 
 type CaseRow = {
@@ -76,6 +78,7 @@ type AlertRow = {
   project_id: string | null;
   severity: string;
   status: string;
+  projects?: { archived_at: string | null } | { archived_at: string | null }[] | null;
 };
 
 type DocumentRow = {
@@ -196,57 +199,93 @@ export async function getPortfolioReportForCurrentOrganization(): Promise<Portfo
   }
 
   const supabase = await createSupabaseServerClient();
-  const [projectsResult, casesResult, requirementsResult, alertsResult, documentsResult] =
+  const [aggregatesResult, projectsResult, casesResult, requirementsResult, alertsResult, documentsResult] =
     await Promise.all([
-      supabase
-        .from("projects")
-        .select(
-          `
-          id,
-          slug,
-          name,
-          location,
-          technology,
-          import_mw,
-          export_mw,
-          connection_stage,
-          connection_outlook,
-          confidence,
-          target_cod,
-          grid_operators ( name ),
-          project_sites ( location, is_primary )
-        `,
-        )
-        .eq("organization_id", organization.id)
-        .order("name", { ascending: true }),
-      supabase
-        .from("connection_cases")
-        .select(
-          `
-          project_id,
-          status,
-          next_milestone,
-          deadline,
-          projects!inner ( organization_id )
-        `,
-        )
-        .eq("projects.organization_id", organization.id),
-      supabase
-        .from("project_requirements")
-        .select("project_id, status, required, projects!inner ( organization_id )")
-        .eq("projects.organization_id", organization.id),
-      supabase
-        .from("alerts")
-        .select("id, project_id, severity, status")
-        .eq("organization_id", organization.id)
-        .eq("status", "open"),
-      supabase
-        .from("documents")
-        .select("status, projects!inner ( organization_id )")
-        .eq("projects.organization_id", organization.id),
+      getOrganizationProjectAggregates(false),
+      fetchAllQueryPages<ProjectRow>(async (from, to) => {
+        const page = await applyArchiveFilter(
+          supabase
+            .from("projects")
+            .select(
+              `
+              id,
+              slug,
+              name,
+              location,
+              technology,
+              import_mw,
+              export_mw,
+              connection_stage,
+              connection_outlook,
+              confidence,
+              target_cod,
+              grid_operators ( name ),
+              project_sites!inner ( location, is_primary )
+            `,
+            )
+            .eq("organization_id", organization.id)
+            .eq("project_sites.is_primary", true)
+            .order("name", { ascending: true }),
+          "active",
+        ).range(from, to);
+        return { data: page.data as ProjectRow[] | null, error: page.error };
+      }),
+      fetchAllQueryPages<CaseRow>(async (from, to) => {
+        const page = await applyArchiveFilter(
+          supabase
+            .from("connection_cases")
+            .select(
+              `
+              project_id,
+              status,
+              next_milestone,
+              deadline,
+              projects!inner ( organization_id, archived_at )
+            `,
+            )
+            .eq("projects.organization_id", organization.id),
+          "active",
+          "projects.archived_at",
+        ).range(from, to);
+        return { data: page.data as CaseRow[] | null, error: page.error };
+      }),
+      fetchAllQueryPages<RequirementRow>(async (from, to) => {
+        const page = await applyArchiveFilter(
+          supabase
+            .from("project_requirements")
+            .select("project_id, status, required, due_date, projects!inner ( organization_id, archived_at )")
+            .eq("projects.organization_id", organization.id),
+          "active",
+          "projects.archived_at",
+        ).range(from, to);
+        return { data: page.data as RequirementRow[] | null, error: page.error };
+      }),
+      fetchAllQueryPages<AlertRow>(async (from, to) => {
+        const page = await applyArchiveFilter(
+          supabase
+            .from("alerts")
+            .select("id, project_id, severity, status, projects ( archived_at )")
+            .eq("organization_id", organization.id)
+            .eq("status", "open"),
+          "all",
+        ).range(from, to);
+        return { data: page.data as AlertRow[] | null, error: page.error };
+      }),
+      fetchAllQueryPages<DocumentRow>(async (from, to) => {
+        const page = await applyArchiveFilter(
+          supabase
+            .from("documents")
+            .select("status, projects!inner ( organization_id, archived_at )")
+            .eq("projects.organization_id", organization.id),
+          "active",
+          "projects.archived_at",
+        ).range(from, to);
+        return { data: page.data as DocumentRow[] | null, error: page.error };
+      }),
     ]);
 
   if (
+    aggregatesResult.error ||
     projectsResult.error ||
     casesResult.error ||
     requirementsResult.error ||
@@ -254,20 +293,24 @@ export async function getPortfolioReportForCurrentOrganization(): Promise<Portfo
     documentsResult.error
   ) {
     console.error("getPortfolioReportForCurrentOrganization failed", {
-      projects: projectsResult.error?.message,
-      cases: casesResult.error?.message,
-      requirements: requirementsResult.error?.message,
-      alerts: alertsResult.error?.message,
-      documents: documentsResult.error?.message,
+      aggregates: aggregatesResult.error,
+      projects: projectsResult.error,
+      cases: casesResult.error,
+      requirements: requirementsResult.error,
+      alerts: alertsResult.error,
+      documents: documentsResult.error,
     });
     return { kind: "error", message: "Could not load portfolio report." };
   }
 
-  const projectRows = (projectsResult.data ?? []) as ProjectRow[];
-  const caseRows = (casesResult.data ?? []) as CaseRow[];
-  const requirementRows = (requirementsResult.data ?? []) as RequirementRow[];
-  const alertRows = (alertsResult.data ?? []) as AlertRow[];
-  const documentRows = (documentsResult.data ?? []) as DocumentRow[];
+  const projectRows = projectsResult.rows;
+  const caseRows = casesResult.rows;
+  const requirementRows = requirementsResult.rows;
+  const alertRows = alertsResult.rows.filter((row) => {
+    const project = asSingle(row.projects);
+    return !project?.archived_at;
+  });
+  const documentRows = documentsResult.rows;
 
   const requirementsByProject = groupByProjectId(requirementRows);
   const casesByProject = groupByProjectId(caseRows);
@@ -279,12 +322,12 @@ export async function getPortfolioReportForCurrentOrganization(): Promise<Portfo
     const operator = asSingle(row.grid_operators);
     const site =
       (row.project_sites ?? []).find((item) => item.is_primary) ?? row.project_sites?.[0] ?? null;
-    const readiness = applicationReadinessFromRequirements(
-      (requirementsByProject.get(row.id) ?? []).map((item) => ({
-        status: checklistStatusLabel(item.status) as ChecklistStatus,
-        required: item.required === true,
-      })),
-    );
+    const mappedRequirements = (requirementsByProject.get(row.id) ?? []).map((item) => ({
+      status: checklistStatusLabel(item.status) as ChecklistStatus,
+      required: item.required === true,
+      dueDate: item.due_date,
+    }));
+    const readiness = applicationReadinessFromRequirements(mappedRequirements);
     return {
       id: row.id,
       slug: row.slug,
@@ -307,7 +350,41 @@ export async function getPortfolioReportForCurrentOrganization(): Promise<Portfo
   );
   const scoredPercents = projects.map((project) => project.readinessPercent);
   const averagePercent = averageReadiness(scoredPercents);
-  const attentionIds = projectIdsNeedingAttention(caseRows, alertRows);
+
+  const attentionInputs: PortfolioAttentionProjectInput[] = projects.map((project) => {
+    const connection = casesByProject.get(project.id)?.[0] ?? null;
+    const mappedRequirements = (requirementsByProject.get(project.id) ?? []).map((item) => ({
+      required: item.required === true,
+      status: checklistStatusLabel(item.status) as ChecklistStatus,
+      dueDate: item.due_date,
+    }));
+    const projectAlerts = alertsByProject.get(project.id) ?? [];
+    return {
+      id: project.id,
+      slug: project.slug,
+      name: project.name,
+      stage: project.stage,
+      connectionCaseStatus: connection ? connectionCaseStatusLabel(connection.status) : null,
+      connectionCaseStatusValue: connection?.status ?? null,
+      hasConnectionCase: Boolean(connection),
+      readinessPercent: project.readinessPercent,
+      readinessCompleteCount: mappedRequirements.filter(
+        (item) => item.required && item.status === "Complete",
+      ).length,
+      readinessRequiredCount: mappedRequirements.filter((item) => item.required).length,
+      confidence: project.confidence,
+      targetCOD: project.targetCOD,
+      requirements: mappedRequirements,
+      openAlertSeverities: projectAlerts
+        .map((row) => row.severity)
+        .filter((value): value is AlertSeverity =>
+          value === "critical" || value === "warning" || value === "info" || value === "positive",
+        ),
+      lastUpdated: "",
+    };
+  });
+  const portfolioAttention = buildPortfolioAttention(attentionInputs);
+  const attentionIds = new Set(portfolioAttention.needsAttention.map((item) => item.id));
 
   const attentionProjects: ReportAttentionProject[] = projects
     .filter((project) => attentionIds.has(project.id))
@@ -379,10 +456,10 @@ export async function getPortfolioReportForCurrentOrganization(): Promise<Portfo
   const report: PortfolioReportViewModel = {
     organizationName: organization.name,
     summary: {
-      projectCount: projects.length,
-      portfolioMW: totalPortfolioMW(projects),
+      projectCount: aggregatesResult.aggregates.activeCount,
+      portfolioMW: aggregatesResult.aggregates.activeMw,
       activeConnectionCases: activeCases.length,
-      needsAttention: countProjectsNeedingAttention(caseRows, alertRows),
+      needsAttention: portfolioAttention.needsAttention.length,
       openAlerts: alertRows.length,
       averageReadinessPercent: averagePercent,
     },
@@ -415,7 +492,7 @@ export async function getPortfolioReportForCurrentOrganization(): Promise<Portfo
     attentionProjects,
     documentHealth,
     operational: {
-      projectsMonitored: projects.length,
+      projectsMonitored: aggregatesResult.aggregates.activeCount,
       openIssues: alertRows.filter(
         (alert) => alert.severity === "critical" || alert.severity === "warning",
       ).length,

@@ -6,16 +6,18 @@ import {
   OutlookBadge,
   SourceBadge,
   StageBadge,
-  StatusBadge,
 } from "@/components/ui/badges";
 import { Button, buttonClassName } from "@/components/ui/button";
 import { Disclaimer, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { OfficialNetworkDevelopmentPlanSection } from "@/features/projects/network-development-plan-section";
 import { OfficialDataFreshnessStrip } from "@/features/projects/official-data-freshness";
+import { DocumentTable } from "@/features/documents/document-table";
+import { DocumentUploadForm } from "@/features/documents/document-upload-form";
 import { DeleteProjectButton } from "@/features/projects/delete-project-button";
+import { ArchiveProjectButton, RestoreProjectButton } from "@/features/projects/archive-project-button";
 import { cn } from "@/lib/cn";
-import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
+import { OVERVIEW_PIPELINE_STAGES } from "@/lib/data/overview-types";
 import type { ProjectDetailViewModel } from "@/lib/data/project-detail-types";
 import {
   confidenceLabel,
@@ -169,7 +171,7 @@ function LoadedProjectPage({
     <>
       <PageHeader
         title={project.name}
-        subtitle={`${project.technology} · ${formatImportExport(project)} · ${project.location}`}
+        subtitle={`${project.archivedAt ? "Archived · " : ""}${project.technology} · ${formatImportExport(project)} · ${project.location}`}
         actions={
           <>
             {project.canEdit ? (
@@ -180,15 +182,22 @@ function LoadedProjectPage({
                 Edit project
               </Link>
             ) : null}
-            {project.canDelete ? (
-              <DeleteProjectButton projectId={project.id} projectName={project.name} />
+            {project.canArchive && !project.archivedAt ? (
+              <ArchiveProjectButton projectId={project.id} projectName={project.name} />
+            ) : null}
+            {project.canArchive && project.archivedAt ? (
+              <RestoreProjectButton projectId={project.id} />
             ) : null}
             <Button
               variant="secondary"
               onClick={() => onAddToCompare(project.slug, project.name)}
-              disabled={compareIds.includes(project.slug)}
+              disabled={Boolean(project.archivedAt) || compareIds.includes(project.slug)}
             >
-              {compareIds.includes(project.slug) ? "In compare" : "Add to compare"}
+              {project.archivedAt
+                ? "Archived"
+                : compareIds.includes(project.slug)
+                  ? "In compare"
+                  : "Add to compare"}
             </Button>
             <BellButton />
             <ClientHeaderDate iso={project.lastUpdated} />
@@ -321,6 +330,18 @@ function OverviewTab({ project }: { project: ProjectDetailViewModel }) {
               <p className="px-5 py-8 text-sm text-muted">No site coordinates recorded for this project.</p>
             )}
           </section>
+          {project.canDelete ? (
+            <section className="rounded-md border border-critical/30 bg-critical-bg/40 p-5">
+              <h2 className="text-base font-semibold text-critical">Danger zone</h2>
+              <p className="mt-2 text-sm text-muted">
+                Hard delete permanently removes this project. Archive is the normal way to take a
+                site out of the active portfolio.
+              </p>
+              <div className="mt-4">
+                <DeleteProjectButton projectId={project.id} projectName={project.name} />
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
     </div>
@@ -362,12 +383,17 @@ function GridTab({ project }: { project: ProjectDetailViewModel }) {
             <Row label="Connection stage" value={<StageBadge stage={project.stage} />} />
             <Row label="Import" value={project.importMW > 0 ? `${project.importMW} MW` : "—"} />
             <Row label="Export" value={project.exportMW > 0 ? `${project.exportMW} MW` : "—"} />
+            <Row
+              label="Customer voltage level"
+              value={project.voltageLevel || "—"}
+            />
             <Row label="Team outlook" value={<OutlookBadge outlook={project.outlook} />} />
             <Row label="Team confidence" value={<ConfidenceBadge confidence={project.confidence} />} />
           </dl>
           <p className="mt-4 text-xs leading-5 text-muted">
-            Operator, outlook and confidence are customer-entered. They are not derived from Ei
-            local-network or NUP geography and may differ from official companies shown below.
+            Operator, voltage level, outlook and confidence are customer-entered. They are not
+            derived from Ei local-network or NUP geography and may differ from official companies
+            and permitted voltage shown below.
           </p>
         </section>
 
@@ -521,8 +547,6 @@ function ConnectionTab({
 }) {
   const current = project.stage;
   const params = useSearchParams();
-  const selected = (params.get("stage") as OverviewPipelineStage | null) ?? current;
-  const router = useRouter();
   const currentIndex = OVERVIEW_PIPELINE_STAGES.indexOf(current);
   const connectionCase = project.connectionCase;
   const editRequested = params.get("edit") === "1";
@@ -534,41 +558,36 @@ function ConnectionTab({
     .map((item) => item.label);
   const requirementLabels = project.requirements.map((item) => item.label);
 
-  function selectStage(stage: OverviewPipelineStage) {
-    router.replace(
-      `/projects/${project.slug}?tab=connection&stage=${encodeURIComponent(stage)}`,
-    );
-  }
-
   return (
     <div className="space-y-4">
       <section className="rounded-md border border-line bg-surface p-5">
         <h2 className="text-base font-semibold">Connection process</h2>
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+        <p className="mt-1 text-sm text-muted">
+          Stored project stage (customer entered). Change it from Edit project or the connection
+          case below.
+        </p>
+        <ol className="mt-4 flex gap-2 overflow-x-auto pb-1">
           {OVERVIEW_PIPELINE_STAGES.map((stage, index) => {
             const state =
               index < currentIndex ? "completed" : index === currentIndex ? "active" : "pending";
             return (
-              <button
+              <li
                 key={stage}
-                type="button"
-                onClick={() => selectStage(stage)}
                 className={cn(
                   "min-w-[120px] flex-1 rounded-md border px-3 py-2 text-left text-sm",
-                  selected === stage && "ring-1 ring-teal",
                   state === "completed" && "border-success bg-success-bg text-success",
                   state === "active" && "border-teal bg-teal-soft text-teal",
                   state === "pending" && "border-line bg-canvas text-muted",
                 )}
               >
                 <p className="text-[10px] uppercase tracking-wide opacity-80">
-                  {state === "completed" ? "Completed" : state === "active" ? "Active" : "Pending"}
+                  {state === "completed" ? "Reached" : state === "active" ? "Current" : "Later"}
                 </p>
                 <p className="mt-1 font-medium">{stage}</p>
-              </button>
+              </li>
             );
           })}
-        </div>
+        </ol>
       </section>
 
       <ConnectionCasePanel
@@ -592,49 +611,44 @@ function ConnectionTab({
 }
 
 function DocumentsTab({ project }: { project: ProjectDetailViewModel }) {
-  if (project.documents.length === 0) {
-    return (
-      <EmptyState
-        title="No documents on this project yet"
-        description="Document files are not stored yet. Metadata will appear here when records exist."
-      />
-    );
-  }
-
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <p className="text-sm text-muted">
-        Document records only. Files are not stored yet. Upload is unavailable until storage
-        integration.
+        Customer-provided project files, stored privately for this workspace. These are not
+        official grid records. Files are not malware-scanned.
       </p>
-      <div className="overflow-x-auto rounded-md border border-line bg-surface">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
-            <tr>
-              <th className="px-4 py-2 font-medium">Document</th>
-              <th className="px-4 py-2 font-medium">Category</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 font-medium">Created</th>
-              <th className="px-4 py-2 font-medium">Updated</th>
-              <th className="px-4 py-2 font-medium">Owner</th>
-            </tr>
-          </thead>
-          <tbody>
-            {project.documents.map((doc) => (
-              <tr key={doc.id} className="border-b border-line last:border-0">
-                <td className="px-4 py-3 font-medium">{doc.name}</td>
-                <td className="px-4 py-3">{doc.category}</td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={doc.status} />
-                </td>
-                <td className="px-4 py-3 text-muted">{formatDate(doc.createdAt)}</td>
-                <td className="px-4 py-3 text-muted">{formatDate(doc.updatedAt)}</td>
-                <td className="px-4 py-3">{doc.owner ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {project.canEdit ? (
+        <DocumentUploadForm
+          projects={[{ id: project.id, name: project.name }]}
+          defaultProjectId={project.id}
+          compact
+        />
+      ) : null}
+      {project.documents.length === 0 ? (
+        <EmptyState
+          title="No documents on this project yet"
+          description={
+            project.canEdit
+              ? "Upload a PDF, Word, Excel, or image file to keep it with this project."
+              : "No files have been uploaded to this project yet."
+          }
+        />
+      ) : (
+        <DocumentTable
+          rows={project.documents.map((doc) => ({
+            id: doc.id,
+            name: doc.name,
+            category: doc.category,
+            status: doc.status,
+            fileKind: doc.fileKind,
+            fileSizeBytes: doc.fileSizeBytes,
+            uploadedAt: doc.uploadedAt,
+            uploadedByName: doc.uploadedByName ?? doc.owner,
+            hasStoredFile: doc.hasStoredFile,
+          }))}
+          canWrite={project.canEdit}
+        />
+      )}
     </div>
   );
 }

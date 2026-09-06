@@ -30,6 +30,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { queryIngestSql, resolveIngestTarget } from "./lib/ingest-target.mjs";
+import {
+  beginIngestionRun,
+  classifyIngestError,
+  completeIngestionRun,
+  ingestTriggerType,
+} from "./lib/ingestion-runs.mjs";
 
 const LANDING_URL =
   "https://ei.se/bransch/koncessioner/ansokan-natkoncession-for-omrade";
@@ -45,6 +51,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 /** @type {{ mode: string, url: string, projectRef: string | null, dbFlag: string } | null} */
 let ingestTarget = null;
+/** @type {string | null} */
+let ingestionRunId = null;
 
 function quoteSql(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
@@ -366,6 +374,20 @@ async function main() {
   const { url, mode } = ingestTarget;
   console.log(`Ei local-network ingest against ${url} (mode=${mode})`);
   console.log("Source class: official regulator GIS (not a NOXHEIM fixture)");
+
+  const begun = beginIngestionRun(queryLocal, quoteSql, {
+    slug: SOURCE_SLUG,
+    trigger: ingestTriggerType(),
+  });
+  if (begun?.outcome === "skipped_locked") {
+    console.log("Skipped: an ingestion run is already active for this source.");
+    return;
+  }
+  if (begun?.outcome === "skipped_not_due") {
+    console.log("Skipped: this source is not due for a scheduled refresh.");
+    return;
+  }
+  ingestionRunId = begun?.run_id ?? null;
 
   console.log(`\nDiscovering current distribution from:\n  ${LANDING_URL}`);
   const landingResponse = await fetch(LANDING_URL, {
@@ -837,11 +859,44 @@ order by p.name;
   console.log("\nSemantics: this is official network-area concession geography.");
   console.log("It does not prove capacity, connection availability, or time-to-power.");
   console.log("Customer project rows were not modified.");
+  console.log("V1 does not create external_changes from concession geometry.");
+
+  if (ingestionRunId) {
+    completeIngestionRun(queryLocal, quoteSql, quoteSqlNullable, {
+      runId: ingestionRunId,
+      status: "success",
+      snapshotId,
+      sourceChanged: !existingSnapshot[0],
+      observationsProcessed: 0,
+      externalChangesCreated: 0,
+      impactsCreated: 0,
+      metadata: {
+        engine: "cli-local-network",
+        create_alerts: false,
+        areas_updated: updatedCount,
+        areas_inserted: insertedCount,
+      },
+    });
+    ingestionRunId = null;
+  }
 }
 
 try {
   await main();
 } catch (error) {
+  if (ingestionRunId) {
+    try {
+      completeIngestionRun(queryLocal, quoteSql, quoteSqlNullable, {
+        runId: ingestionRunId,
+        status: "failed",
+        errorCode: classifyIngestError(error),
+        errorMessage: error.message || String(error),
+        metadata: { engine: "cli-local-network" },
+      });
+    } catch (completeError) {
+      console.error(completeError.message || completeError);
+    }
+  }
   console.error(error.message || error);
   process.exit(1);
 }

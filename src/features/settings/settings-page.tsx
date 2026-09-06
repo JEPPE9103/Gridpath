@@ -4,10 +4,14 @@ import { BellButton } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProfileForm } from "@/features/settings/profile-form";
+import { NotificationSettingsSection } from "@/features/settings/notification-settings-section";
+import { SourceHealthSection } from "@/features/settings/source-health-section";
 import { TeamSection } from "@/features/settings/team-section";
 import type { CurrentUserProfile } from "@/lib/auth/current-user";
 import { organizationRoleLabel } from "@/lib/data/organization-role";
 import type { TeamPageResult } from "@/lib/data/team";
+import type { SourceHealthView } from "@/lib/data/source-health";
+import type { NotificationSettings } from "@/lib/data/notification-settings";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { writeJson } from "@/lib/persistence";
 
@@ -15,10 +19,18 @@ export function SettingsPage({
   user,
   organization,
   team,
+  inviteEmailConfigured,
+  sourceHealth,
+  notificationSettings,
+  canManageNotifications,
 }: {
   user: CurrentUserProfile;
   organization: { name: string; role: string } | null;
   team: TeamPageResult;
+  inviteEmailConfigured: boolean;
+  sourceHealth: SourceHealthView[];
+  notificationSettings: NotificationSettings;
+  canManageNotifications: boolean;
 }) {
   return (
     <>
@@ -73,17 +85,23 @@ export function SettingsPage({
             organizationName={team.organizationName}
             actorRole={team.actorRole}
             currentUserId={user.id}
+            inviteEmailConfigured={inviteEmailConfigured}
           />
         ) : team.kind === "error" ? (
           <section className="max-w-xl rounded-md border border-line bg-surface p-5">
             <p className="text-sm text-muted">{team.message}</p>
           </section>
         ) : null}
+        <NotificationSettingsSection
+          settings={notificationSettings}
+          canManage={canManageNotifications}
+        />
+        <SourceHealthSection sources={sourceHealth} />
         <section className="max-w-xl rounded-md border border-line bg-surface p-5">
           <h2 className="text-base font-semibold">Browser preferences</h2>
           <p className="mt-2 text-sm text-muted">
-            Map &amp; Compare selections are saved in this browser only. They are not shared with
-            your team and do not change organization data.
+            Map &amp; Compare temporary selections are saved in this browser only. Named
+            comparisons saved from Compare are shared with your workspace.
           </p>
           <Button
             className="mt-4"

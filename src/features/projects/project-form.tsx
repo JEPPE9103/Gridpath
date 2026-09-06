@@ -32,6 +32,9 @@ const EMPTY_VALUES: ProjectFormInput = {
   connectionOutlook: "unknown",
   confidence: "unknown",
   targetCod: "",
+  description: "",
+  region: "",
+  voltageLevel: "",
 };
 
 export function ProjectForm({
@@ -203,6 +206,48 @@ export function ProjectForm({
               defaultValue={values.targetCod}
               className={inputClass}
               placeholder="2028"
+            />
+          </Field>
+        </div>
+      </section>
+
+      <section className="rounded-md border border-line bg-surface p-5">
+        <h2 className="text-sm font-semibold">Additional details</h2>
+        <p className="mt-1 text-xs text-muted">
+          Optional customer-entered fields. They are not official grid data.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Region"
+            error={errors.region}
+            hint="Customer-entered geography label. Not derived from official Ei areas."
+          >
+            <input
+              name="region"
+              defaultValue={values.region}
+              className={inputClass}
+              placeholder="Gävleborg"
+            />
+          </Field>
+          <Field
+            label="Voltage level"
+            error={errors.voltageLevel}
+            hint="Customer-entered. Not official Ei permitted voltage."
+          >
+            <input
+              name="voltageLevel"
+              defaultValue={values.voltageLevel}
+              className={inputClass}
+              placeholder="130 kV"
+            />
+          </Field>
+          <Field label="Description" error={errors.description} className="sm:col-span-2">
+            <textarea
+              name="description"
+              defaultValue={values.description}
+              rows={4}
+              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 text-sm text-ink"
+              placeholder="Optional notes about the development site."
             />
           </Field>
         </div>

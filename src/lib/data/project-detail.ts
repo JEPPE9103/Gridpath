@@ -12,6 +12,8 @@ import type {
   ProjectRequirementItem,
 } from "@/lib/data/project-detail-types";
 import { asSingle, parsePoint, toNumber } from "@/lib/data/row-utils";
+import { documentHasStoredFile } from "@/lib/documents/authorization";
+import { documentFileKind } from "@/lib/documents/file-types";
 import { applicationReadinessFromRequirements } from "@/lib/domain/application-readiness";
 import type { OfficialGridAreaContext, OfficialNupContext } from "@/lib/domain/grid-intelligence";
 import {
@@ -71,6 +73,12 @@ type DocumentRow = {
   created_at: string;
   updated_at: string;
   owner_id: string | null;
+  storage_path: string | null;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | string | null;
+  uploaded_by: string | null;
+  uploaded_at: string | null;
 };
 
 type EventRow = {
@@ -105,6 +113,7 @@ type ProjectRow = {
   confidence: string;
   target_cod: string | null;
   updated_at: string;
+  archived_at: string | null;
   grid_operator_id: string | null;
   grid_operators: GridOperatorRow | GridOperatorRow[] | null;
   project_sites: SiteRow[] | null;
@@ -138,15 +147,26 @@ function mapRequirements(rows: RequirementRow[]): ProjectRequirementItem[] {
 function mapDocuments(rows: DocumentRow[], profiles: ProfileRow[]): ProjectDocumentItem[] {
   return [...rows]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-    .map((row) => ({
-      id: row.id,
-      name: row.name,
-      category: documentCategoryLabel(row.category),
-      status: documentStatusLabel(row.status),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      owner: profileName(profiles, row.owner_id),
-    }));
+    .map((row) => {
+      const storagePath = row.storage_path?.trim() || null;
+      return {
+        id: row.id,
+        name: row.name,
+        category: documentCategoryLabel(row.category),
+        status: documentStatusLabel(row.status),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        owner: profileName(profiles, row.owner_id),
+        storagePath,
+        originalFilename: row.original_filename,
+        mimeType: row.mime_type,
+        fileKind: documentFileKind(row.mime_type, row.original_filename ?? row.name),
+        fileSizeBytes: row.file_size_bytes == null ? null : toNumber(row.file_size_bytes),
+        uploadedAt: row.uploaded_at,
+        uploadedByName: profileName(profiles, row.uploaded_by),
+        hasStoredFile: documentHasStoredFile(storagePath),
+      };
+    });
 }
 
 function mapEvents(rows: EventRow[]): ProjectEventItem[] {
@@ -208,6 +228,7 @@ function mapProject(
   },
   canUpdateRequirements: boolean,
   canEdit: boolean,
+  canArchive: boolean,
   canDelete: boolean,
   canDeleteRequirements: boolean,
   canManageConnectionCase: boolean,
@@ -243,6 +264,7 @@ function mapProject(
     confidence: confidenceLabel(row.confidence),
     targetCOD: row.target_cod ?? "",
     lastUpdated: row.updated_at,
+    archivedAt: row.archived_at,
     readinessPercent: readiness.percent,
     readinessCompleteCount: readiness.completeCount,
     readinessRequiredCount: readiness.requiredCount,
@@ -253,6 +275,7 @@ function mapProject(
     alerts: mapAlerts(related.alerts),
     canUpdateRequirements,
     canEdit,
+    canArchive,
     canDelete,
     canDeleteRequirements,
     canManageConnectionCase,
@@ -293,6 +316,7 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
       confidence,
       target_cod,
       updated_at,
+      archived_at,
       grid_operator_id,
       grid_operators ( id, name ),
       project_sites ( name, location, geom, is_primary )
@@ -339,7 +363,9 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
         .order("created_at", { ascending: true }),
       supabase
         .from("documents")
-        .select("id, name, category, status, created_at, updated_at, owner_id")
+        .select(
+          "id, name, category, status, created_at, updated_at, owner_id, storage_path, original_filename, mime_type, file_size_bytes, uploaded_by, uploaded_at",
+        )
         .eq("project_id", projectId)
         .order("updated_at", { ascending: false }),
       supabase
@@ -372,7 +398,11 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
   const documents = (documentsResult.data ?? []) as DocumentRow[];
   const ownerIds = [
     ...new Set(
-      [...cases.map((row) => row.owner_id), ...documents.map((row) => row.owner_id)].filter(
+      [
+        ...cases.map((row) => row.owner_id),
+        ...documents.map((row) => row.owner_id),
+        ...documents.map((row) => row.uploaded_by),
+      ].filter(
         (id): id is string => Boolean(id),
       ),
     ),
@@ -404,6 +434,7 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
         profiles,
       },
       canWriteWorkflow(organization.role),
+      canCreateOrEditProjects(organization.role),
       canCreateOrEditProjects(organization.role),
       canDeleteProjects(organization.role),
       canAdminWorkflow(organization.role),

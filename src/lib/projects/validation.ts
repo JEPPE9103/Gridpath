@@ -22,6 +22,9 @@ export type ProjectFormInput = {
   connectionOutlook: string;
   confidence: string;
   targetCod: string;
+  description: string;
+  region: string;
+  voltageLevel: string;
 };
 
 export type ProjectFormFieldErrors = Partial<Record<keyof ProjectFormInput, string>>;
@@ -39,6 +42,9 @@ export type ParsedProjectForm = {
   connectionOutlook: (typeof PROJECT_OUTLOOK_VALUES)[number];
   confidence: (typeof PROJECT_CONFIDENCE_VALUES)[number];
   targetCod: string | null;
+  description: string | null;
+  region: string | null;
+  voltageLevel: string | null;
 };
 
 const UUID_PATTERN =
@@ -83,6 +89,9 @@ export function parseProjectForm(formData: FormData): {
     connectionOutlook: readString(formData, "connectionOutlook") || "unknown",
     confidence: readString(formData, "confidence") || "unknown",
     targetCod: readString(formData, "targetCod"),
+    description: readString(formData, "description"),
+    region: readString(formData, "region"),
+    voltageLevel: readString(formData, "voltageLevel"),
   };
 
   const fieldErrors: ProjectFormFieldErrors = {};
@@ -154,6 +163,16 @@ export function parseProjectForm(formData: FormData): {
     fieldErrors.confidence = "Select a confidence value.";
   }
 
+  if (values.description.length > 4000) {
+    fieldErrors.description = "Description is too long.";
+  }
+  if (values.region.length > 120) {
+    fieldErrors.region = "Region is too long.";
+  }
+  if (values.voltageLevel.length > 80) {
+    fieldErrors.voltageLevel = "Voltage level is too long.";
+  }
+
   if (Object.keys(fieldErrors).length > 0 || !technology || !connectionStage || !connectionOutlook || !confidence) {
     return { values, parsed: null, fieldErrors };
   }
@@ -173,6 +192,9 @@ export function parseProjectForm(formData: FormData): {
       connectionOutlook,
       confidence,
       targetCod: values.targetCod || null,
+      description: values.description || null,
+      region: values.region || null,
+      voltageLevel: values.voltageLevel || null,
     },
     fieldErrors,
   };

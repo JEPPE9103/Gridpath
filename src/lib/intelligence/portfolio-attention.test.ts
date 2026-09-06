@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildPortfolioAttention } from "./portfolio-attention";
+import { buildPortfolioAttention, countNeedsAttentionProjects, projectIdsNeedingAttention } from "./portfolio-attention";
 import type { PortfolioAttentionProjectInput } from "./types";
 
 function project(
@@ -77,5 +77,36 @@ describe("buildPortfolioAttention", () => {
       result.needsAttention.map((item) => item.slug),
       ["alpha", "zulu"],
     );
+  });
+
+  it("counts needs-attention KPI from the same list as Portfolio Attention", () => {
+    const projects = [
+      project({
+        id: "1",
+        slug: "alpha",
+        name: "Alpha BESS",
+        connectionCaseStatus: "At Risk",
+        connectionCaseStatusValue: "at_risk",
+      }),
+      project({
+        id: "2",
+        slug: "beta",
+        name: "Beta BESS",
+        connectionCaseStatus: "Waiting",
+        connectionCaseStatusValue: "waiting",
+      }),
+      project({
+        id: "3",
+        slug: "gamma",
+        name: "Gamma BESS",
+        connectionCaseStatus: "On Track",
+        connectionCaseStatusValue: "on_track",
+        requirements: [{ required: true, status: "Complete", dueDate: null }],
+      }),
+    ];
+    const result = buildPortfolioAttention(projects);
+    assert.equal(countNeedsAttentionProjects(projects), result.needsAttention.length);
+    assert.equal(countNeedsAttentionProjects(projects), 1);
+    assert.deepEqual([...projectIdsNeedingAttention(projects)], ["1"]);
   });
 });

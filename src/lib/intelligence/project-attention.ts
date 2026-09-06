@@ -1,3 +1,16 @@
+/**
+ * Canonical project attention model (NOXHEIM-derived, not official grid advice).
+ *
+ * Levels:
+ * - needs_attention — high-severity workflow issues (at-risk/overdue case, overdue
+ *   required actions, open critical/warning alerts)
+ * - watch — incomplete workflow, waiting case, missing case at advanced stage,
+ *   unknown confidence, missing target COD
+ * - on_track — workflow signals exist and none of the above apply
+ * - insufficient_data — no case, requirements, alerts, or target COD yet
+ *
+ * This does not estimate connection feasibility or available grid capacity.
+ */
 import type {
   AttentionReason,
   ProjectAttentionInput,
