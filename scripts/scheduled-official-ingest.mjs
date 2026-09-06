@@ -11,7 +11,10 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveIngestTarget } from "./lib/ingest-target.mjs";
+import { preferIpv4 } from "./lib/official-fetch.mjs";
 import { resolveScheduledTrigger, scheduledIngestIsAllowed } from "./lib/scheduled-ingest-guard.mjs";
+
+preferIpv4();
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

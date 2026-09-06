@@ -40,9 +40,18 @@ import {
   completeIngestionRun,
   ingestTriggerType,
 } from "./lib/ingestion-runs.mjs";
+import {
+  describeFetchFailure,
+  discoverOfficialNupXlsxUrl,
+  downloadOfficialBuffer,
+  fetchOfficialText,
+  formatFetchError,
+  NUP_DISCOVERY_URLS,
+  OFFICIAL_USER_AGENT,
+  preferIpv4,
+} from "./lib/official-fetch.mjs";
 
-const LANDING_URL =
-  "https://ei.se/bransch/natutvecklingsplaner/karttjanst-natutvecklingsplaner";
+const LANDING_URL = NUP_DISCOVERY_URLS[0];
 const SOURCE_NAME = "Energimarknadsinspektionen — Nätutvecklingsplaner";
 const SOURCE_SLUG = "ei-network-development-plans";
 const SOURCE_PUBLISHER = "Energimarknadsinspektionen";
@@ -67,7 +76,6 @@ const SEMANTIC_MEETS = "planned_measures_meet_own_network_need";
 const SEMANTIC_OVERLYING = "overlying_network_limitation";
 const NUP_IMPACT_REASON =
   "Project site's primary coordinate intersects the NUP planning area associated with this published change.";
-const USER_AGENT = "NOXHEIM-local-ingest/1.0 (official public NUP retrieval)";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -210,21 +218,6 @@ where id = ${quoteSql(snapshotId)}::uuid;
   );
 }
 
-function stripTags(html) {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&ouml;/gi, "ö")
-    .replace(/&auml;/gi, "ä")
-    .replace(/&aring;/gi, "å")
-    .replace(/&#\d+;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function decodeXml(text) {
   return String(text ?? "")
     .replaceAll("&amp;", "&")
@@ -332,73 +325,26 @@ function clip(value, width) {
 }
 
 async function fetchText(url) {
-  const response = await fetch(url, {
-    redirect: "follow",
-    headers: { "user-agent": USER_AGENT },
-  });
-  if (!response.ok) {
-    throw new Error(`Fetch failed (${response.status}) for ${url}`);
-  }
-  return { text: await response.text(), finalUrl: response.url || url };
-}
-
-async function downloadBuffer(url) {
-  const response = await fetch(url, {
-    redirect: "follow",
-    headers: { "user-agent": USER_AGENT },
-  });
-  if (!response.ok) {
-    throw new Error(`Download failed (${response.status}) for ${url}`);
-  }
-  const bytes = Buffer.from(await response.arrayBuffer());
-  const filename = decodeURIComponent(
-    new URL(url).pathname.split("/").filter(Boolean).pop() || "download.xlsx",
-  );
-  return { bytes, filename, finalUrl: response.url || url };
-}
-
-function discoverNupXlsxUrl(html, landingUrl) {
-  const candidates = [];
-  const matches = html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi);
-  for (const match of matches) {
-    const attrs = match[1] ?? "";
-    const hrefMatch = attrs.match(/\bhref\s*=\s*"([^"]+)"/i);
-    if (!hrefMatch) {
-      continue;
-    }
-    const href = hrefMatch[1];
-    let decoded = href;
+  const hostname = (() => {
     try {
-      decoded = decodeURIComponent(href);
+      return new URL(url).hostname;
     } catch {
-      decoded = href;
+      return "unknown";
     }
-    if (!/\.xlsx(?:$|[?#])/i.test(href) && !/\.xlsx(?:$|[?#])/i.test(decoded)) {
-      continue;
+  })();
+  try {
+    const response = await fetch(url, {
+      redirect: "follow",
+      headers: { "user-agent": OFFICIAL_USER_AGENT },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!response.ok) {
+      throw new Error(`Fetch failed (${response.status}) for ${hostname}`);
     }
-    const text = stripTags(match[2] ?? "").toLowerCase();
-    const hrefLower = decoded.toLowerCase();
-    const score =
-      (text.includes("nätutveckling") ||
-      hrefLower.includes("nätutveckling") ||
-      hrefLower.includes("natutveckling")
-        ? 2
-        : 0) +
-      (text.includes("karttjänst") ||
-      hrefLower.includes("karttjanst") ||
-      hrefLower.includes("karttjänst")
-        ? 2
-        : 0) +
-      1;
-    candidates.push({ url: new URL(href, landingUrl).href, score, text });
+    return { text: await response.text(), finalUrl: response.url || url };
+  } catch (error) {
+    throw new Error(formatFetchError(error, { hostname, phase: "arcgis-discovery" }), { cause: error });
   }
-  candidates.sort((a, b) => b.score - a.score);
-  if (!candidates[0]) {
-    throw new Error(
-      "Could not discover the official Ei NUP Excel on the landing page. Refusing to use a hardcoded stale URL.",
-    );
-  }
-  return candidates[0].url;
 }
 
 function collectArcgisPageUrls(html) {
@@ -693,6 +639,7 @@ function applyUpsertStats(target, stats) {
 }
 
 async function main() {
+  preferIpv4();
   ingestTarget = resolveIngestTarget();
   const { url, mode } = ingestTarget;
   console.log(`Ei NUP ingest against ${url} (mode=${mode})`);
@@ -732,12 +679,19 @@ from public.projects as p;
     "project fingerprint before",
   );
 
-  console.log(`\nDiscovering current Excel from:\n  ${LANDING_URL}`);
-  const landing = await fetchText(LANDING_URL);
-  const downloadUrl = discoverNupXlsxUrl(landing.text, LANDING_URL);
-  console.log(`Official NUP Excel discovered:\n  ${downloadUrl}`);
+  console.log(`\nDiscovering current Excel from official Ei pages:`);
+  for (const pageUrl of NUP_DISCOVERY_URLS) {
+    console.log(`  ${pageUrl}`);
+  }
+  const discovered = await discoverOfficialNupXlsxUrl(async (pageUrl) =>
+    fetchOfficialText(pageUrl, { phase: "nup-discovery" }),
+  );
+  const landingUrl = discovered.landingUrl;
+  const downloadUrl = discovered.xlsxUrl;
+  const landing = { text: discovered.text, finalUrl: discovered.finalLandingUrl };
+  console.log(`Official NUP Excel discovered from:\n  ${landingUrl}\n  ${downloadUrl}`);
 
-  const downloaded = await downloadBuffer(downloadUrl);
+  const downloaded = await downloadOfficialBuffer(downloadUrl, { phase: "nup-xlsx", kind: "xlsx" });
   const contentHash = createHash("sha256").update(downloaded.bytes).digest("hex");
   console.log(`Downloaded ${downloaded.filename} (${downloaded.bytes.length} bytes)`);
   console.log(`Content hash (SHA-256): ${contentHash}`);
@@ -1020,7 +974,8 @@ where source_id = ${quoteSql(source.id)}::uuid
     reporting_vintage: "2024 first statutory cycle",
     sheet_names: workbook.sheets.map((sheet) => sheet.name),
     row_counts: sheetCounts,
-    landing_page_url: LANDING_URL,
+    landing_page_url: landingUrl,
+    discovery_page_urls: NUP_DISCOVERY_URLS,
     download_url: downloadUrl,
     distribution: "official_xlsx",
     geography_source: "official_arcgis_featureserver",
@@ -1849,7 +1804,7 @@ where source_id = ${quoteSql(source.id)}::uuid
   );
 
   console.log("\n========== Ei NUP ingest ==========");
-  console.log(`Official landing page: ${LANDING_URL}`);
+  console.log(`Official landing page: ${landingUrl}`);
   console.log(`Excel distribution discovered: ${downloaded.filename}`);
   console.log(`Download URL: ${downloadUrl}`);
   console.log(`Content hash: ${contentHash}`);
@@ -2038,13 +1993,24 @@ try {
         runId: ingestionRunId,
         status: "failed",
         errorCode: classifyIngestError(error),
-        errorMessage: error.message || String(error),
-        metadata: { engine: "cli-nup" },
+        errorMessage: String(error?.message || error).startsWith("Official fetch failed")
+          ? String(error.message || error)
+          : formatFetchError(error, { hostname: "ei.se", phase: "ingest" }),
+        metadata: {
+          engine: "cli-nup",
+          fetch: describeFetchFailure(error, { hostname: "ei.se", phase: "ingest" }),
+        },
       });
     } catch (completeError) {
       console.error(completeError.message || completeError);
     }
   }
-  console.error(error.message || error);
+  console.error(
+    JSON.stringify({
+      event: "ingest.nup.failed",
+      ...describeFetchFailure(error, { hostname: "ei.se", phase: "ingest" }),
+      message: error.message || String(error),
+    }),
+  );
   process.exit(1);
 }

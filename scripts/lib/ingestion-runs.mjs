@@ -14,10 +14,17 @@ export function sanitizeIngestError(message) {
 }
 
 export function classifyIngestError(error) {
-  const message = String(error?.message ?? error);
+  const message = [
+    error?.message ?? error,
+    error?.code,
+    error?.cause?.code,
+    error?.cause?.message,
+  ]
+    .filter(Boolean)
+    .join(" ");
   if (/already_running|skipped_locked/i.test(message)) return "already_running";
   if (
-    /failed to fetch|fetch failed|econnreset|etimedout|enotfound|network|timeout| 429 | 502 | 503 | 504 /i.test(
+    /failed to fetch|fetch failed|econnreset|etimedout|enotfound|eai_again|enetunreach|econnrefused|network|timeout| 429 | 502 | 503 | 504 /i.test(
       message,
     )
   ) {

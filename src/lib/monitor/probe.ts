@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
+import { OFFICIAL_EI_NUP_SOURCE_SLUG } from "@/lib/domain/grid-intelligence";
 import {
   MONITOR_USER_AGENT,
+  OFFICIAL_EI_NUP_LANDING_URLS,
   OFFICIAL_SOURCE_LANDING_URLS,
   isAllowedOfficialFetchUrl,
   type MonitorOfficialSourceSlug,
@@ -89,10 +91,23 @@ async function fetchText(url: string): Promise<string> {
     throw new Error(`Refusing to fetch non-allowlisted host: ${url}`);
   }
   return withTransientRetries(async () => {
-    const response = await fetch(url, {
-      redirect: "follow",
-      headers: { "user-agent": MONITOR_USER_AGENT },
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        redirect: "follow",
+        headers: { "user-agent": MONITOR_USER_AGENT },
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (error) {
+      const cause =
+        error instanceof Error && error.cause && typeof error.cause === "object"
+          ? (error.cause as { code?: string; message?: string })
+          : null;
+      throw new Error(
+        `Official fetch failed phase=probe host=${new URL(url).hostname} name=${error instanceof Error ? error.name : "Error"} message=${error instanceof Error ? error.message : String(error)} causeCode=${cause?.code ?? "none"} causeMessage=${cause?.message ?? "none"}`,
+        { cause: error instanceof Error ? error : undefined },
+      );
+    }
     if (!response.ok) {
       const error = new Error(`Fetch failed (${response.status}) for landing page`);
       if (response.status >= 400 && response.status < 500 && response.status !== 429) {
@@ -130,14 +145,25 @@ async function headFingerprint(url: string): Promise<string> {
 export async function probeOfficialSource(
   slug: MonitorOfficialSourceSlug,
 ): Promise<OfficialSourceProbeResult> {
-  const landingUrl = OFFICIAL_SOURCE_LANDING_URLS[slug];
-  const html = await fetchText(landingUrl);
-  const discoveredUrl =
-    slug === "ei-network-development-plans"
-      ? discoverNupXlsxUrl(html, landingUrl)
-      : discoverLokalnatZipUrl(html, landingUrl);
-  const fingerprint = await headFingerprint(discoveredUrl);
-  return { landingUrl, discoveredUrl, fingerprint };
+  const landingUrls =
+    slug === OFFICIAL_EI_NUP_SOURCE_SLUG
+      ? [...OFFICIAL_EI_NUP_LANDING_URLS]
+      : [OFFICIAL_SOURCE_LANDING_URLS[slug]];
+  let lastError: unknown;
+  for (const landingUrl of landingUrls) {
+    try {
+      const html = await fetchText(landingUrl);
+      const discoveredUrl =
+        slug === OFFICIAL_EI_NUP_SOURCE_SLUG
+          ? discoverNupXlsxUrl(html, landingUrl)
+          : discoverLokalnatZipUrl(html, landingUrl);
+      const fingerprint = await headFingerprint(discoveredUrl);
+      return { landingUrl, discoveredUrl, fingerprint };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Official source probe failed.");
 }
 
 export function probeErrorCode(error: unknown): string {

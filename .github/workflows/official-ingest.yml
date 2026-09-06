@@ -54,4 +54,5 @@ jobs:
         env:
           INGEST_FORCE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force == 'true' }}
           MONITOR_TRIGGER: scheduled
+          NODE_OPTIONS: --dns-result-order=ipv4first
         run: node scripts/scheduled-official-ingest.mjs

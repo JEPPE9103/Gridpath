@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { isSourceRefreshDue, nextEligibleRefreshAt } from "@/lib/monitor/cadence";
 import { authorizeCronRequest } from "@/lib/monitor/cron-auth";
 import { classifyIngestError, sanitizeIngestError, shouldRetryIngestError } from "@/lib/monitor/errors";
-import { isAllowedOfficialFetchUrl } from "@/lib/monitor/official-sources";
+import { isAllowedOfficialFetchUrl, OFFICIAL_EI_NUP_LANDING_URLS } from "@/lib/monitor/official-sources";
 import { deriveSourceHealth, sourceChangeLabel } from "@/lib/monitor/source-health";
 import {
   changeImpactAlertNaturalKey,
@@ -245,6 +245,12 @@ describe("official fetch allowlist", () => {
     assert.equal(isAllowedOfficialFetchUrl("https://evil.example/ei.se"), false);
     assert.equal(isAllowedOfficialFetchUrl("http://ei.se/path"), false);
   });
+
+  it("lists two official Ei NUP discovery pages", () => {
+    assert.equal(OFFICIAL_EI_NUP_LANDING_URLS.length, 2);
+    assert.match(OFFICIAL_EI_NUP_LANDING_URLS[0], /karttjanst-natutvecklingsplaner/);
+    assert.match(OFFICIAL_EI_NUP_LANDING_URLS[1], /natutvecklingsplaner---elnat/);
+  });
 });
 
 describe("ingest error handling", () => {
@@ -255,6 +261,9 @@ describe("ingest error handling", () => {
       shouldRetryIngestError(classifyIngestError(new Error("Could not discover the official Ei NUP Excel"))),
       false,
     );
+    const timedOut = new TypeError("fetch failed");
+    timedOut.cause = Object.assign(new Error("connect timeout"), { code: "ETIMEDOUT" });
+    assert.equal(classifyIngestError(timedOut), "transient_fetch");
   });
 
   it("redacts credentials from stored error summaries", () => {

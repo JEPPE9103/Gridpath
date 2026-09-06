@@ -36,6 +36,14 @@ import {
   completeIngestionRun,
   ingestTriggerType,
 } from "./lib/ingestion-runs.mjs";
+import {
+  describeFetchFailure,
+  downloadOfficialBuffer,
+  fetchOfficialText,
+  formatFetchError,
+  isAllowedOfficialFetchUrl,
+  preferIpv4,
+} from "./lib/official-fetch.mjs";
 
 const LANDING_URL =
   "https://ei.se/bransch/koncessioner/ansokan-natkoncession-for-omrade";
@@ -110,22 +118,6 @@ function discoverLokalnatZipUrl(html, landingUrl) {
   throw new Error(
     "Could not discover the official Ei lokalnät ZIP on the landing page. Refusing to use a hardcoded stale URL.",
   );
-}
-
-async function downloadBuffer(url) {
-  const response = await fetch(url, {
-    redirect: "follow",
-    headers: {
-      "user-agent": "NOXHEIM-local-ingest/1.0 (official public GIS retrieval)",
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`Download failed (${response.status}) for ${url}`);
-  }
-  const bytes = Buffer.from(await response.arrayBuffer());
-  const filename =
-    decodeURIComponent(new URL(url).pathname.split("/").filter(Boolean).pop() || "download.zip");
-  return { bytes, filename, finalUrl: response.url || url };
 }
 
 function extractZip(zipBytes, destDir) {
@@ -370,6 +362,7 @@ function pad(value, width) {
 }
 
 async function main() {
+  preferIpv4();
   ingestTarget = resolveIngestTarget();
   const { url, mode } = ingestTarget;
   console.log(`Ei local-network ingest against ${url} (mode=${mode})`);
@@ -390,20 +383,14 @@ async function main() {
   ingestionRunId = begun?.run_id ?? null;
 
   console.log(`\nDiscovering current distribution from:\n  ${LANDING_URL}`);
-  const landingResponse = await fetch(LANDING_URL, {
-    redirect: "follow",
-    headers: {
-      "user-agent": "NOXHEIM-local-ingest/1.0 (official public GIS retrieval)",
-    },
-  });
-  if (!landingResponse.ok) {
-    throw new Error(`Failed to fetch Ei landing page (${landingResponse.status})`);
+  const landing = await fetchOfficialText(LANDING_URL, { phase: "lokalnat-discovery" });
+  const downloadUrl = discoverLokalnatZipUrl(landing.text, landing.finalUrl || LANDING_URL);
+  if (!isAllowedOfficialFetchUrl(downloadUrl)) {
+    throw new Error("Discovered lokalnät ZIP URL is not on an allowlisted official Ei host.");
   }
-  const landingHtml = await landingResponse.text();
-  const downloadUrl = discoverLokalnatZipUrl(landingHtml, LANDING_URL);
   console.log(`Official lokalnät ZIP discovered:\n  ${downloadUrl}`);
 
-  const downloaded = await downloadBuffer(downloadUrl);
+  const downloaded = await downloadOfficialBuffer(downloadUrl, { phase: "lokalnat-zip", kind: "zip" });
   const contentHash = createHash("sha256").update(downloaded.bytes).digest("hex");
   console.log(`Downloaded ${downloaded.filename} (${downloaded.bytes.length} bytes)`);
   console.log(`Content hash (SHA-256): ${contentHash}`);
@@ -890,13 +877,24 @@ try {
         runId: ingestionRunId,
         status: "failed",
         errorCode: classifyIngestError(error),
-        errorMessage: error.message || String(error),
-        metadata: { engine: "cli-local-network" },
+        errorMessage: String(error?.message || error).startsWith("Official fetch failed")
+          ? error.message
+          : formatFetchError(error, { hostname: "ei.se", phase: "ingest" }),
+        metadata: {
+          engine: "cli-local-network",
+          fetch: describeFetchFailure(error, { hostname: "ei.se", phase: "ingest" }),
+        },
       });
     } catch (completeError) {
       console.error(completeError.message || completeError);
     }
   }
-  console.error(error.message || error);
+  console.error(
+    JSON.stringify({
+      event: "ingest.lokalnat.failed",
+      ...describeFetchFailure(error, { hostname: "ei.se", phase: "ingest" }),
+      message: error.message || String(error),
+    }),
+  );
   process.exit(1);
 }

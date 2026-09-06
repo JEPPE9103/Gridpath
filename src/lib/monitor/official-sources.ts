@@ -10,9 +10,13 @@ export const MONITOR_OFFICIAL_SOURCE_SLUGS = [
 
 export type MonitorOfficialSourceSlug = (typeof MONITOR_OFFICIAL_SOURCE_SLUGS)[number];
 
+export const OFFICIAL_EI_NUP_LANDING_URLS = [
+  "https://ei.se/bransch/natutvecklingsplaner/karttjanst-natutvecklingsplaner",
+  "https://ei.se/om-oss/statistik-och-oppna-data/natutvecklingsplaner---elnat",
+] as const;
+
 export const OFFICIAL_SOURCE_LANDING_URLS: Record<MonitorOfficialSourceSlug, string> = {
-  [OFFICIAL_EI_NUP_SOURCE_SLUG]:
-    "https://ei.se/bransch/natutvecklingsplaner/karttjanst-natutvecklingsplaner",
+  [OFFICIAL_EI_NUP_SOURCE_SLUG]: OFFICIAL_EI_NUP_LANDING_URLS[0],
   [OFFICIAL_EI_NETWORK_AREA_SOURCE_SLUG]:
     "https://ei.se/bransch/koncessioner/ansokan-natkoncession-for-omrade",
 };

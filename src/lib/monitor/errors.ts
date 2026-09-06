@@ -6,12 +6,23 @@ export type IngestErrorClass =
   | "ingest_error";
 
 export function classifyIngestError(error: unknown): IngestErrorClass {
-  const message = String(error instanceof Error ? error.message : error);
+  const cause =
+    error instanceof Error && error.cause && typeof error.cause === "object"
+      ? (error.cause as { code?: string; message?: string })
+      : null;
+  const message = [
+    error instanceof Error ? error.message : String(error),
+    error instanceof Error ? (error as Error & { code?: string }).code : null,
+    cause?.code,
+    cause?.message,
+  ]
+    .filter(Boolean)
+    .join(" ");
   if (/already_running|skipped_locked/i.test(message)) {
     return "already_running";
   }
   if (
-    /failed to fetch|fetch failed|econnreset|etimedout|enotfound|network|timeout| 429 | 502 | 503 | 504 /i.test(
+    /failed to fetch|fetch failed|econnreset|etimedout|enotfound|eai_again|enetunreach|econnrefused|network|timeout| 429 | 502 | 503 | 504 /i.test(
       message,
     )
   ) {
@@ -54,7 +65,8 @@ export async function withTransientRetries<T>(
     } catch (error) {
       lastError = error;
       const errorClass = classifyIngestError(error);
-      if (!shouldRetryIngestError(errorClass) || attempt === attempts) {
+      const permanent = Boolean(error && typeof error === "object" && "permanent" in error && error.permanent);
+      if (permanent || !shouldRetryIngestError(errorClass) || attempt === attempts) {
         throw error;
       }
       console.warn(
