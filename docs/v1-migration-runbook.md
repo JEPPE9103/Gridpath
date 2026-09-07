@@ -19,6 +19,8 @@ Apply only with `npx supabase db push` against the intended target after a backu
    Private official-source transport cache (not customer storage).
 7. `supabase/migrations/20260907220000_fix_team_members_email_type.sql`  
    Cast `auth.users.email` to `text` in `list_organization_team_members` (RETURN QUERY 42804).
+8. `supabase/migrations/20260907230000_official_map_layers.sql`  
+   Simplified official GeoJSON RPCs for the portfolio map (covering + spatial matches). No new geometry tables.
 
 Earlier migrations (`20260819*`–`20260901*`) are assumed already applied on cloud.
 

@@ -1,5 +1,6 @@
 import { getProjectDetailBySlug } from "@/lib/data/project-detail";
 import { listGridOperators } from "@/lib/data/grid-operators";
+import { getOfficialSourceHealth } from "@/lib/data/source-health";
 import { ProjectPage } from "@/features/projects/project-page";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -26,9 +27,10 @@ export default async function Page({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [result, operators] = await Promise.all([
+  const [result, operators, sourceHealth] = await Promise.all([
     getProjectDetailBySlug(slug),
     listGridOperators(),
+    getOfficialSourceHealth(),
   ]);
 
   if (result.kind === "not_found") {
@@ -45,6 +47,7 @@ export default async function Page({
         project={result.kind === "ok" ? result.project : null}
         error={result.kind === "error" ? result.message : null}
         operators={operators}
+        sourceHealth={sourceHealth}
       />
     </Suspense>
   );
