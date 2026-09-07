@@ -40,7 +40,7 @@ import {
 } from "@/types";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 const CONFIDENCES: Confidence[] = ["High", "Medium", "Low", "Unknown"];
 
@@ -210,14 +210,14 @@ function LoadedMapPage({
     };
   }, [selected?.id]);
 
-  function selectProject(slug: string) {
+  const selectProject = useCallback((slug: string) => {
     setSelectedSlug(slug);
     setOfficialAreaId(null);
     setOfficialContext(null);
     setDetailCollapsed(false);
-  }
+  }, []);
 
-  function selectOfficial(input: { areaId: string; layer: OfficialMapLayer }) {
+  const selectOfficial = useCallback((input: { areaId: string; layer: OfficialMapLayer }) => {
     setOfficialAreaId(input.areaId);
     setOfficialLoading(true);
     setDetailCollapsed(false);
@@ -225,7 +225,7 @@ function LoadedMapPage({
       setOfficialLoading(false);
       if (result.ok) setOfficialContext(result.context);
     });
-  }
+  }, []);
 
   return (
     <>

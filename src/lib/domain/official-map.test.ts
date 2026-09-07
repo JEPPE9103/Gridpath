@@ -13,6 +13,7 @@ import {
   officialMapContextLabel,
   officialMapCopyContainsForbiddenTerm,
   officialMapSimplifyTolerance,
+  officialMapViewportFetchKey,
   parseOfficialMapFeatureCollection,
   parseOfficialSpatialMatches,
   summarizeOfficialSpatialMatches,
@@ -31,6 +32,29 @@ describe("official map geometry helpers", () => {
     assert.equal(isOfficialMapLayer("local_network"), true);
     assert.equal(isOfficialMapLayer("planning_area"), true);
     assert.equal(isOfficialMapLayer("capacity_area"), false);
+  });
+
+  it("skips viewport refetch in the Sweden overview and buckets nearby pans", () => {
+    assert.equal(
+      officialMapViewportFetchKey({ zoom: 4.35, west: 10.3, south: 55, east: 24.6, north: 69.4 }),
+      null,
+    );
+    const stockholm = officialMapViewportFetchKey({
+      zoom: 7.5,
+      west: 17.91,
+      south: 59.21,
+      east: 18.21,
+      north: 59.41,
+    });
+    const nearbyPan = officialMapViewportFetchKey({
+      zoom: 7.5,
+      west: 17.94,
+      south: 59.24,
+      east: 18.24,
+      north: 59.44,
+    });
+    assert.equal(stockholm, "mid:17.9,59.2,18.2,59.4");
+    assert.equal(stockholm, nearbyPan);
   });
 });
 
