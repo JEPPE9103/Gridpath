@@ -218,7 +218,7 @@ function LoadedProjectPage({
         </dl>
       </div>
 
-      <div className="overflow-x-auto px-4 pt-3 sm:px-6 lg:px-8">
+      <div className="relative z-10 overflow-x-auto px-4 pt-3 sm:px-6 lg:px-8">
         <div className="flex min-w-max gap-1 border-b border-line">
           {TABS.map((item) => (
             <button

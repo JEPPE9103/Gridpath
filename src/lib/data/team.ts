@@ -1,6 +1,7 @@
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { organizationRoleLabel } from "@/lib/data/organization-role";
 import { canManageTeam } from "@/lib/organization/team-permissions";
+import { logError } from "@/lib/observability/log";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type TeamMemberItem = {
@@ -106,12 +107,22 @@ export async function getTeamForActiveOrganization(): Promise<TeamPageResult> {
   const [membersResult, invitesResult] = await Promise.all([membersPromise, invitesPromise]);
 
   if (membersResult.error) {
-    console.error("getTeamForActiveOrganization members failed", membersResult.error.message);
+    logError("team.list_members_failed", {
+      code: membersResult.error.code,
+      message: membersResult.error.message,
+      details: membersResult.error.details,
+      hint: membersResult.error.hint,
+    });
     return { kind: "error", message: "Could not load team members." };
   }
 
   if (invitesResult.error) {
-    console.error("getTeamForActiveOrganization invites failed", invitesResult.error.message);
+    logError("team.list_invites_failed", {
+      code: invitesResult.error.code,
+      message: invitesResult.error.message,
+      details: invitesResult.error.details,
+      hint: invitesResult.error.hint,
+    });
     return { kind: "error", message: "Could not load pending invitations." };
   }
 

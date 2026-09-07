@@ -65,7 +65,7 @@ NUP numeric values are forecast transfer-capacity **need**, never available capa
 - `public.primary_site_coordinates(p_project_id)`
 - `public.get_official_grid_area_context_for_project(p_project_id)`
 - `public.get_official_network_development_plan_context_for_project(p_project_id)`
-- Team: `list_organization_team_members`, `list_organization_pending_invites`, `create_organization_invite`, `resend_organization_invite`, `revoke_organization_invite`, `accept_organization_invite`, `change_organization_member_role`, `remove_organization_member`, `leave_organization`
+- Team: `list_organization_team_members` (casts `auth.users.email` to `text` for RETURN QUERY), `list_organization_pending_invites`, `create_organization_invite`, `resend_organization_invite`, `revoke_organization_invite`, `accept_organization_invite`, `change_organization_member_role`, `remove_organization_member`, `leave_organization`
 - `public.get_organization_invite_preview(p_token_hash)` — authenticated + anon (token is the secret)
 - `public.list_source_health()` — authenticated source-health view (no raw payloads)
 - Service-role only: `monitor_begin_source_run`, `monitor_complete_source_run`, `monitor_reconcile_workflow_alerts`, `monitor_list_undelivered_impact_emails`, `monitor_list_weekly_digests`, `monitor_claim_notification_delivery`, `monitor_finish_notification_delivery`

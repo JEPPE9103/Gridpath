@@ -15,6 +15,10 @@ Apply only with `npx supabase db push` against the intended target after a backu
    Ingestion runs, alerts workflow, notification prefs/deliveries, monitor RPCs.
 5. `supabase/migrations/20260907100000_v1_release_candidate.sql`  
    Full-ingest cadence (ignore probe-only), richer `list_source_health`, column grant on run `error_message`.
+6. `supabase/migrations/20260907200000_official_source_cache.sql`  
+   Private official-source transport cache (not customer storage).
+7. `supabase/migrations/20260907220000_fix_team_members_email_type.sql`  
+   Cast `auth.users.email` to `text` in `list_organization_team_members` (RETURN QUERY 42804).
 
 Earlier migrations (`20260819*`–`20260901*`) are assumed already applied on cloud.
 
