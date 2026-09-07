@@ -11,16 +11,32 @@ export function ensureMapLibreWorker(): void {
 }
 
 export function bindMapResize(map: Map, container: HTMLElement): () => void {
-  const resize = () => map.resize();
+  let lastWidth = 0;
+  let lastHeight = 0;
+  let timer = 0;
+
+  const resize = () => {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    if (width === lastWidth && height === lastHeight) return;
+    lastWidth = width;
+    lastHeight = height;
+    map.resize();
+  };
+
+  const debouncedResize = () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(resize, 80);
+  };
+
   map.on("load", resize);
   const frame = requestAnimationFrame(resize);
-  const later = window.setTimeout(resize, 300);
-  const observer = new ResizeObserver(resize);
+  const observer = new ResizeObserver(debouncedResize);
   observer.observe(container);
 
   return () => {
     cancelAnimationFrame(frame);
-    window.clearTimeout(later);
+    window.clearTimeout(timer);
     observer.disconnect();
     map.off("load", resize);
   };

@@ -102,10 +102,26 @@ export const DEFAULT_OFFICIAL_MAP_LAYERS: OfficialMapLayerVisibility = {
   planningArea: true,
 };
 
+export const OFFICIAL_MAP_OVERVIEW_MAX_ZOOM = 6;
+
 export function officialMapSimplifyTolerance(zoom: number | null | undefined): number {
-  if (zoom == null || zoom < 6) return 0.02;
+  if (zoom == null || zoom < OFFICIAL_MAP_OVERVIEW_MAX_ZOOM) return 0.02;
   if (zoom < 9) return 0.008;
   return 0.002;
+}
+
+export function officialMapViewportFetchKey(input: {
+  zoom: number;
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}): string | null {
+  if (input.zoom < OFFICIAL_MAP_OVERVIEW_MAX_ZOOM) return null;
+  const decimals = input.zoom < 9 ? 1 : 2;
+  const round = (value: number) => value.toFixed(decimals);
+  const band = input.zoom < 9 ? "mid" : "near";
+  return `${band}:${round(input.west)},${round(input.south)},${round(input.east)},${round(input.north)}`;
 }
 
 export function isOfficialMapLayer(value: string | null | undefined): value is OfficialMapLayer {
