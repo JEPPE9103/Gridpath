@@ -3,6 +3,9 @@
 import { authCallbackUrl } from "@/lib/auth/redirect";
 import { getPostAuthPath } from "@/lib/auth/paths";
 import {
+  clearPasswordRecoveryCookie,
+} from "@/lib/auth/recovery-cookie";
+import {
   parseForgotPasswordForm,
   parseProfileForm,
   parseResetPasswordForm,
@@ -80,6 +83,7 @@ export async function signIn(
   }
 
   const inviteToken = String(formData.get("invite") ?? "").trim() || null;
+  await clearPasswordRecoveryCookie();
   await syncActiveOrganizationCookie();
   revalidatePath("/", "layout");
   redirect(await getPostAuthPath(inviteToken));
@@ -147,6 +151,8 @@ export async function updatePasswordAfterRecovery(
   }
 
   await supabase.auth.signOut();
+  await clearPasswordRecoveryCookie();
+  await clearActiveOrganizationCookie();
   revalidatePath("/", "layout");
   redirect("/login?reset=success");
 }
@@ -161,10 +167,12 @@ export async function signUp(
   }
 
   const supabase = await createSupabaseServerClient();
+  const inviteToken = String(formData.get("invite") ?? "").trim() || null;
   const { data, error } = await supabase.auth.signUp({
     email: parsed.email,
     password: parsed.password,
     options: {
+      emailRedirectTo: authCallbackUrl(inviteToken ? `/invite/${inviteToken}` : "/onboarding"),
       data: {
         full_name: parsed.fullName,
         job_title: parsed.jobTitle ?? "",
@@ -180,8 +188,6 @@ export async function signUp(
     };
   }
 
-  const inviteToken = String(formData.get("invite") ?? "").trim() || null;
-
   if (!data.session) {
     return {
       needsConfirmation: true,
@@ -190,6 +196,7 @@ export async function signUp(
     };
   }
 
+  await clearPasswordRecoveryCookie();
   revalidatePath("/", "layout");
   redirect(await getPostAuthPath(inviteToken));
 }
@@ -274,6 +281,7 @@ export async function signOut() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
   await clearActiveOrganizationCookie();
+  await clearPasswordRecoveryCookie();
   revalidatePath("/", "layout");
   redirect("/login");
 }

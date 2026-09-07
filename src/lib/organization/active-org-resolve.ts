@@ -1,3 +1,5 @@
+import { SALES_DEMO_ORGANIZATION_ID } from "@/lib/demo/sales-demo";
+
 export type MembershipRecord = {
   organizationId: string;
   createdAt: string;
@@ -6,10 +8,12 @@ export type MembershipRecord = {
 /**
  * Resolve which organization should be active for the current request.
  * Cookie is a preference only — membership list is authoritative.
+ * Sample/demo is never chosen as a generic fallback when the user has any other membership.
  */
 export function resolveActiveOrganizationId(
   memberships: MembershipRecord[],
   cookieOrganizationId: string | null,
+  avoidOrganizationId: string = SALES_DEMO_ORGANIZATION_ID,
 ): string | null {
   if (memberships.length === 0) {
     return null;
@@ -30,7 +34,10 @@ export function resolveActiveOrganizationId(
     }
   }
 
-  return sorted[0]?.organizationId ?? null;
+  const nonAvoided = avoidOrganizationId
+    ? sorted.filter((row) => row.organizationId !== avoidOrganizationId)
+    : sorted;
+  return (nonAvoided[0] ?? sorted[0])?.organizationId ?? null;
 }
 
 export function membershipIncludesOrganization(

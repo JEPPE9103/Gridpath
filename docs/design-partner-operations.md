@@ -153,13 +153,13 @@ CLI cannot safely inspect/change Cloud Auth. Configure in Supabase Dashboard →
 
 | Setting | Design Partner Cloud value |
 |---------|----------------------------|
-| Site URL | `https://www.noxheim.com` (canonical). Keep `https://gridpath-henna.vercel.app` as an allowed Redirect URL during transition. |
-| Redirect URLs | `https://www.noxheim.com/**`, `https://noxheim.com/**`, and optionally `https://gridpath-henna.vercel.app/**` |
+| Site URL | `https://www.noxheim.com` |
+| Redirect URLs | `https://www.noxheim.com/auth/callback` **and** `https://www.noxheim.com/auth/callback?next=/reset-password` **and** `https://www.noxheim.com/auth/callback?next=/onboarding` **and** `https://www.noxheim.com/**` **and** `https://noxheim.com/**`. Optional transition: `https://gridpath-henna.vercel.app/**`. |
 | Enable email signup | ON |
-| Confirm email | OFF for tightly supervised pilot smoke (acceptable); if ON, SMTP must work before relying on signup |
-| Minimum password length | ≥ 8 (app validates 8+) |
+| Confirm email | OFF for tightly supervised pilot smoke (acceptable); if ON, confirmation must land on `/auth/callback?next=/onboarding`. |
+| Password recovery template | Use `{{ .ConfirmationURL }}` (not `{{ .SiteURL }}`). |
 
-Password reset is implemented in the app (`/forgot-password`, `/reset-password`). Supabase Auth Site URL and Redirect URLs must include `https://www.noxheim.com/**`. SMTP is required for reset emails in production.
+Password reset is implemented in the app (`/forgot-password` → email → `/auth/callback?next=/reset-password` → `/reset-password`). Recovery sessions must not enter a workspace until the password is updated. SMTP is required for reset emails in production. Do **not** send recovery through Resend product mail.
 
 Do **not** use `.local` emails — GoTrue rejects them as invalid. Use a normal domain for smoke identities.
 

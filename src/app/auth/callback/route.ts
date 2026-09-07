@@ -1,6 +1,11 @@
+import { resolveAuthCallbackDestination } from "@/lib/auth/callback-destination";
+import {
+  markPasswordRecoveryCookie,
+  clearPasswordRecoveryCookie,
+} from "@/lib/auth/recovery-cookie";
+import { passwordRecoveryCookieAttributes, PASSWORD_RECOVERY_COOKIE } from "@/lib/auth/recovery";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSiteUrl } from "@/lib/site-url";
-import { safeRedirectPath } from "@/lib/auth/redirect";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -12,7 +17,6 @@ function resetPasswordRedirect(reason: "expired" | "invalid" | "rate_limit"): Ne
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const siteUrl = getPublicSiteUrl();
-  const next = safeRedirectPath(searchParams.get("next"), "/reset-password");
 
   const error = searchParams.get("error");
   const errorCode = searchParams.get("error_code");
@@ -29,6 +33,10 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
+  const destination = resolveAuthCallbackDestination({
+    type,
+    next: searchParams.get("next"),
+  });
 
   if (!code && !(tokenHash && type)) {
     return resetPasswordRedirect("invalid");
@@ -61,5 +69,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(`${siteUrl}${next}`);
+  const response = NextResponse.redirect(`${siteUrl}${destination.path}`);
+  if (destination.recovery) {
+    await markPasswordRecoveryCookie();
+    response.cookies.set(PASSWORD_RECOVERY_COOKIE, "1", passwordRecoveryCookieAttributes());
+  } else {
+    await clearPasswordRecoveryCookie();
+    response.cookies.set(PASSWORD_RECOVERY_COOKIE, "", passwordRecoveryCookieAttributes(true));
+  }
+  return response;
 }

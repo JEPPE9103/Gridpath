@@ -2,7 +2,6 @@
 
 import { authInputClass, authSubmitClass } from "@/components/auth/auth-card";
 import { updatePasswordAfterRecovery, type ResetPasswordState } from "@/lib/auth/actions";
-import Link from "next/link";
 import { useActionState } from "react";
 
 const INITIAL: ResetPasswordState = {};
@@ -46,11 +45,6 @@ export function ResetPasswordForm() {
       <button type="submit" disabled={pending} className={authSubmitClass}>
         {pending ? "Saving…" : "Update password"}
       </button>
-      <p className="pt-2 text-center text-sm text-muted">
-        <Link href="/login" className="font-medium text-teal hover:text-teal-dark">
-          Back to sign in
-        </Link>
-      </p>
     </form>
   );
 }

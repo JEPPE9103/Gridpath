@@ -1,3 +1,11 @@
+import { authCallbackForwardSearch } from "@/lib/auth/callback-destination";
+import { resolveAuthNavigation } from "@/lib/auth/navigation";
+import {
+  hasPasswordRecoveryCookie,
+  PASSWORD_RECOVERY_COOKIE,
+  passwordRecoveryCookieAttributes,
+} from "@/lib/auth/recovery";
+import { isWorkspacePath } from "@/lib/auth/routes";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import {
@@ -8,42 +16,6 @@ import {
 import { resolveActiveOrganizationId } from "@/lib/organization/active-org-resolve";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-const WORKSPACE_PREFIXES = [
-  "/alerts",
-  "/overview",
-  "/portfolio",
-  "/map",
-  "/compare",
-  "/connections",
-  "/changes",
-  "/documents",
-  "/reports",
-  "/projects",
-  "/settings",
-];
-
-function isWorkspacePath(pathname: string): boolean {
-  return WORKSPACE_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-}
-
-function isInternalOperationsPath(pathname: string): boolean {
-  return pathname === "/internal" || pathname.startsWith("/internal/");
-}
-
-function isInvitePath(pathname: string): boolean {
-  return pathname === "/invite" || pathname.startsWith("/invite/");
-}
-
-function isAuthEntryPath(pathname: string): boolean {
-  return pathname === "/login" || pathname === "/signup";
-}
-
-function isAuthCallbackPath(pathname: string): boolean {
-  return pathname === "/auth/callback";
-}
 
 async function userHasOrganization(
   supabase: SupabaseClient,
@@ -128,6 +100,17 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
+  const forwarded = authCallbackForwardSearch({
+    pathname: request.nextUrl.pathname,
+    searchParams: request.nextUrl.searchParams,
+  });
+  if (forwarded) {
+    const callbackUrl = request.nextUrl.clone();
+    callbackUrl.pathname = "/auth/callback";
+    callbackUrl.search = forwarded.slice("/auth/callback".length);
+    return NextResponse.redirect(callbackUrl);
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -158,61 +141,55 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const hasOrganization = user
-    && (isWorkspacePath(pathname) || isAuthEntryPath(pathname) || pathname === "/onboarding")
+  const isRecovery = hasPasswordRecoveryCookie(
+    request.cookies.get(PASSWORD_RECOVERY_COOKIE)?.value,
+  );
+  if (!user && isRecovery) {
+    supabaseResponse.cookies.set(
+      PASSWORD_RECOVERY_COOKIE,
+      "",
+      passwordRecoveryCookieAttributes(true),
+    );
+  }
+  const needsMembershipLookup =
+    Boolean(user) &&
+    !isRecovery &&
+    (isWorkspacePath(pathname) ||
+      pathname === "/login" ||
+      pathname === "/signup" ||
+      pathname === "/forgot-password" ||
+      pathname === "/onboarding");
+  const hasOrganization = user && needsMembershipLookup
     ? await userHasOrganization(supabase, user.id)
     : false;
 
-  if (!user && (isWorkspacePath(pathname) || pathname === "/onboarding" || isInternalOperationsPath(pathname))) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    loginUrl.search = "";
-    return applyCookies(supabaseResponse, NextResponse.redirect(loginUrl));
-  }
+  const decision = resolveAuthNavigation({
+    pathname,
+    hasUser: Boolean(user),
+    hasOrganization,
+    isRecovery,
+  });
 
-  if (isAuthCallbackPath(pathname) || isInvitePath(pathname)) {
-    return supabaseResponse;
-  }
-
-  if (user && isAuthEntryPath(pathname)) {
+  if (decision.type === "redirect") {
     const nextUrl = request.nextUrl.clone();
-    nextUrl.pathname = hasOrganization ? "/portfolio" : "/onboarding";
+    nextUrl.pathname = decision.pathname;
     nextUrl.search = "";
-    return applyCookies(supabaseResponse, NextResponse.redirect(nextUrl));
-  }
-
-  if (user && pathname === "/forgot-password") {
-    const nextUrl = request.nextUrl.clone();
-    nextUrl.pathname = hasOrganization ? "/portfolio" : "/onboarding";
-    nextUrl.search = "";
-    return applyCookies(supabaseResponse, NextResponse.redirect(nextUrl));
-  }
-
-  if (user && isWorkspacePath(pathname) && !hasOrganization) {
-    const onboardingUrl = request.nextUrl.clone();
-    onboardingUrl.pathname = "/onboarding";
-    onboardingUrl.search = "";
-    return applyCookies(supabaseResponse, NextResponse.redirect(onboardingUrl));
-  }
-
-  if (user && pathname === "/onboarding" && hasOrganization) {
-    const portfolioUrl = request.nextUrl.clone();
-    portfolioUrl.pathname = "/portfolio";
-    portfolioUrl.search = "";
     const redirectResponse = applyCookies(
       supabaseResponse,
-      NextResponse.redirect(portfolioUrl),
+      NextResponse.redirect(nextUrl),
     );
-    await syncActiveOrganizationCookieOnResponse(
-      request,
-      redirectResponse,
-      supabase,
-      user.id,
-    );
+    if (user && !isRecovery && decision.pathname === "/portfolio") {
+      await syncActiveOrganizationCookieOnResponse(
+        request,
+        redirectResponse,
+        supabase,
+        user.id,
+      );
+    }
     return redirectResponse;
   }
 
-  if (user && isWorkspacePath(pathname)) {
+  if (user && !isRecovery && isWorkspacePath(pathname)) {
     await syncActiveOrganizationCookieOnResponse(
       request,
       supabaseResponse,

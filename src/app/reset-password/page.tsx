@@ -1,7 +1,10 @@
 import { ResetPasswordForm } from "@/app/reset-password/reset-password-form";
 import { AuthCard } from "@/components/auth/auth-card";
+import { getPostAuthPath } from "@/lib/auth/paths";
+import { readPasswordRecoveryCookie } from "@/lib/auth/recovery-cookie";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = { title: "Choose new password" };
 
@@ -16,6 +19,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const isRecovery = await readPasswordRecoveryCookie();
 
   if (linkState === "expired") {
     return (
@@ -62,7 +66,10 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
     );
   }
 
-  if (!user) {
+  if (!user || !isRecovery) {
+    if (user && !isRecovery) {
+      redirect(await getPostAuthPath());
+    }
     return (
       <AuthCard title="Invalid reset link">
         <p className="mt-3 text-sm text-muted">
@@ -80,7 +87,10 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
 
   return (
     <AuthCard title="Choose new password">
-      <p className="mt-3 text-sm text-muted">Enter a new password for your NOXHEIM account.</p>
+      <p className="mt-3 text-sm text-muted">
+        Enter a new password for your NOXHEIM account. You will return to sign in after it is
+        saved.
+      </p>
       <ResetPasswordForm />
     </AuthCard>
   );

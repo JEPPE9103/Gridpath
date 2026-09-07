@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { isOrganizationId } from "@/lib/organization/active-org-cookie";
+import { SALES_DEMO_ORGANIZATION_ID } from "@/lib/demo/sales-demo";
 import {
   membershipIncludesOrganization,
   resolveActiveOrganizationId,
@@ -37,6 +38,32 @@ describe("resolveActiveOrganizationId", () => {
 
   it("falls back when cookie is missing", () => {
     assert.equal(resolveActiveOrganizationId(memberships(), null), ORG_A);
+  });
+
+  it("does not use Sample/demo as a generic fallback when another membership exists", () => {
+    const withDemo: MembershipRecord[] = [
+      { organizationId: SALES_DEMO_ORGANIZATION_ID, createdAt: "2026-01-01T00:00:00.000Z" },
+      { organizationId: ORG_B, createdAt: "2026-03-01T00:00:00.000Z" },
+    ];
+    assert.equal(resolveActiveOrganizationId(withDemo, null), ORG_B);
+  });
+
+  it("still opens Sample/demo when it is the user's only membership", () => {
+    const onlyDemo: MembershipRecord[] = [
+      { organizationId: SALES_DEMO_ORGANIZATION_ID, createdAt: "2026-01-01T00:00:00.000Z" },
+    ];
+    assert.equal(resolveActiveOrganizationId(onlyDemo, null), SALES_DEMO_ORGANIZATION_ID);
+  });
+
+  it("honors an explicit cookie selecting Sample/demo among multiple memberships", () => {
+    const withDemo: MembershipRecord[] = [
+      { organizationId: SALES_DEMO_ORGANIZATION_ID, createdAt: "2026-01-01T00:00:00.000Z" },
+      { organizationId: ORG_B, createdAt: "2026-03-01T00:00:00.000Z" },
+    ];
+    assert.equal(
+      resolveActiveOrganizationId(withDemo, SALES_DEMO_ORGANIZATION_ID),
+      SALES_DEMO_ORGANIZATION_ID,
+    );
   });
 
   it("returns null when user has no memberships", () => {

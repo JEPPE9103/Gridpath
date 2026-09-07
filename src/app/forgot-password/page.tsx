@@ -2,6 +2,7 @@ import { ForgotPasswordForm } from "@/app/forgot-password/forgot-password-form";
 import { AuthCard } from "@/components/auth/auth-card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPostAuthPath } from "@/lib/auth/paths";
+import { readPasswordRecoveryCookie } from "@/lib/auth/recovery-cookie";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -12,6 +13,11 @@ export default async function ForgotPasswordPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const isRecovery = await readPasswordRecoveryCookie();
+
+  if (user && isRecovery) {
+    redirect("/reset-password");
+  }
 
   if (user) {
     redirect(await getPostAuthPath());
