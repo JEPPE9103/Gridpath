@@ -51,6 +51,15 @@ function buildPortfolioSummary(
     }
   }
 
+  const unreviewed = input.unreviewedOfficialChangeCount ?? 0;
+  if (unreviewed > 0) {
+    parts.push(
+      unreviewed === 1
+        ? "1 official change needs review"
+        : `${unreviewed} official changes need review`,
+    );
+  }
+
   return parts.join(" · ");
 }
 
@@ -70,6 +79,7 @@ export function buildPortfolioAttention(
       hasConnectionCase: project.hasConnectionCase,
       requirements: project.requirements,
       openAlertSeverities: project.openAlertSeverities,
+      unreviewedOfficialChangeCount: project.unreviewedOfficialChangeCount,
     });
 
     if (attention.level !== "needs_attention" && attention.level !== "watch") {

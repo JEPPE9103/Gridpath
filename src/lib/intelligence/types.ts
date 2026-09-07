@@ -32,6 +32,7 @@ export type ProjectAttentionInput = {
     dueDate: string | null;
   }>;
   openAlertSeverities: AlertSeverity[];
+  unreviewedOfficialChangeCount?: number;
 };
 
 export type ProjectAttentionResult = {
@@ -92,6 +93,7 @@ export type PortfolioAttentionProjectInput = {
     dueDate: string | null;
   }>;
   openAlertSeverities: AlertSeverity[];
+  unreviewedOfficialChangeCount?: number;
   lastUpdated: string;
 };
 

@@ -57,6 +57,7 @@ export function DevelopmentBrief({ project }: { project: ProjectDetailViewModel 
       hasConnectionCase: Boolean(project.connectionCase),
       requirements: project.requirements,
       openAlertSeverities: project.alerts.map((alert) => alert.severity),
+      unreviewedOfficialChangeCount: project.officialChanges.unreviewed,
     });
 
     return buildDevelopmentBriefSummary({

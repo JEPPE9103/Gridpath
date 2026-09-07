@@ -113,4 +113,16 @@ describe("deriveProjectAttention", () => {
     );
     assert.equal(result.level, "on_track");
   });
+
+  it("flags unreviewed official changes as watch, not a risk score", () => {
+    const result = deriveProjectAttention(
+      baseInput({
+        unreviewedOfficialChangeCount: 1,
+        requirements: [{ required: true, status: "Complete", dueDate: null }],
+      }),
+      TODAY,
+    );
+    assert.equal(result.level, "watch");
+    assert.ok(result.reasons.some((reason) => reason.key === "unreviewed_official_changes"));
+  });
 });

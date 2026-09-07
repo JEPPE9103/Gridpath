@@ -15,7 +15,7 @@ import {
   type ConnectionCasesResult,
 } from "@/lib/data/connections-types";
 import { formatDate } from "@/lib/format";
-import { CONNECTION_STAGES, type ConnectionStage } from "@/types";
+import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -53,7 +53,7 @@ export function ConnectionsPage({ result }: { result: ConnectionCasesResult }) {
 
 function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
   const [operator, setOperator] = useState("All");
-  const [stage, setStage] = useState<ConnectionStage | "All">("All");
+  const [stage, setStage] = useState<OverviewPipelineStage | "All">("All");
   const [status, setStatus] = useState<ConnectionCaseListStatus | "All">("All");
 
   const operators = useMemo(
@@ -74,7 +74,7 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
     .length;
 
   const summaryBits = [
-    waitingCount ? `${waitingCount} awaiting operator response` : null,
+    waitingCount ? `${waitingCount} with recorded waiting status` : null,
     attentionCount ? `${attentionCount} at risk / overdue` : null,
     upcomingCount
       ? `${upcomingCount} upcoming deadline${upcomingCount === 1 ? "" : "s"}`
@@ -118,11 +118,11 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
             <span className="text-muted">Stage</span>
             <select
               value={stage}
-              onChange={(event) => setStage(event.target.value as ConnectionStage | "All")}
+              onChange={(event) => setStage(event.target.value as OverviewPipelineStage | "All")}
               className="bg-transparent"
             >
               <option>All</option>
-              {CONNECTION_STAGES.map((item) => (
+              {OVERVIEW_PIPELINE_STAGES.map((item) => (
                 <option key={item}>{item}</option>
               ))}
             </select>
@@ -223,13 +223,13 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         <Link
-                          href={`/projects/${item.projectSlug}?tab=connection`}
+                          href={`/projects/${item.projectSlug}/connection`}
                           className={buttonClassName("secondary")}
                         >
-                          Open project
+                          Open workspace
                         </Link>
                         <Link
-                          href={`/projects/${item.projectSlug}?tab=connection&edit=1`}
+                          href={`/projects/${item.projectSlug}/connection?edit=1`}
                           className={buttonClassName("ghost")}
                         >
                           Edit case

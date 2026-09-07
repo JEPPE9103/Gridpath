@@ -9,11 +9,16 @@ import {
   checklistStatusLabel,
   requirementCategoryLabel,
 } from "@/lib/domain/catalog-labels";
+import {
+  CONNECTION_READINESS_DISCLAIMER,
+  groupConnectionRequirements,
+} from "@/lib/domain/connection-workspace";
 import { canCompleteChecklist, formatDate } from "@/lib/format";
 import {
   createRequirementAction,
   deleteRequirementAction,
   markRequirementComplete,
+  reopenRequirementAction,
   updateRequirementAction,
   type RequirementMutationState,
 } from "@/lib/requirements/actions";
@@ -27,7 +32,13 @@ const INITIAL: RequirementMutationState = {};
 const inputClass =
   "mt-1 h-9 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink";
 
-export function RequirementsManager({ project }: { project: ProjectDetailViewModel }) {
+export function RequirementsManager({
+  project,
+  grouped = false,
+}: {
+  project: ProjectDetailViewModel;
+  grouped?: boolean;
+}) {
   const { pushToast } = useToast();
   const router = useRouter();
   const [mode, setMode] = useState<"list" | "create" | "edit">("list");
@@ -51,6 +62,27 @@ export function RequirementsManager({ project }: { project: ProjectDetailViewMod
       pushToast({
         title: "Application readiness updated",
         description: "Requirement marked complete.",
+        tone: "success",
+      });
+    });
+  }
+
+  function onReopen(itemId: string) {
+    setPendingId(itemId);
+    startTransition(async () => {
+      const result = await reopenRequirementAction(itemId, project.slug);
+      if (!result.ok) {
+        pushToast({
+          title: "Could not update requirement",
+          description: "The change was not saved.",
+          tone: "warning",
+        });
+        return;
+      }
+      router.refresh();
+      pushToast({
+        title: "Requirement reopened",
+        description: "Application readiness was recalculated.",
         tone: "success",
       });
     });
@@ -130,26 +162,31 @@ export function RequirementsManager({ project }: { project: ProjectDetailViewMod
     <section className="rounded-md border border-line bg-surface p-5">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold">Application readiness</h2>
+          <h2 className="text-base font-semibold">Requirements</h2>
           <p className="mt-1 text-sm text-muted">
-            Required requirements only. Optional items do not reduce readiness. Requirements are
-            customer workflow data — not an official grid-operator assessment.
+            {grouped
+              ? `${project.readinessCompleteCount} of ${project.readinessRequiredCount} required items complete. Required vs optional stays visible. Completing a requirement is a team decision, not an automatic file check.`
+              : "Required requirements only. Optional items do not reduce readiness. Requirements are customer workflow data — not an official grid-operator assessment."}
           </p>
         </div>
-        <p className="font-mono text-3xl font-semibold text-ink">
-          {project.readinessPercent == null ? (
-            <span className="text-lg font-sans font-medium text-muted">Not available</span>
-          ) : (
-            <>
-              {project.readinessPercent}%
-              <span className="ml-1 text-sm font-sans font-medium text-muted">Ready</span>
-            </>
-          )}
-        </p>
+        {grouped ? null : (
+          <p className="font-mono text-3xl font-semibold text-ink">
+            {project.readinessPercent == null ? (
+              <span className="text-lg font-sans font-medium text-muted">Not available</span>
+            ) : (
+              <>
+                {project.readinessPercent}%
+                <span className="ml-1 text-sm font-sans font-medium text-muted">Ready</span>
+              </>
+            )}
+          </p>
+        )}
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-canvas">
-        <div className="h-full bg-teal" style={{ width: `${project.readinessPercent ?? 0}%` }} />
-      </div>
+      {grouped ? null : (
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-canvas">
+          <div className="h-full bg-teal" style={{ width: `${project.readinessPercent ?? 0}%` }} />
+        </div>
+      )}
 
       {project.canUpdateRequirements ? (
         <div className="mt-4">
@@ -161,12 +198,23 @@ export function RequirementsManager({ project }: { project: ProjectDetailViewMod
 
       {project.requirements.length === 0 ? (
         <p className="mt-4 text-sm text-muted">No requirements yet.</p>
+      ) : grouped ? (
+        <GroupedRequirementLists
+          project={project}
+          pendingId={pendingId}
+          isPending={isPending}
+          onComplete={onComplete}
+          onReopen={onReopen}
+          onEdit={(item) => {
+            setEditing(item);
+            setMode("edit");
+          }}
+          onDelete={onDelete}
+        />
       ) : (
         <ul className="mt-4 divide-y divide-line">
           {project.requirements.map((item) => {
             const complete = item.status === "Complete";
-            const interactive =
-              project.canUpdateRequirements && canCompleteChecklist(item.status);
             return (
               <li key={item.id} className="flex items-start justify-between gap-3 py-2.5">
                 <div className="min-w-0">
@@ -192,44 +240,169 @@ export function RequirementsManager({ project }: { project: ProjectDetailViewMod
                       .join(" · ")}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <StatusBadge status={item.status} />
-                  {interactive ? (
-                    <Button
-                      variant="ghost"
-                      onClick={() => onComplete(item.id)}
-                      disabled={isPending && pendingId === item.id}
-                    >
-                      Mark complete
-                    </Button>
-                  ) : null}
-                  {project.canUpdateRequirements ? (
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setEditing(item);
-                        setMode("edit");
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  ) : null}
-                  {project.canDeleteRequirements ? (
-                    <Button
-                      variant="ghost"
-                      onClick={() => onDelete(item)}
-                      disabled={isPending && pendingId === item.id}
-                    >
-                      Delete
-                    </Button>
-                  ) : null}
-                </div>
+                <RequirementRowActions
+                  item={item}
+                  project={project}
+                  pendingId={pendingId}
+                  isPending={isPending}
+                  onComplete={onComplete}
+                  onReopen={onReopen}
+                  onEdit={() => {
+                    setEditing(item);
+                    setMode("edit");
+                  }}
+                  onDelete={() => onDelete(item)}
+                />
               </li>
             );
           })}
         </ul>
       )}
+      {grouped ? (
+        <p className="mt-4 text-xs leading-5 text-muted">{CONNECTION_READINESS_DISCLAIMER}</p>
+      ) : null}
     </section>
+  );
+}
+
+function GroupedRequirementLists({
+  project,
+  pendingId,
+  isPending,
+  onComplete,
+  onReopen,
+  onEdit,
+  onDelete,
+}: {
+  project: ProjectDetailViewModel;
+  pendingId: string | null;
+  isPending: boolean;
+  onComplete: (id: string) => void;
+  onReopen: (id: string) => void;
+  onEdit: (item: ProjectRequirementItem) => void;
+  onDelete: (item: ProjectRequirementItem) => void;
+}) {
+  const groups = groupConnectionRequirements(project.requirements);
+  const sections = [
+    { title: "Needs attention", items: groups.needsAttention },
+    { title: "Upcoming", items: groups.upcoming },
+    { title: "Complete", items: groups.complete },
+    { title: "Optional", items: groups.optional },
+  ];
+  return (
+    <div className="mt-4 space-y-4">
+      {sections.map((section) =>
+        section.items.length === 0 ? null : (
+          <div key={section.title}>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+              {section.title}
+            </h3>
+            <ul className="mt-2 divide-y divide-line">
+              {section.items.map((item) => (
+                <li key={item.id} className="flex items-start justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      {item.status === "Complete" ? (
+                        <Check size={14} className="shrink-0 text-success" />
+                      ) : (
+                        <Circle size={14} className="shrink-0 text-muted" />
+                      )}
+                      <span className="text-sm">{item.label}</span>
+                      {!item.required ? (
+                        <span className="text-[10px] uppercase tracking-wide text-muted">
+                          Optional
+                        </span>
+                      ) : (
+                        <span className="text-[10px] uppercase tracking-wide text-muted">
+                          Required
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 pl-6 text-xs text-muted">
+                      {[
+                        item.category,
+                        item.dueLabel ?? (item.dueDate ? `Due ${formatDate(item.dueDate)}` : null),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                  <RequirementRowActions
+                    item={item}
+                    project={project}
+                    pendingId={pendingId}
+                    isPending={isPending}
+                    onComplete={onComplete}
+                    onReopen={onReopen}
+                    onEdit={() => onEdit(item)}
+                    onDelete={() => onDelete(item)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+      )}
+    </div>
+  );
+}
+
+function RequirementRowActions({
+  item,
+  project,
+  pendingId,
+  isPending,
+  onComplete,
+  onReopen,
+  onEdit,
+  onDelete,
+}: {
+  item: ProjectRequirementItem;
+  project: ProjectDetailViewModel;
+  pendingId: string | null;
+  isPending: boolean;
+  onComplete: (id: string) => void;
+  onReopen: (id: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const interactive = project.canUpdateRequirements && canCompleteChecklist(item.status);
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <StatusBadge status={item.status} />
+      {interactive ? (
+        <Button
+          variant="ghost"
+          onClick={() => onComplete(item.id)}
+          disabled={isPending && pendingId === item.id}
+        >
+          Mark complete
+        </Button>
+      ) : null}
+      {project.canUpdateRequirements && item.status === "Complete" ? (
+        <Button
+          variant="ghost"
+          onClick={() => onReopen(item.id)}
+          disabled={isPending && pendingId === item.id}
+        >
+          Reopen
+        </Button>
+      ) : null}
+      {project.canUpdateRequirements ? (
+        <Button variant="ghost" onClick={onEdit}>
+          Edit
+        </Button>
+      ) : null}
+      {project.canDeleteRequirements ? (
+        <Button
+          variant="ghost"
+          onClick={onDelete}
+          disabled={isPending && pendingId === item.id}
+        >
+          Delete
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

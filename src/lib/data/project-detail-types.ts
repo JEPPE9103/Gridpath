@@ -73,6 +73,7 @@ export type ProjectConnectionCase = {
   deadline: string | null;
   ownerName: string | null;
   notes: string | null;
+  createdAt: string | null;
   gridOperatorId: string | null;
   gridOperatorName: string | null;
 };

@@ -94,7 +94,7 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
           />
           <Stat label="Open alerts" value={summary.openAlerts} />
           <Stat
-            label="Average application readiness"
+            label="Average workflow readiness"
             value={
               summary.averageReadinessPercent == null
                 ? "Not available"
@@ -185,9 +185,10 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
             </p>
           </div>
           <div className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Application readiness</h2>
+            <h2 className="text-base font-semibold">Workflow readiness</h2>
             <p className="mt-1 text-xs text-muted">
-              Required requirements only. Same formula as Project Detail and Map.
+              Required items complete. Measures workflow completeness, not connection probability,
+              available grid capacity or technical feasibility.
             </p>
             <ul className="mt-3 space-y-2 text-sm">
               <CountLine
@@ -211,7 +212,8 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
         <section className="rounded-md border border-line bg-surface p-5">
           <h2 className="text-base font-semibold">Projects requiring attention</h2>
           <p className="mt-1 text-xs text-muted">
-            Open critical or warning alerts, or connection cases that are at risk or overdue.
+            Projects that need someone to look at them — overdue workflow items, overdue connection
+            deadlines, or open alerts. Not a connection-risk score.
           </p>
           {report.attentionProjects.length === 0 ? (
             <p className="mt-4 text-sm text-muted">No projects currently require attention.</p>
@@ -233,7 +235,10 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
                   {report.attentionProjects.map((project) => (
                     <tr key={project.slug} className="border-b border-line align-top last:border-b-0">
                       <td className="py-2 pr-4">
-                        <Link href={`/projects/${project.slug}`} className="font-medium hover:text-teal">
+                        <Link
+                          href={`/projects/${project.slug}/connection`}
+                          className="font-medium hover:text-teal"
+                        >
                           {project.name}
                         </Link>
                       </td>

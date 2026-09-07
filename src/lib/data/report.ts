@@ -1,4 +1,5 @@
 import { applyArchiveFilter } from "@/lib/data/archive-filter";
+import { getUnreviewedOfficialChangeCountsByProject } from "@/lib/data/grid-changes";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { fetchAllQueryPages } from "@/lib/data/paged-select";
 import { getOrganizationProjectAggregates } from "@/lib/data/project-aggregates";
@@ -199,7 +200,7 @@ export async function getPortfolioReportForCurrentOrganization(): Promise<Portfo
   }
 
   const supabase = await createSupabaseServerClient();
-  const [aggregatesResult, projectsResult, casesResult, requirementsResult, alertsResult, documentsResult] =
+  const [aggregatesResult, projectsResult, casesResult, requirementsResult, alertsResult, documentsResult, unreviewedByProject] =
     await Promise.all([
       getOrganizationProjectAggregates(false),
       fetchAllQueryPages<ProjectRow>(async (from, to) => {
@@ -282,6 +283,7 @@ export async function getPortfolioReportForCurrentOrganization(): Promise<Portfo
         ).range(from, to);
         return { data: page.data as DocumentRow[] | null, error: page.error };
       }),
+      getUnreviewedOfficialChangeCountsByProject(),
     ]);
 
   if (
@@ -380,6 +382,7 @@ export async function getPortfolioReportForCurrentOrganization(): Promise<Portfo
         .filter((value): value is AlertSeverity =>
           value === "critical" || value === "warning" || value === "info" || value === "positive",
         ),
+      unreviewedOfficialChangeCount: unreviewedByProject.get(project.id) ?? 0,
       lastUpdated: "",
     };
   });

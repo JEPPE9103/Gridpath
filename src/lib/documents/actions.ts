@@ -55,6 +55,7 @@ type DocumentRecord = {
 function revalidateDocumentPaths(projectSlug: string) {
   revalidatePath("/documents");
   revalidatePath(`/projects/${projectSlug}`);
+  revalidatePath(`/projects/${projectSlug}/connection`);
 }
 
 function isUuid(value: string): boolean {

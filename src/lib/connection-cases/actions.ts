@@ -1,11 +1,16 @@
 "use server";
 
+import { getCurrentUserProfile } from "@/lib/auth/current-user";
 import {
   parseConnectionCaseForm,
   type ConnectionCaseFieldErrors,
   type ConnectionCaseFormInput,
 } from "@/lib/connection-cases/validation";
 import { getCurrentOrganization } from "@/lib/data/organization";
+import {
+  connectionCaseStatusLabel,
+  pipelineStageLabel,
+} from "@/lib/domain/catalog-labels";
 import { canAdminWorkflow, canWriteWorkflow } from "@/lib/projects/authorization";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -37,6 +42,12 @@ function revalidateCasePaths(slug: string) {
   revalidatePath("/reports");
   revalidatePath("/connections");
   revalidatePath(`/projects/${slug}`);
+  revalidatePath(`/projects/${slug}/connection`);
+}
+
+async function recordedBySuffix(): Promise<string> {
+  const profile = await getCurrentUserProfile();
+  return profile ? ` · Recorded by ${profile.fullName}` : "";
 }
 
 async function loadProjectInOrg(
@@ -143,7 +154,7 @@ export async function createConnectionCaseAction(
   const { error: eventError } = await supabase.from("project_events").insert({
     project_id: project.id,
     title: "Connection process started",
-    detail: `Stage ${parsed.stage.replaceAll("_", " ")} · status ${parsed.status.replaceAll("_", " ")}`,
+    detail: `Stage ${pipelineStageLabel(parsed.stage)} · status ${connectionCaseStatusLabel(parsed.status)}${await recordedBySuffix()}`,
     source: "Customer Data",
   });
   if (eventError) {
@@ -151,7 +162,7 @@ export async function createConnectionCaseAction(
   }
 
   revalidateCasePaths(project.slug);
-  redirect(`/projects/${project.slug}?tab=connection`);
+  redirect(`/projects/${project.slug}/connection`);
 }
 
 export async function updateConnectionCaseAction(
@@ -236,19 +247,20 @@ export async function updateConnectionCaseAction(
   const stageChanged = existing.stage !== parsed.stage;
   const statusChanged = existing.status !== parsed.status;
   if (stageChanged || statusChanged) {
+    const actor = await recordedBySuffix();
     const { error: eventError } = await supabase.from("project_events").insert({
       project_id: project.id,
-      title: "Connection case updated",
+      title: stageChanged ? "Connection stage changed" : "Connection case updated",
       detail: [
         stageChanged
-          ? `Stage ${existing.stage.replaceAll("_", " ")} → ${parsed.stage.replaceAll("_", " ")}`
+          ? `Stage ${pipelineStageLabel(existing.stage)} → ${pipelineStageLabel(parsed.stage)}`
           : null,
         statusChanged
-          ? `Status ${existing.status.replaceAll("_", " ")} → ${parsed.status.replaceAll("_", " ")}`
+          ? `Status ${connectionCaseStatusLabel(existing.status)} → ${connectionCaseStatusLabel(parsed.status)}`
           : null,
       ]
         .filter(Boolean)
-        .join(" · "),
+        .join(" · ") + actor,
       source: "Customer Data",
     });
     if (eventError) {
@@ -257,7 +269,7 @@ export async function updateConnectionCaseAction(
   }
 
   revalidateCasePaths(project.slug);
-  redirect(`/projects/${project.slug}?tab=connection`);
+  redirect(`/projects/${project.slug}/connection`);
 }
 
 export async function deleteConnectionCaseAction(

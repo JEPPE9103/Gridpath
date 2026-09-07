@@ -109,4 +109,19 @@ describe("buildPortfolioAttention", () => {
     assert.equal(countNeedsAttentionProjects(projects), 1);
     assert.deepEqual([...projectIdsNeedingAttention(projects)], ["1"]);
   });
+
+  it("places unreviewed official changes on watch, not needs-attention", () => {
+    const result = buildPortfolioAttention([
+      project({
+        id: "1",
+        slug: "north",
+        name: "Stockholm North BESS",
+        unreviewedOfficialChangeCount: 2,
+        requirements: [{ required: true, status: "Complete", dueDate: null }],
+      }),
+    ]);
+    assert.equal(result.needsAttention.length, 0);
+    assert.equal(result.watch.length, 1);
+    assert.match(result.watch[0]?.summary ?? "", /official changes need review/);
+  });
 });
