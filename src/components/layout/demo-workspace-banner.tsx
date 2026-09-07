@@ -24,16 +24,16 @@ export function DemoWorkspaceChip({ collapsed = false }: { collapsed?: boolean }
 export function DemoWorkspaceBanner() {
   return (
     <div className="border-b border-line bg-teal-soft px-4 py-2 sm:px-6 lg:px-8">
-      <Tooltip content={DEMO_TOOLTIP}>
-        <p className="text-xs text-ink">
-          <span className="font-semibold">Sample workspace.</span>{" "}
-          <span className="text-muted">
-            Customer-entered projects and workflow data here are sample. Official Grid Intelligence
-            is from Noxheim’s current official datasets. Demo organisations do not receive product
-            emails.
-          </span>
-        </p>
-      </Tooltip>
+      <p className="text-xs text-ink">
+        <Tooltip content={DEMO_TOOLTIP}>
+          <span className="font-semibold">Sample workspace.</span>
+        </Tooltip>{" "}
+        <span className="text-muted">
+          Customer-entered projects and workflow data here are sample. Official Grid Intelligence
+          is from Noxheim’s current official datasets. Demo organisations do not receive product
+          emails.
+        </span>
+      </p>
     </div>
   );
 }

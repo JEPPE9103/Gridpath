@@ -265,7 +265,8 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
           <div className="rounded-md border border-line bg-surface p-5">
             <h2 className="text-base font-semibold">Document health</h2>
             <p className="mt-1 text-xs text-muted">
-              Document records stored in NOXHEIM. File storage is not connected.
+              Customer-uploaded files are stored privately in NOXHEIM. Status counts also include
+              metadata-only records.
             </p>
             <ul className="mt-3 space-y-2 text-sm">
               <CountLine label="Complete" value={report.documentHealth.complete} />

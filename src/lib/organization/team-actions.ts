@@ -17,6 +17,7 @@ import {
   isValidInviteEmail,
   normalizeInviteEmail,
 } from "@/lib/organization/team-permissions";
+import { logError } from "@/lib/observability/log";
 import { getPublicSiteUrl } from "@/lib/site-url";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -66,6 +67,18 @@ function mapTeamError(message: string | undefined, fallback: string): string {
   return fallback;
 }
 
+function logTeamActionError(
+  event: string,
+  error: { code?: string; message?: string; details?: string; hint?: string } | null | undefined,
+) {
+  logError(event, {
+    code: error?.code,
+    message: error?.message,
+    details: error?.details,
+    hint: error?.hint,
+  });
+}
+
 export async function createOrganizationInviteAction(
   _previous: TeamActionState,
   formData: FormData,
@@ -98,7 +111,7 @@ export async function createOrganizationInviteAction(
   });
 
   if (error || !data) {
-    console.error("createOrganizationInviteAction failed", error?.message);
+    logTeamActionError("team.create_invite_failed", error);
     return {
       error: mapTeamError(error?.message, "Could not create the invitation."),
     };
@@ -135,7 +148,7 @@ export async function resendOrganizationInviteAction(
   });
 
   if (error || !data) {
-    console.error("resendOrganizationInviteAction failed", error?.message);
+    logTeamActionError("team.resend_invite_failed", error);
     return {
       error: mapTeamError(error?.message, "Could not resend the invitation."),
     };
@@ -177,7 +190,7 @@ export async function revokeOrganizationInviteAction(
   });
 
   if (error) {
-    console.error("revokeOrganizationInviteAction failed", error.message);
+    logTeamActionError("team.revoke_invite_failed", error);
     return { error: mapTeamError(error.message, "Could not revoke the invitation.") };
   }
 
@@ -204,7 +217,7 @@ export async function changeOrganizationMemberRoleAction(
   );
 
   if (loadError) {
-    console.error("changeOrganizationMemberRoleAction load failed", loadError.message);
+    logTeamActionError("team.change_role_load_failed", loadError);
     return { error: "Could not change the role." };
   }
 
@@ -229,7 +242,7 @@ export async function changeOrganizationMemberRoleAction(
   });
 
   if (error) {
-    console.error("changeOrganizationMemberRoleAction failed", error.message);
+    logTeamActionError("team.change_role_failed", error);
     return { error: mapTeamError(error.message, "Could not change the role.") };
   }
 
@@ -253,7 +266,7 @@ export async function removeOrganizationMemberAction(
   );
 
   if (loadError) {
-    console.error("removeOrganizationMemberAction load failed", loadError.message);
+    logTeamActionError("team.remove_member_load_failed", loadError);
     return { error: "Could not remove the member." };
   }
 
@@ -274,7 +287,7 @@ export async function removeOrganizationMemberAction(
   });
 
   if (error) {
-    console.error("removeOrganizationMemberAction failed", error.message);
+    logTeamActionError("team.remove_member_failed", error);
     return { error: mapTeamError(error.message, "Could not remove the member.") };
   }
 
