@@ -238,18 +238,27 @@ export function parseOfficialMapFeatureCollection(value: unknown): OfficialMapFe
   };
 }
 
+export function officialMapContextLabel(input: {
+  coveringName?: string | null;
+  matched: boolean;
+}): string {
+  const name = input.coveringName?.trim();
+  if (name) return name;
+  return input.matched ? "Matched" : "No match";
+}
+
 export function parseOfficialSpatialMatches(value: unknown): OfficialSpatialMatch[] {
   assertOfficialMapPayloadIsCustomerSafe(value);
   if (!Array.isArray(value)) return [];
   return value
     .map((item) => {
       const row = asRecord(item);
-      const projectId = asString(row.projectId);
+      const projectId = asString(row.projectId) ?? asString(row.project_id);
       if (!projectId) return null;
       return {
         projectId,
-        localAreaId: asString(row.localAreaId),
-        nupAreaId: asString(row.nupAreaId),
+        localAreaId: asString(row.localAreaId) ?? asString(row.local_area_id),
+        nupAreaId: asString(row.nupAreaId) ?? asString(row.nup_area_id),
       };
     })
     .filter((item): item is OfficialSpatialMatch => item != null);
