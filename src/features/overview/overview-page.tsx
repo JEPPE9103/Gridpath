@@ -13,6 +13,7 @@ import {
 } from "@/lib/data/overview-types";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { PortfolioAttentionSection } from "@/features/overview/portfolio-attention-section";
+import { OfficialChangesSignal } from "@/features/changes/official-changes-signal";
 import {
   formatCapacityShort,
   formatMWTotal,
@@ -155,6 +156,12 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
             </section>
 
             <PortfolioAttentionSection attention={portfolioAttention} />
+
+            <OfficialChangesSignal
+              counts={overview.officialChanges}
+              href="/changes"
+              sourceDelayed={overview.officialSourceDelayed}
+            />
 
             <section className="rounded-md border border-line bg-surface">
               <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3 sm:px-5">

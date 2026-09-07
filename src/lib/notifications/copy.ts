@@ -1,5 +1,5 @@
 export function impactEmailSubject(projectName: string): string {
-  return `New external information may be relevant to ${projectName}`;
+  return `Official grid publication changed — ${projectName} may be relevant`;
 }
 
 export function impactEmailText(input: {
@@ -9,12 +9,12 @@ export function impactEmailText(input: {
   appUrl: string;
 }): string {
   return [
-    `New external information may be relevant to ${input.projectName}.`,
+    `An official grid publication changed. ${input.projectName} geographically overlaps the affected official area and may be relevant.`,
     "",
     `Official source: ${input.sourceName}`,
     `Detected by Noxheim: ${input.detectedAtLabel}`,
     "",
-    "This means a published change is geographically relevant to the project. It does not mean the project will be negatively affected, and it is not a statement of available grid capacity.",
+    "This is geographic relevance for review. It does not mean the project is technically impacted, and it is not a statement of available grid capacity.",
     "",
     `Review in Noxheim: ${input.appUrl}/changes`,
   ].join("\n");
@@ -49,18 +49,23 @@ export function weeklyDigestSubject(organizationName: string): string {
 
 export function weeklyDigestText(payload: WeeklyDigestPayload, appUrl: string): string {
   return [
-    `Weekly portfolio summary for ${payload.organizationName}.`,
+    `This week in your portfolio — ${payload.organizationName}.`,
     "",
-    `Active projects: ${payload.activeProjectCount}`,
+    "Official publications",
+    `New geographically matched official changes (7 days): ${payload.newImpactCount}`,
+    "",
+    "Workflow",
     `Projects with open warning/critical alerts or overdue required items: ${payload.attentionProjectCount}`,
-    `New geographically matched published changes (7 days): ${payload.newImpactCount}`,
     `Overdue required items: ${payload.overdueRequiredCount}`,
     `Approaching connection deadlines: ${payload.approachingDeadlineCount}`,
     `Projects added (7 days): ${payload.addedProjectCount}`,
     `Projects archived (7 days): ${payload.archivedProjectCount}`,
+    `Active projects: ${payload.activeProjectCount}`,
     "",
     "This digest count is not the same as Overview “workflow attention”, which uses the full project attention model.",
+    "Official changes are published-source matches for review. They are not technical impact verdicts or available-capacity statements.",
     "",
+    `Review changes: ${appUrl}/changes`,
     `Open Noxheim: ${appUrl}/overview`,
   ].join("\n");
 }

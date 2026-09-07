@@ -49,7 +49,7 @@ Geometry: coordinates live on `project_sites.geom`. Primary site is `project_sit
 | `grid_observations` | `source_id`, `grid_area_id`, `external_id`, `observation_type`, `value_numeric`, `raw_metadata` |
 | `grid_observation_versions` | versioned copies for change detection |
 | `external_changes` | `source_id`, snapshot ids, `change_type`, `observation_external_id` |
-| `change_impacts` | `external_change_id`, `organization_id`, `project_id`, `match_type`, `impact_level`, `review_status` — org must match project org (trigger) |
+| `change_impacts` | `external_change_id`, `organization_id`, `project_id`, `match_type`, `impact_level`, `review_status` (`unreviewed` \| `confirmed` \| `dismissed`), `reviewed_by`, `reviewed_at`, `review_note` — org must match project org (trigger); review is org/project scoped and does not mutate `external_changes` |
 
 Official Ei source slugs: `ei-network-area-concessions`, `ei-network-development-plans`.
 
@@ -71,5 +71,6 @@ NUP numeric values are forecast transfer-capacity **need**, never available capa
 - `public.get_official_map_area_context(p_area_id, p_organization_id)` — polygon inspector; `projectCount` only when caller belongs to the org
 - Team: `list_organization_team_members` (casts `auth.users.email` to `text` for RETURN QUERY), `list_organization_pending_invites`, `create_organization_invite`, `resend_organization_invite`, `revoke_organization_invite`, `accept_organization_invite`, `change_organization_member_role`, `remove_organization_member`, `leave_organization`
 - `public.get_organization_invite_preview(p_token_hash)` — authenticated + anon (token is the secret)
+- `public.review_organization_change_impact(p_impact_id, p_status, p_note)` — org-scoped confirm/dismiss of a change impact; resolves matching open alerts; does not mutate `external_changes`
 - `public.list_source_health()` — authenticated source-health view (no raw payloads)
 - Service-role only: `monitor_begin_source_run`, `monitor_complete_source_run`, `monitor_reconcile_workflow_alerts`, `monitor_list_undelivered_impact_emails`, `monitor_list_weekly_digests`, `monitor_claim_notification_delivery`, `monitor_finish_notification_delivery`

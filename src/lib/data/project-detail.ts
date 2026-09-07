@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { getOfficialGridAreaContextForProject, getOfficialNetworkDevelopmentPlanContextForProject } from "@/lib/data/grid-intelligence";
+import { getOfficialChangeImpactCounts } from "@/lib/data/grid-changes";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { canAdminWorkflow, canCreateOrEditProjects, canDeleteProjects, canWriteWorkflow } from "@/lib/projects/authorization";
 import type {
@@ -16,6 +17,7 @@ import { documentHasStoredFile } from "@/lib/documents/authorization";
 import { documentFileKind } from "@/lib/documents/file-types";
 import { applicationReadinessFromRequirements } from "@/lib/domain/application-readiness";
 import type { OfficialGridAreaContext, OfficialNupContext } from "@/lib/domain/grid-intelligence";
+import type { OfficialChangeImpactCounts } from "@/lib/data/grid-changes-types";
 import {
   checklistStatusLabel,
   confidenceLabel,
@@ -235,6 +237,7 @@ function mapProject(
   canDeleteConnectionCase: boolean,
   officialGridAreaContext: OfficialGridAreaContext | null,
   officialNetworkDevelopmentPlanContext: OfficialNupContext | null,
+  officialChanges: OfficialChangeImpactCounts,
 ): ProjectDetailViewModel {
   const operator = asSingle(row.grid_operators);
   const site =
@@ -282,6 +285,7 @@ function mapProject(
     canDeleteConnectionCase,
     officialGridAreaContext,
     officialNetworkDevelopmentPlanContext,
+    officialChanges,
   };
 }
 
@@ -346,6 +350,7 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
     alertsResult,
     officialContext,
     officialNupContext,
+    officialChanges,
   ] =
     await Promise.all([
       supabase
@@ -380,6 +385,7 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
         .eq("status", "open"),
       getOfficialGridAreaContextForProject(projectId),
       getOfficialNetworkDevelopmentPlanContextForProject(projectId),
+      getOfficialChangeImpactCounts(projectId),
     ]);
 
   const relatedError =
@@ -442,6 +448,7 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
       canAdminWorkflow(organization.role),
       officialContext,
       officialNupContext,
+      officialChanges,
     ),
   };
 }

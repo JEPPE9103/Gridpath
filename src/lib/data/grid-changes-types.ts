@@ -24,6 +24,7 @@ export type GridChangeProjectView = {
   id: string;
   slug: string;
   name: string;
+  location?: string;
   stage: PipelineStage | "Energisation";
   outlook: Outlook;
   importMW: number;
@@ -41,6 +42,8 @@ export type GridChangeImpactView = {
   confidenceLabel: string;
   reviewStatus: ChangeReviewStatus;
   reviewedAt: string | null;
+  reviewedByName: string | null;
+  reviewNote: string | null;
 };
 
 export type GridChangeSourceView = {
@@ -84,22 +87,43 @@ export type OrganizationGridChange = {
   id: string;
   title: string;
   summary: string | null;
+  deterministicSummary: string;
   changeType: ExternalChangeType;
   changeTypeLabel: string;
   severity: ExternalChangeSeverity;
   detectedAt: string;
   detectedAtLabel: string;
   publishedAt: string | null;
+  publishedAtLabel: string | null;
   changeKind: ObservationChangeKind;
   changeKindLabel: string;
   before: GridChangeValueView | null;
   after: GridChangeValueView | null;
   source: GridChangeSourceView;
   area: GridChangeAreaView | null;
+  areaId: string | null;
   impacts: GridChangeImpactView[];
   affectedProjectCount: number;
   reviewSummary: string;
   provenance: GridChangeProvenanceView;
+};
+
+export type OfficialChangeImpactCard = {
+  impact: GridChangeImpactView;
+  change: OrganizationGridChange;
+};
+
+export type OfficialChangeImpactCounts = {
+  unreviewed: number;
+  confirmed: number;
+  dismissed: number;
+  unreviewedProjectCount: number;
+};
+
+export type OfficialChangeMapTarget = {
+  projectSlug: string | null;
+  areaId: string | null;
+  layer: "local_network" | "planning_area";
 };
 
 export type GridSourceBaselineView = {
@@ -117,7 +141,16 @@ export type GridChangesResult =
   | {
       kind: "ok";
       changes: OrganizationGridChange[];
+      impacts: OfficialChangeImpactCard[];
+      counts: OfficialChangeImpactCounts;
       sourceBaselines: GridSourceBaselineView[];
+      sourceHealth: Array<{
+        slug: string;
+        name: string;
+        healthLabel: string;
+        delayed: boolean;
+        changeLabel: string;
+      }>;
       canWrite: boolean;
     }
   | { kind: "no_organization" }
