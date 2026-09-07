@@ -67,7 +67,7 @@ NUP numeric values are forecast transfer-capacity **need**, never available capa
 - `public.get_official_network_development_plan_context_for_project(p_project_id)`
 - `public.get_official_map_layer_geojson(p_layer, p_west, p_south, p_east, p_north, p_zoom)` — simplified official GeoJSON for the portfolio map (`local_network` \| `planning_area`); no raw snapshots
 - `public.get_official_covering_geojson_for_project(p_project_id)` — org-scoped covering polygons
-- `public.get_organization_official_spatial_matches(p_organization_id)` — active-project covering ids
+- `public.get_organization_official_spatial_matches(p_organization_id)` — active-project covering ids (LATERAL covering, not jsonb ORDER BY)
 - `public.get_official_map_area_context(p_area_id, p_organization_id)` — polygon inspector; `projectCount` only when caller belongs to the org
 - Team: `list_organization_team_members` (casts `auth.users.email` to `text` for RETURN QUERY), `list_organization_pending_invites`, `create_organization_invite`, `resend_organization_invite`, `revoke_organization_invite`, `accept_organization_invite`, `change_organization_member_role`, `remove_organization_member`, `leave_organization`
 - `public.get_organization_invite_preview(p_token_hash)` — authenticated + anon (token is the secret)

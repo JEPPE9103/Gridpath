@@ -10,6 +10,7 @@ import {
   coveringFeatureIds,
   isOfficialMapLayer,
   isUnmatchedReviewProject,
+  officialMapContextLabel,
   officialMapCopyContainsForbiddenTerm,
   officialMapSimplifyTolerance,
   parseOfficialMapFeatureCollection,
@@ -171,5 +172,25 @@ describe("official map payload boundary", () => {
     ]);
     assert.equal(matches[0]?.localAreaId, "ln");
     assert.equal(matches[0]?.nupAreaId, null);
+  });
+
+  it("parses snake_case spatial match keys from jsonb", () => {
+    const matches = parseOfficialSpatialMatches([
+      { project_id: "p1", local_area_id: "ln", nup_area_id: "nup" },
+    ]);
+    assert.equal(matches[0]?.projectId, "p1");
+    assert.equal(matches[0]?.localAreaId, "ln");
+    assert.equal(matches[0]?.nupAreaId, "nup");
+  });
+});
+
+describe("official map context labels", () => {
+  it("prefers covering names and never invents a match", () => {
+    assert.equal(
+      officialMapContextLabel({ coveringName: "Ellevio AB — 153BK", matched: true }),
+      "Ellevio AB — 153BK",
+    );
+    assert.equal(officialMapContextLabel({ coveringName: "  ", matched: true }), "Matched");
+    assert.equal(officialMapContextLabel({ coveringName: null, matched: false }), "No match");
   });
 });

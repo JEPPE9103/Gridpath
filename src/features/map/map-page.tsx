@@ -457,6 +457,7 @@ function LoadedMapPage({
               <MapGridContextCard
                 project={selected}
                 match={matchByProjectId.get(selected.id)}
+                covering={covering}
               />
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <Link href={`/projects/${selected.slug}`} className="flex-1">

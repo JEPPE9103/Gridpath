@@ -1,20 +1,29 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import type { OfficialCoveringGeojson } from "@/lib/data/official-map";
 import type { MapProject } from "@/lib/data/map-types";
 import type { OfficialSpatialMatch } from "@/lib/domain/official-map";
-import { COVERING_OFFICIAL_AREA_LABEL } from "@/lib/domain/official-map";
+import { COVERING_OFFICIAL_AREA_LABEL, officialMapContextLabel } from "@/lib/domain/official-map";
 import Link from "next/link";
 
 export function MapGridContextCard({
   project,
   match,
+  covering,
 }: {
   project: MapProject;
   match: OfficialSpatialMatch | undefined;
+  covering: OfficialCoveringGeojson | null;
 }) {
-  const local = match?.localAreaId ? "Matched" : "No match";
-  const nup = match?.nupAreaId ? "Matched" : "No match";
+  const local = officialMapContextLabel({
+    coveringName: covering?.localNetwork?.properties.name,
+    matched: Boolean(match?.localAreaId),
+  });
+  const nup = officialMapContextLabel({
+    coveringName: covering?.planningArea?.properties.name,
+    matched: Boolean(match?.nupAreaId),
+  });
   return (
     <div className="mt-4 rounded-md border border-line bg-canvas p-3">
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
