@@ -9,14 +9,11 @@ function parseDateOnly(value: string): Date | null {
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
-/**
- * Display-only deadline attention. Does not change stored case status.
- * overdue: deadline before today; approaching: due within 14 days.
- */
-export function deadlineAttention(
+/** Whole days from today to the deadline. Negative means overdue. */
+export function deadlineDayDelta(
   deadline: string | null | undefined,
   now = new Date(),
-): DeadlineAttention | null {
+): number | null {
   if (!deadline) {
     return null;
   }
@@ -25,7 +22,39 @@ export function deadlineAttention(
     return null;
   }
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  return Math.round((due.getTime() - today.getTime()) / 86_400_000);
+}
+
+export function deadlineRelativeLabel(
+  deadline: string | null | undefined,
+  now = new Date(),
+): string | null {
+  const days = deadlineDayDelta(deadline, now);
+  if (days == null) {
+    return null;
+  }
+  if (days < 0) {
+    const overdue = Math.abs(days);
+    return overdue === 1 ? "Overdue by 1 day" : `Overdue by ${overdue} days`;
+  }
+  if (days === 0) {
+    return "Due today";
+  }
+  return days === 1 ? "Due in 1 day" : `Due in ${days} days`;
+}
+
+/**
+ * Display-only deadline attention. Does not change stored case status.
+ * overdue: deadline before today; approaching: due within 14 days.
+ */
+export function deadlineAttention(
+  deadline: string | null | undefined,
+  now = new Date(),
+): DeadlineAttention | null {
+  const days = deadlineDayDelta(deadline, now);
+  if (days == null) {
+    return null;
+  }
   if (days < 0) {
     return "overdue";
   }

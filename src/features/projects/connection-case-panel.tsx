@@ -94,14 +94,15 @@ export function ConnectionCasePanel({
   if (!connectionCase) {
     return (
       <section className="rounded-md border border-line bg-surface p-5">
-        <h3 className="text-base font-semibold">No connection case yet</h3>
+        <h3 className="text-base font-semibold">No connection application yet</h3>
         <p className="mt-2 text-sm text-muted">
-          Start a connection process when you are ready to track operator interaction for this
-          project.
+          Track the project&apos;s grid-connection process, requirements, documents and deadlines
+          in one workspace. NOXHEIM records the process your team enters. It does not submit
+          applications to network operators.
         </p>
         {project.canManageConnectionCase ? (
           <Button className="mt-4" onClick={() => setMode("create")}>
-            Start connection process
+            Start connection application
           </Button>
         ) : null}
       </section>

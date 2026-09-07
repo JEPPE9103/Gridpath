@@ -56,6 +56,7 @@ function revalidateRequirementPaths(slug: string) {
   revalidatePath("/map");
   revalidatePath("/reports");
   revalidatePath(`/projects/${slug}`);
+  revalidatePath(`/projects/${slug}/connection`);
 }
 
 export async function updateRequirementStatus(
@@ -126,6 +127,16 @@ export async function updateRequirementStatus(
     if (eventError) {
       console.error("updateRequirementStatus event failed", eventError.message);
     }
+  } else if (requirement.status === "complete") {
+    const { error: eventError } = await supabase.from("project_events").insert({
+      project_id: requirement.project_id,
+      title: "Requirement reopened",
+      detail: `${requirement.label}: ${checklistStatusLabel(requirement.status)} → ${status}`,
+      source: "Customer Data",
+    });
+    if (eventError) {
+      console.error("updateRequirementStatus reopen event failed", eventError.message);
+    }
   }
 
   revalidateRequirementPaths(projectSlug);
@@ -137,6 +148,13 @@ export async function markRequirementComplete(
   projectSlug: string,
 ): Promise<{ ok: boolean; error?: string }> {
   return updateRequirementStatus(requirementId, "Complete", projectSlug);
+}
+
+export async function reopenRequirementAction(
+  requirementId: string,
+  projectSlug: string,
+): Promise<{ ok: boolean; error?: string }> {
+  return updateRequirementStatus(requirementId, "In Progress", projectSlug);
 }
 
 export async function createRequirementAction(

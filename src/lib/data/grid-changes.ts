@@ -687,6 +687,26 @@ export async function getOfficialChangeImpactCounts(
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export async function getUnreviewedOfficialChangeCountsByProject(): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  const organization = await getCurrentOrganization();
+  if (!organization) return counts;
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("change_impacts")
+    .select("project_id")
+    .eq("organization_id", organization.id)
+    .eq("review_status", "unreviewed");
+  if (error) {
+    console.error("getUnreviewedOfficialChangeCountsByProject failed", error.message);
+    return counts;
+  }
+  for (const row of (data ?? []) as Array<{ project_id: string }>) {
+    counts.set(row.project_id, (counts.get(row.project_id) ?? 0) + 1);
+  }
+  return counts;
+}
+
 export async function getOfficialChangeMapTarget(
   impactId: string,
 ): Promise<OfficialChangeMapTarget | null> {

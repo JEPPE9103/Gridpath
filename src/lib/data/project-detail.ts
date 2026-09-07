@@ -53,6 +53,7 @@ type CaseRow = {
   deadline: string | null;
   owner_id: string | null;
   notes: string | null;
+  created_at: string;
   grid_operator_id: string | null;
   grid_operators: GridOperatorRow | GridOperatorRow[] | null;
 };
@@ -213,6 +214,7 @@ function mapCase(rows: CaseRow[], profiles: ProfileRow[]): ProjectConnectionCase
     deadline: row.deadline,
     ownerName: profileName(profiles, row.owner_id),
     notes: row.notes?.trim() || null,
+    createdAt: row.created_at,
     gridOperatorId: row.grid_operator_id,
     gridOperatorName: operator?.name ?? null,
   };
@@ -356,7 +358,7 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
       supabase
         .from("connection_cases")
         .select(
-          "id, case_id, stage, status, submitted_at, next_milestone, deadline, owner_id, notes, grid_operator_id, grid_operators ( id, name )",
+          "id, case_id, stage, status, submitted_at, next_milestone, deadline, owner_id, notes, created_at, grid_operator_id, grid_operators ( id, name )",
         )
         .eq("project_id", projectId)
         .order("created_at", { ascending: false })
@@ -377,7 +379,8 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
         .from("project_events")
         .select("id, title, detail, source, occurred_at")
         .eq("project_id", projectId)
-        .order("occurred_at", { ascending: false }),
+        .order("occurred_at", { ascending: false })
+        .limit(50),
       supabase
         .from("alerts")
         .select("id, severity, title, summary, status")

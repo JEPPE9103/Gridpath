@@ -69,7 +69,8 @@ function hasWorkflowSignals(input: ProjectAttentionInput): boolean {
     input.hasConnectionCase ||
     input.requirements.length > 0 ||
     input.openAlertSeverities.length > 0 ||
-    Boolean(input.targetCOD.trim())
+    Boolean(input.targetCOD.trim()) ||
+    (input.unreviewedOfficialChangeCount ?? 0) > 0
   );
 }
 
@@ -188,6 +189,21 @@ export function deriveProjectAttention(
       sourceCategory: "your_team",
     });
     priorityScore = Math.max(priorityScore, 35);
+  }
+
+  if ((input.unreviewedOfficialChangeCount ?? 0) > 0) {
+    const count = input.unreviewedOfficialChangeCount ?? 0;
+    reasons.push({
+      key: "unreviewed_official_changes",
+      label:
+        count === 1
+          ? "1 official change needs review"
+          : `${count} official changes need review`,
+      detail: "Published-source matches for team review, not a technical impact verdict.",
+      severity: "medium",
+      sourceCategory: "official_source",
+    });
+    priorityScore = Math.max(priorityScore, 30);
   }
 
   if (input.confidence === "Unknown") {

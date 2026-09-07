@@ -6,7 +6,7 @@ import {
   type OverviewProject,
   type PortfolioOverview,
 } from "@/lib/data/overview-types";
-import { getOfficialChangeImpactCounts } from "@/lib/data/grid-changes";
+import { getOfficialChangeImpactCounts, getUnreviewedOfficialChangeCountsByProject } from "@/lib/data/grid-changes";
 import { getOfficialSourceHealth } from "@/lib/data/source-health";
 import { applyArchiveFilter } from "@/lib/data/archive-filter";
 import { fetchAllQueryPages } from "@/lib/data/paged-select";
@@ -183,7 +183,7 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
   }
 
   const supabase = await createSupabaseServerClient();
-  const [aggregatesResult, projectsResult, casesResult, alertsResult, requirementsResult, projectMetaResult, officialChanges, sourceHealth] =
+  const [aggregatesResult, projectsResult, casesResult, alertsResult, requirementsResult, projectMetaResult, officialChanges, sourceHealth, unreviewedByProject] =
     await Promise.all([
     getOrganizationProjectAggregates(false),
     listAllProjectsForOrganization("active"),
@@ -244,6 +244,7 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
     }),
     getOfficialChangeImpactCounts(),
     getOfficialSourceHealth(),
+    getUnreviewedOfficialChangeCountsByProject(),
   ]);
 
   if (
@@ -339,6 +340,7 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
       targetCOD: row.target_cod ?? "",
       requirements: mappedRequirements,
       openAlertSeverities: alertsByProject.get(row.id) ?? [],
+      unreviewedOfficialChangeCount: unreviewedByProject.get(row.id) ?? 0,
       lastUpdated: row.updated_at,
     };
   });
