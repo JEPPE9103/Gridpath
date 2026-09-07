@@ -40,7 +40,7 @@ import {
 } from "@/types";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 const CONFIDENCES: Confidence[] = ["High", "Medium", "Low", "Unknown"];
 
@@ -61,6 +61,7 @@ export function MapPage({
   planningArea,
   spatialMatches,
   initialProjectSlug,
+  initialChangeArea,
 }: {
   result: MapProjectsResult;
   savedComparisons: SavedComparisonsResult;
@@ -68,6 +69,7 @@ export function MapPage({
   planningArea: OfficialMapFeatureCollection;
   spatialMatches: OfficialSpatialMatch[];
   initialProjectSlug?: string | null;
+  initialChangeArea?: { areaId: string; layer: OfficialMapLayer } | null;
 }) {
   if (result.kind === "no_organization") {
     return (
@@ -125,6 +127,7 @@ export function MapPage({
       planningArea={planningArea}
       spatialMatches={spatialMatches}
       initialProjectSlug={initialProjectSlug ?? null}
+      initialChangeArea={initialChangeArea ?? null}
     />
   );
 }
@@ -136,6 +139,7 @@ function LoadedMapPage({
   planningArea,
   spatialMatches,
   initialProjectSlug,
+  initialChangeArea,
 }: {
   projects: MapProject[];
   savedComparisons: Extract<SavedComparisonsResult, { kind: "ok" }> | null;
@@ -143,6 +147,7 @@ function LoadedMapPage({
   planningArea: OfficialMapFeatureCollection;
   spatialMatches: OfficialSpatialMatch[];
   initialProjectSlug: string | null;
+  initialChangeArea: { areaId: string; layer: OfficialMapLayer } | null;
 }) {
   const { compareIds, addToCompare, removeFromCompare, clearCompare } = useWorkspace();
   const [selectedSlug, setSelectedSlug] = useState<string | null>(initialProjectSlug);
@@ -155,7 +160,10 @@ function LoadedMapPage({
   const [covering, setCovering] = useState<OfficialCoveringGeojson | null>(null);
   const [officialContext, setOfficialContext] = useState<OfficialMapAreaContext | null>(null);
   const [officialLoading, setOfficialLoading] = useState(false);
-  const [officialAreaId, setOfficialAreaId] = useState<string | null>(null);
+  const [officialAreaId, setOfficialAreaId] = useState<string | null>(
+    initialChangeArea?.areaId ?? null,
+  );
+  const appliedChangeRef = useRef(false);
 
   const matchByProjectId = useMemo(
     () => new Map(spatialMatches.map((item) => [item.projectId, item])),
@@ -226,6 +234,17 @@ function LoadedMapPage({
       if (result.ok) setOfficialContext(result.context);
     });
   }, []);
+
+  useEffect(() => {
+    if (appliedChangeRef.current || !initialChangeArea?.areaId) return;
+    appliedChangeRef.current = true;
+    setLayers((current) => ({
+      ...current,
+      localNetwork: initialChangeArea.layer === "local_network" ? true : current.localNetwork,
+      planningArea: initialChangeArea.layer === "planning_area" ? true : current.planningArea,
+    }));
+    selectOfficial(initialChangeArea);
+  }, [initialChangeArea, selectOfficial]);
 
   return (
     <>
@@ -311,6 +330,7 @@ function LoadedMapPage({
             localNetwork={localNetwork}
             planningArea={planningArea}
             covering={selected ? covering : null}
+            highlightAreaId={officialAreaId}
             onSelectProject={selectProject}
             onSelectOfficial={selectOfficial}
           />
@@ -418,6 +438,7 @@ function LoadedMapPage({
             <MapOfficialPanel
               context={officialContext}
               loading={officialLoading}
+              fromPublishedChange={Boolean(initialChangeArea?.areaId && officialAreaId === initialChangeArea.areaId)}
               onClose={() => {
                 setOfficialAreaId(null);
                 setOfficialContext(null);

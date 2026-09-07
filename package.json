@@ -18,7 +18,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:intelligence": "node --import tsx --test src/lib/intelligence/project-attention.test.ts src/lib/intelligence/portfolio-attention.test.ts src/lib/intelligence/compare-explanation.test.ts src/lib/domain/official-map.test.ts",
+    "test:intelligence": "node --import tsx --test src/lib/intelligence/project-attention.test.ts src/lib/intelligence/portfolio-attention.test.ts src/lib/intelligence/compare-explanation.test.ts src/lib/domain/official-map.test.ts src/lib/domain/official-change-summary.test.ts",
     "test:tenancy": "node --import tsx --test src/lib/organization/active-org-resolve.test.ts src/lib/organization/tenant-authorization.test.ts src/lib/organization/active-org-cookie.test.ts",
     "test:portfolio": "node --import tsx --test src/lib/data/paged-select.test.ts src/lib/data/archive-filter.test.ts src/lib/import/import.test.ts src/lib/documents/storage-path.test.ts src/lib/documents/authorization.test.ts src/lib/compare/comparison-rules.test.ts",
     "test:team": "node --import tsx --test src/lib/organization/team-permissions.test.ts src/lib/organization/invite-token.test.ts src/lib/organization/member-rls-contract.test.ts src/lib/organization/invite-email.test.ts",

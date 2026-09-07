@@ -4,6 +4,7 @@ import type {
   OfficialGridAreaContext,
   OfficialNupContext,
 } from "@/lib/domain/grid-intelligence";
+import type { OfficialChangeImpactCounts } from "@/lib/data/grid-changes-types";
 import type {
   AlertSeverity,
   ChecklistStatus,
@@ -115,6 +116,7 @@ export type ProjectDetailViewModel = {
   canDeleteConnectionCase: boolean;
   officialGridAreaContext: OfficialGridAreaContext | null;
   officialNetworkDevelopmentPlanContext: OfficialNupContext | null;
+  officialChanges: OfficialChangeImpactCounts;
 };
 
 export type ProjectDetailResult =

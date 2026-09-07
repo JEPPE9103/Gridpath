@@ -1,4 +1,5 @@
 import type { PortfolioAttentionResult } from "@/lib/intelligence/types";
+import type { OfficialChangeImpactCounts } from "@/lib/data/grid-changes-types";
 import { PIPELINE_STAGES, type AlertSeverity, type Outlook, type Technology } from "@/types";
 
 export const OVERVIEW_PIPELINE_STAGES = [...PIPELINE_STAGES, "Energisation"] as const;
@@ -39,6 +40,13 @@ export type OverviewKpis = {
   needsAttention: number;
 };
 
+export const EMPTY_OFFICIAL_CHANGE_COUNTS: OfficialChangeImpactCounts = {
+  unreviewed: 0,
+  confirmed: 0,
+  dismissed: 0,
+  unreviewedProjectCount: 0,
+};
+
 export type PortfolioOverview =
   | {
       kind: "ok";
@@ -48,6 +56,8 @@ export type PortfolioOverview =
       projects: OverviewProject[];
       recentProjects: OverviewProject[];
       portfolioAttention: PortfolioAttentionResult;
+      officialChanges: OfficialChangeImpactCounts;
+      officialSourceDelayed: boolean;
       error: null;
     }
   | {
@@ -58,6 +68,8 @@ export type PortfolioOverview =
       projects: OverviewProject[];
       recentProjects: OverviewProject[];
       portfolioAttention: PortfolioAttentionResult;
+      officialChanges: OfficialChangeImpactCounts;
+      officialSourceDelayed: boolean;
       error: null;
     }
   | {
@@ -68,5 +80,7 @@ export type PortfolioOverview =
       projects: OverviewProject[];
       recentProjects: OverviewProject[];
       portfolioAttention: PortfolioAttentionResult;
+      officialChanges: OfficialChangeImpactCounts;
+      officialSourceDelayed: boolean;
       error: string;
     };

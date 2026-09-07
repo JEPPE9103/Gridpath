@@ -14,10 +14,12 @@ import type { ReactNode } from "react";
 export function MapOfficialPanel({
   context,
   loading,
+  fromPublishedChange = false,
   onClose,
 }: {
   context: OfficialMapAreaContext | null;
   loading: boolean;
+  fromPublishedChange?: boolean;
   onClose: () => void;
 }) {
   return (
@@ -31,6 +33,12 @@ export function MapOfficialPanel({
           <X size={14} />
         </button>
       </div>
+      {fromPublishedChange ? (
+        <p className="mt-3 text-xs leading-5 text-muted">
+          Official area from a published change. Thicker outline marks this area; lighter covering
+          polygons are normal project context. This is covering geography, not a technical impact.
+        </p>
+      ) : null}
       {loading ? <p className="mt-3 text-sm text-muted">Loading official context…</p> : null}
       {context && !loading ? (
         <dl className="mt-3 space-y-1.5 text-sm">

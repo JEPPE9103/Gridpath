@@ -1,15 +1,19 @@
 import { getCurrentOrganization } from "@/lib/data/organization";
 import {
+  EMPTY_OFFICIAL_CHANGE_COUNTS,
   type OverviewAlertItem,
   type OverviewKpis,
   type OverviewProject,
   type PortfolioOverview,
 } from "@/lib/data/overview-types";
+import { getOfficialChangeImpactCounts } from "@/lib/data/grid-changes";
+import { getOfficialSourceHealth } from "@/lib/data/source-health";
 import { applyArchiveFilter } from "@/lib/data/archive-filter";
 import { fetchAllQueryPages } from "@/lib/data/paged-select";
 import { getOrganizationProjectAggregates } from "@/lib/data/project-aggregates";
 import { listAllProjectsForOrganization } from "@/lib/data/projects";
 import { applicationReadinessFromRequirements } from "@/lib/domain/application-readiness";
+import { isOfficialSourceUpdateDelayed } from "@/lib/domain/official-change-summary";
 import {
   checklistStatusLabel,
   confidenceLabel,
@@ -118,6 +122,8 @@ function emptyOverview(
       projects: [],
       recentProjects: [],
       portfolioAttention: EMPTY_PORTFOLIO_ATTENTION,
+      officialChanges: EMPTY_OFFICIAL_CHANGE_COUNTS,
+      officialSourceDelayed: false,
       error: null,
     };
   }
@@ -128,8 +134,10 @@ function emptyOverview(
     alerts: [],
     projects: [],
     recentProjects: [],
-    portfolioAttention: EMPTY_PORTFOLIO_ATTENTION,
-    error: error ?? "Could not load overview.",
+      portfolioAttention: EMPTY_PORTFOLIO_ATTENTION,
+      officialChanges: EMPTY_OFFICIAL_CHANGE_COUNTS,
+      officialSourceDelayed: false,
+      error: error ?? "Could not load overview.",
   };
 }
 
@@ -175,7 +183,7 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
   }
 
   const supabase = await createSupabaseServerClient();
-  const [aggregatesResult, projectsResult, casesResult, alertsResult, requirementsResult, projectMetaResult] =
+  const [aggregatesResult, projectsResult, casesResult, alertsResult, requirementsResult, projectMetaResult, officialChanges, sourceHealth] =
     await Promise.all([
     getOrganizationProjectAggregates(false),
     listAllProjectsForOrganization("active"),
@@ -234,6 +242,8 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
       ).range(from, to);
       return { data: page.data as ProjectMetaRow[] | null, error: page.error };
     }),
+    getOfficialChangeImpactCounts(),
+    getOfficialSourceHealth(),
   ]);
 
   if (
@@ -349,6 +359,8 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
     projects,
     recentProjects: projects.slice(0, 6),
     portfolioAttention,
+    officialChanges,
+    officialSourceDelayed: sourceHealth.some((item) => isOfficialSourceUpdateDelayed(item.health)),
     error: null,
   };
 }

@@ -21,6 +21,7 @@ import { memo, useEffect, useRef, useState } from "react";
 const LOCAL_SOURCE = "official-local-network";
 const NUP_SOURCE = "official-nup";
 const COVER_SOURCE = "official-covering";
+const CHANGE_HIGHLIGHT_SOURCE = "official-change-highlight";
 const FILL_MIN_ZOOM = 5.6;
 const EMPTY_COLLECTION = {
   type: "FeatureCollection" as const,
@@ -34,6 +35,7 @@ export const SwedenMap = memo(function SwedenMap({
   localNetwork,
   planningArea,
   covering,
+  highlightAreaId,
   onSelectProject,
   onSelectOfficial,
 }: {
@@ -43,6 +45,7 @@ export const SwedenMap = memo(function SwedenMap({
   localNetwork: OfficialMapFeatureCollection;
   planningArea: OfficialMapFeatureCollection;
   covering: OfficialCoveringGeojson | null;
+  highlightAreaId?: string | null;
   onSelectProject: (slug: string) => void;
   onSelectOfficial: (input: { areaId: string; layer: OfficialMapLayer }) => void;
 }) {
@@ -151,6 +154,24 @@ export const SwedenMap = memo(function SwedenMap({
       provenance: null,
     });
   }, [covering, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const highlight = findHighlightFeature(
+      highlightAreaId,
+      covering,
+      collectionsRef.current.localNetwork,
+      collectionsRef.current.planningArea,
+    );
+    setSourceData(map, CHANGE_HIGHLIGHT_SOURCE, {
+      type: "FeatureCollection",
+      features: highlight ? [highlight] : [],
+      truncated: false,
+      featureCount: highlight ? 1 : 0,
+      provenance: null,
+    });
+  }, [covering, highlightAreaId, localNetwork, planningArea, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -333,6 +354,7 @@ function addOfficialLayers(map: MapLibreMap) {
   map.addSource(LOCAL_SOURCE, source);
   map.addSource(NUP_SOURCE, { ...source });
   map.addSource(COVER_SOURCE, { ...source, tolerance: 0.8 });
+  map.addSource(CHANGE_HIGHLIGHT_SOURCE, { ...source, tolerance: 0.8 });
 
   map.addLayer({
     id: "official-nup-fill",
@@ -392,6 +414,40 @@ function addOfficialLayers(map: MapLibreMap) {
     paint: { "line-color": "#163A34", "line-width": 2.2 },
     layout: { "line-join": "round", "line-cap": "round" },
   });
+  map.addLayer({
+    id: "official-change-highlight-fill",
+    type: "fill",
+    source: CHANGE_HIGHLIGHT_SOURCE,
+    paint: {
+      "fill-color": ["match", ["get", "layer"], "planning_area", NUP_FILL, LOCAL_NETWORK_FILL],
+      "fill-opacity": 0.12,
+    },
+  });
+  map.addLayer({
+    id: "official-change-highlight-line",
+    type: "line",
+    source: CHANGE_HIGHLIGHT_SOURCE,
+    paint: { "line-color": "#163A34", "line-width": 3.4 },
+    layout: { "line-join": "round", "line-cap": "round" },
+  });
+}
+
+function findHighlightFeature(
+  areaId: string | null | undefined,
+  covering: OfficialCoveringGeojson | null,
+  localNetwork: OfficialMapFeatureCollection,
+  planningArea: OfficialMapFeatureCollection,
+): OfficialMapFeatureCollection["features"][number] | null {
+  if (!areaId) return null;
+  const coveringHits = [covering?.localNetwork, covering?.planningArea].filter(
+    (feature): feature is NonNullable<typeof feature> => Boolean(feature?.geometry),
+  );
+  return (
+    coveringHits.find((feature) => feature.properties.id === areaId || feature.id === areaId) ??
+    localNetwork.features.find((feature) => feature.properties.id === areaId || feature.id === areaId) ??
+    planningArea.features.find((feature) => feature.properties.id === areaId || feature.id === areaId) ??
+    null
+  );
 }
 
 function setSourceData(map: MapLibreMap, sourceId: string, collection: OfficialMapFeatureCollection) {

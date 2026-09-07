@@ -384,10 +384,12 @@ describe("notification copy and delivery semantics", () => {
       detectedAtLabel: "2026-09-05",
       appUrl: "https://www.noxheim.com",
     });
-    assert.match(text, /may be relevant to North BESS/);
-    assert.equal(/your connection is at risk|capacity loss/i.test(text), false);
-    assert.match(text, /does not mean the project will be negatively affected/);
-    assert.match(impactEmailSubject("North BESS"), /may be relevant to North BESS/);
+    assert.match(text, /North BESS geographically overlaps/);
+    assert.match(text, /may be relevant/);
+    assert.equal(/your connection is at risk|capacity loss|technically impacted technically/i.test(text), false);
+    assert.match(text, /does not mean the project is technically impacted/);
+    assert.match(impactEmailSubject("North BESS"), /Official grid publication changed/);
+    assert.match(impactEmailSubject("North BESS"), /North BESS may be relevant/);
   });
 
   it("does not treat attempted or failed provider results as sent", () => {
@@ -426,6 +428,8 @@ describe("notification copy and delivery semantics", () => {
       "https://www.noxheim.com",
     );
     assert.match(digest, /Org A/);
+    assert.match(digest, /Official publications/);
+    assert.match(digest, /not technical impact verdicts/);
     assert.equal(digest.includes("Org B"), false);
   });
 });

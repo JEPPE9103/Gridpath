@@ -10,6 +10,7 @@ import {
 import { Button, buttonClassName } from "@/components/ui/button";
 import { Disclaimer, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { OfficialChangesSignal } from "@/features/changes/official-changes-signal";
 import { OfficialGeographicContextSection } from "@/features/projects/official-geographic-context";
 import { OfficialNetworkDevelopmentPlanSection } from "@/features/projects/network-development-plan-section";
 import { OfficialDataFreshnessStrip } from "@/features/projects/official-data-freshness";
@@ -32,6 +33,7 @@ import { DevelopmentBrief } from "@/features/projects/development-brief";
 import { RequirementsManager } from "@/features/projects/requirements-manager";
 import type { GridOperatorOption } from "@/lib/data/grid-operators";
 import type { SourceHealthView } from "@/lib/data/source-health";
+import { isOfficialSourceUpdateDelayed } from "@/lib/domain/official-change-summary";
 import {
   formatDate,
   formatImportExport,
@@ -246,7 +248,7 @@ function LoadedProjectPage({
       </div>
 
       <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-        {tab === "overview" ? <OverviewTab project={project} /> : null}
+        {tab === "overview" ? <OverviewTab project={project} sourceHealth={sourceHealth} /> : null}
         {tab === "grid" ? <GridTab project={project} sourceHealth={sourceHealth} /> : null}
         {tab === "connection" ? (
           <ConnectionTab project={project} operators={operators} />
@@ -275,10 +277,21 @@ function Meta({
   );
 }
 
-function OverviewTab({ project }: { project: ProjectDetailViewModel }) {
+function OverviewTab({
+  project,
+  sourceHealth,
+}: {
+  project: ProjectDetailViewModel;
+  sourceHealth: SourceHealthView[];
+}) {
   return (
     <div className="space-y-4">
       <DevelopmentBrief project={project} />
+      <OfficialChangesSignal
+        counts={project.officialChanges}
+        href={`/changes?project=${encodeURIComponent(project.id)}`}
+        sourceDelayed={sourceHealth.some((item) => isOfficialSourceUpdateDelayed(item.health))}
+      />
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <RequirementsManager project={project} />
@@ -388,6 +401,11 @@ function GridTab({
         localNetwork={context}
         nup={project.officialNetworkDevelopmentPlanContext}
         sourceHealth={sourceHealth}
+      />
+      <OfficialChangesSignal
+        counts={project.officialChanges}
+        href={`/changes?project=${encodeURIComponent(project.id)}`}
+        sourceDelayed={sourceHealth.some((item) => isOfficialSourceUpdateDelayed(item.health))}
       />
       <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4">
