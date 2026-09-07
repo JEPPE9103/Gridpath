@@ -10,6 +10,7 @@ import {
 import { Button, buttonClassName } from "@/components/ui/button";
 import { Disclaimer, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { OfficialGeographicContextSection } from "@/features/projects/official-geographic-context";
 import { OfficialNetworkDevelopmentPlanSection } from "@/features/projects/network-development-plan-section";
 import { OfficialDataFreshnessStrip } from "@/features/projects/official-data-freshness";
 import { DocumentTable } from "@/features/documents/document-table";
@@ -30,6 +31,7 @@ import { ConnectionCasePanel } from "@/features/projects/connection-case-panel";
 import { DevelopmentBrief } from "@/features/projects/development-brief";
 import { RequirementsManager } from "@/features/projects/requirements-manager";
 import type { GridOperatorOption } from "@/lib/data/grid-operators";
+import type { SourceHealthView } from "@/lib/data/source-health";
 import {
   formatDate,
   formatImportExport,
@@ -92,10 +94,12 @@ export function ProjectPage({
   project,
   error,
   operators = [],
+  sourceHealth = [],
 }: {
   project: ProjectDetailViewModel | null;
   error: string | null;
   operators?: GridOperatorOption[];
+  sourceHealth?: SourceHealthView[];
 }) {
   const { addToCompare, compareIds } = useWorkspace();
   const searchParams = useSearchParams();
@@ -144,6 +148,7 @@ export function ProjectPage({
     <LoadedProjectPage
       project={project}
       operators={operators}
+      sourceHealth={sourceHealth}
       tab={tab}
       compareIds={compareIds}
       onAddToCompare={addToCompare}
@@ -155,6 +160,7 @@ export function ProjectPage({
 function LoadedProjectPage({
   project,
   operators,
+  sourceHealth,
   tab,
   compareIds,
   onAddToCompare,
@@ -162,6 +168,7 @@ function LoadedProjectPage({
 }: {
   project: ProjectDetailViewModel;
   operators: GridOperatorOption[];
+  sourceHealth: SourceHealthView[];
   tab: TabId;
   compareIds: string[];
   onAddToCompare: (id: string, name?: string) => boolean;
@@ -240,7 +247,7 @@ function LoadedProjectPage({
 
       <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         {tab === "overview" ? <OverviewTab project={project} /> : null}
-        {tab === "grid" ? <GridTab project={project} /> : null}
+        {tab === "grid" ? <GridTab project={project} sourceHealth={sourceHealth} /> : null}
         {tab === "connection" ? (
           <ConnectionTab project={project} operators={operators} />
         ) : null}
@@ -348,7 +355,13 @@ function OverviewTab({ project }: { project: ProjectDetailViewModel }) {
   );
 }
 
-function GridTab({ project }: { project: ProjectDetailViewModel }) {
+function GridTab({
+  project,
+  sourceHealth,
+}: {
+  project: ProjectDetailViewModel;
+  sourceHealth: SourceHealthView[];
+}) {
   const context = project.officialGridAreaContext;
   const area = context?.areas[0] ?? null;
   const provenance = context?.provenance ?? null;
@@ -367,6 +380,14 @@ function GridTab({ project }: { project: ProjectDetailViewModel }) {
       <OfficialDataFreshnessStrip
         localNetwork={context}
         nup={project.officialNetworkDevelopmentPlanContext}
+      />
+      <OfficialGeographicContextSection
+        slug={project.slug}
+        latitude={context?.coordinate?.latitude ?? (project.hasCoordinates ? project.latitude : null)}
+        longitude={context?.coordinate?.longitude ?? (project.hasCoordinates ? project.longitude : null)}
+        localNetwork={context}
+        nup={project.officialNetworkDevelopmentPlanContext}
+        sourceHealth={sourceHealth}
       />
       <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4">
@@ -436,9 +457,13 @@ function GridTab({ project }: { project: ProjectDetailViewModel }) {
               </p>
             </>
           ) : (
-            <p className="mt-3 text-sm text-muted">
-              No official local network area match is currently available for this project location.
-            </p>
+            <div className="mt-3">
+              <p className="text-sm font-medium">No local network area match</p>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                NOXHEIM did not find an official Ei local-network geometry covering this project
+                coordinate in the current dataset.
+              </p>
+            </div>
           )}
         </section>
       </div>

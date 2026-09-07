@@ -8,11 +8,26 @@ import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badge
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { markerColor, STYLE } from "@/features/map/mini-map";
-import { bindMapResize, ensureMapLibreWorker } from "@/features/map/maplibre-setup";
+import { MapGridContextCard } from "@/features/map/map-grid-context";
+import { MapLayerControl } from "@/features/map/map-layer-control";
+import { MapLegend } from "@/features/map/map-legend";
+import { MapOfficialPanel } from "@/features/map/map-official-panel";
+import { MapSpatialSummary } from "@/features/map/map-spatial-summary";
+import { SwedenMap } from "@/features/map/sweden-map";
+import { markerColor } from "@/features/map/mini-map";
 import { cn } from "@/lib/cn";
+import type { OfficialCoveringGeojson, OfficialMapAreaContext } from "@/lib/data/official-map";
 import type { MapProject, MapProjectsResult } from "@/lib/data/map-types";
 import type { SavedComparisonsResult } from "@/lib/data/portfolio-comparisons";
+import {
+  DEFAULT_OFFICIAL_MAP_LAYERS,
+  isUnmatchedReviewProject,
+  summarizeOfficialSpatialMatches,
+  type OfficialMapFeatureCollection,
+  type OfficialMapLayer,
+  type OfficialSpatialMatch,
+} from "@/lib/domain/official-map";
+import { loadOfficialCoveringAction, loadOfficialMapAreaContextAction } from "@/lib/map/actions";
 import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { useWorkspace } from "@/lib/workspace-state";
@@ -23,10 +38,9 @@ import {
   type Outlook,
   type Technology,
 } from "@/types";
-import { Map, Marker, NavigationControl } from "maplibre-gl";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 const CONFIDENCES: Confidence[] = ["High", "Medium", "Low", "Unknown"];
 
@@ -43,9 +57,17 @@ const EMPTY_FILTERS = {
 export function MapPage({
   result,
   savedComparisons,
+  localNetwork,
+  planningArea,
+  spatialMatches,
+  initialProjectSlug,
 }: {
   result: MapProjectsResult;
   savedComparisons: SavedComparisonsResult;
+  localNetwork: OfficialMapFeatureCollection;
+  planningArea: OfficialMapFeatureCollection;
+  spatialMatches: OfficialSpatialMatch[];
+  initialProjectSlug?: string | null;
 }) {
   if (result.kind === "no_organization") {
     return (
@@ -99,6 +121,10 @@ export function MapPage({
     <LoadedMapPage
       projects={result.projects}
       savedComparisons={savedComparisons.kind === "ok" ? savedComparisons : null}
+      localNetwork={localNetwork}
+      planningArea={planningArea}
+      spatialMatches={spatialMatches}
+      initialProjectSlug={initialProjectSlug ?? null}
     />
   );
 }
@@ -106,16 +132,35 @@ export function MapPage({
 function LoadedMapPage({
   projects,
   savedComparisons,
+  localNetwork,
+  planningArea,
+  spatialMatches,
+  initialProjectSlug,
 }: {
   projects: MapProject[];
   savedComparisons: Extract<SavedComparisonsResult, { kind: "ok" }> | null;
+  localNetwork: OfficialMapFeatureCollection;
+  planningArea: OfficialMapFeatureCollection;
+  spatialMatches: OfficialSpatialMatch[];
+  initialProjectSlug: string | null;
 }) {
   const { compareIds, addToCompare, removeFromCompare, clearCompare } = useWorkspace();
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(initialProjectSlug);
   const [compareOpen, setCompareOpen] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [layers, setLayers] = useState(DEFAULT_OFFICIAL_MAP_LAYERS);
+  const [unmatchedOnly, setUnmatchedOnly] = useState(false);
+  const [covering, setCovering] = useState<OfficialCoveringGeojson | null>(null);
+  const [officialContext, setOfficialContext] = useState<OfficialMapAreaContext | null>(null);
+  const [officialLoading, setOfficialLoading] = useState(false);
+  const [officialAreaId, setOfficialAreaId] = useState<string | null>(null);
+
+  const matchByProjectId = useMemo(
+    () => new Map(spatialMatches.map((item) => [item.projectId, item])),
+    [spatialMatches],
+  );
 
   const operators = useMemo(
     () => ["All", ...new Set(projects.map((project) => project.gridOperator).filter(Boolean))].sort(),
@@ -123,13 +168,27 @@ function LoadedMapPage({
   );
 
   const filtered = useMemo(
-    () => projects.filter((project) => matchesFilters(project, filters)),
-    [projects, filters],
+    () =>
+      projects.filter((project) => {
+        if (!matchesFilters(project, filters)) return false;
+        if (!unmatchedOnly) return true;
+        return isUnmatchedReviewProject(matchByProjectId.get(project.id), isPlottable(project));
+      }),
+    [projects, filters, unmatchedOnly, matchByProjectId],
   );
   const mapped = useMemo(() => filtered.filter(isPlottable), [filtered]);
   const ungeocoded = useMemo(
     () => filtered.filter((project) => !isPlottable(project)),
     [filtered],
+  );
+  const spatialSummary = useMemo(
+    () =>
+      summarizeOfficialSpatialMatches({
+        activeProjects: projects.length,
+        plottableProjectIds: projects.filter(isPlottable).map((project) => project.id),
+        matches: spatialMatches,
+      }),
+    [projects, spatialMatches],
   );
 
   const visibleSelectedSlug =
@@ -138,13 +197,41 @@ function LoadedMapPage({
     ? (projects.find((project) => project.slug === visibleSelectedSlug) ?? null)
     : null;
   const compared = projects.filter((project) => compareIds.includes(project.slug));
-  const filtersActive = hasActiveFilters(filters);
+  const filtersActive = hasActiveFilters(filters) || unmatchedOnly;
+
+  useEffect(() => {
+    if (!selected?.id) return;
+    let cancelled = false;
+    loadOfficialCoveringAction(selected.id).then((result) => {
+      if (!cancelled && result.ok) setCovering(result.covering);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.id]);
+
+  function selectProject(slug: string) {
+    setSelectedSlug(slug);
+    setOfficialAreaId(null);
+    setOfficialContext(null);
+    setDetailCollapsed(false);
+  }
+
+  function selectOfficial(input: { areaId: string; layer: OfficialMapLayer }) {
+    setOfficialAreaId(input.areaId);
+    setOfficialLoading(true);
+    setDetailCollapsed(false);
+    loadOfficialMapAreaContextAction(input.areaId).then((result) => {
+      setOfficialLoading(false);
+      if (result.ok) setOfficialContext(result.context);
+    });
+  }
 
   return (
     <>
       <PageHeader
         title="Map & Compare"
-        subtitle="Portfolio map · your development projects across the portfolio"
+        subtitle="Official Ei geography on your portfolio · covering areas, not connection capacity"
         actions={
           <>
             <Button variant="secondary" onClick={() => setCompareOpen(true)} disabled={compared.length === 0}>
@@ -211,13 +298,32 @@ function LoadedMapPage({
             value={filters.minExport}
             onChange={(value) => setFilters((current) => ({ ...current, minExport: value }))}
           />
-          <Button variant="ghost" onClick={() => setFilters(EMPTY_FILTERS)} disabled={!filtersActive}>
+          <Button variant="ghost" onClick={() => { setFilters(EMPTY_FILTERS); setUnmatchedOnly(false); }} disabled={!filtersActive}>
             Reset filters
           </Button>
         </div>
 
         <div className="relative h-[calc(100dvh-14.5rem)] min-h-[360px] overflow-hidden rounded-md border border-line bg-surface sm:h-[calc(100vh-220px)] sm:min-h-[520px]">
-          <SwedenMap projects={mapped} selectedId={visibleSelectedSlug} onSelect={setSelectedSlug} />
+          <SwedenMap
+            projects={mapped}
+            selectedId={visibleSelectedSlug}
+            layers={layers}
+            localNetwork={localNetwork}
+            planningArea={planningArea}
+            covering={selected ? covering : null}
+            onSelectProject={selectProject}
+            onSelectOfficial={selectOfficial}
+          />
+
+          <div className="absolute left-3 top-3 z-10 flex max-h-[42%] max-w-[min(100%-1.5rem,20rem)] flex-col gap-2 overflow-auto sm:left-[16.5rem] sm:max-h-[calc(100%-1.5rem)] sm:max-w-[16rem]">
+            <MapLayerControl layers={layers} onChange={setLayers} />
+            <MapLegend />
+            <MapSpatialSummary
+              summary={spatialSummary}
+              unmatchedActive={unmatchedOnly}
+              onToggleUnmatched={() => setUnmatchedOnly((current) => !current)}
+            />
+          </div>
 
           {mapped.length === 0 ? (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
@@ -281,6 +387,8 @@ function LoadedMapPage({
                         type="button"
                         onClick={() => {
                           setSelectedSlug(project.slug);
+                          setOfficialAreaId(null);
+                          setOfficialContext(null);
                           setDetailCollapsed(false);
                         }}
                         className={cn(
@@ -306,7 +414,16 @@ function LoadedMapPage({
             )}
           </div>
 
-          {selected && !detailCollapsed ? (
+          {officialAreaId ? (
+            <MapOfficialPanel
+              context={officialContext}
+              loading={officialLoading}
+              onClose={() => {
+                setOfficialAreaId(null);
+                setOfficialContext(null);
+              }}
+            />
+          ) : selected && !detailCollapsed ? (
             <aside className="absolute inset-x-3 bottom-3 max-h-[58%] overflow-auto rounded-md border border-line bg-surface p-4 md:inset-x-auto md:bottom-auto md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-[320px]">
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -337,6 +454,10 @@ function LoadedMapPage({
                 <Line label="Target COD" value={selected.targetCOD || "—"} />
                 <Line label="Application readiness" value={readinessLabel(selected.readinessPercent)} />
               </dl>
+              <MapGridContextCard
+                project={selected}
+                match={matchByProjectId.get(selected.id)}
+              />
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <Link href={`/projects/${selected.slug}`} className="flex-1">
                   <Button className="w-full">Open Project</Button>
@@ -367,16 +488,17 @@ function LoadedMapPage({
 
         <div className="mt-3 space-y-1">
           <p className="text-[11px] uppercase tracking-[0.12em] text-muted">
-            Customer / project data · team outlook markers
+            Customer / project data
+            <span className="mx-2 text-muted">|</span>
+            Official Ei Grid Intelligence · covering geography
             <span className="mx-2 text-muted">|</span>
             Portfolio comparison · development triage ranking
-            <span className="mx-2 text-muted">|</span>
-            Official Ei Grid Intelligence · on each project Grid tab
           </p>
           <p className="text-xs leading-5 text-muted">
-            Map colours and compare ranking use customer-entered and workflow fields for portfolio
-            triage. They are not an official grid score or capacity assessment. Official local-network
-            and NUP context live on the project Grid Intelligence tab.
+            Map colours use customer-entered team outlook. Official polygons are Ei local-network
+            concession areas and NUP planning geography. Covering official area is geographic
+            context, not a connection point. NUP figures are published forecast transfer-capacity
+            need and do not represent available connection capacity or grid headroom.
           </p>
           {savedComparisons && savedComparisons.comparisons.length > 0 ? (
             <div className="mt-3">
@@ -439,77 +561,6 @@ function LoadedMapPage({
       ) : null}
     </>
   );
-}
-
-function SwedenMap({
-  projects,
-  selectedId,
-  onSelect,
-}: {
-  projects: MapProject[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<Map | null>(null);
-  const [mapReady, setMapReady] = useState(false);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || mapRef.current) return;
-
-    ensureMapLibreWorker();
-    const map = new Map({
-      container,
-      style: STYLE,
-      center: [16.2, 62.2],
-      zoom: 4.35,
-      attributionControl: { compact: true },
-    });
-    map.addControl(new NavigationControl({ showCompass: false }), "bottom-left");
-    const unbindResize = bindMapResize(map, container);
-    mapRef.current = map;
-    map.once("load", () => setMapReady(true));
-    return () => {
-      unbindResize();
-      map.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-    const markers: Marker[] = [];
-
-    for (const project of projects) {
-      const el = document.createElement("button");
-      el.type = "button";
-      el.style.width = selectedId === project.slug ? "18px" : "14px";
-      el.style.height = selectedId === project.slug ? "18px" : "14px";
-      el.style.borderRadius = "999px";
-      el.style.background = markerColor(project.outlook);
-      el.style.border = "2px solid white";
-      el.style.boxShadow =
-        selectedId === project.slug
-          ? "0 0 0 3px rgba(42,122,111,0.35)"
-          : "0 0 0 1px rgba(26,30,36,0.2)";
-      el.style.cursor = "pointer";
-      el.title = project.name;
-      el.onclick = () => onSelect(project.slug);
-      markers.push(
-        new Marker({ element: el })
-          .setLngLat([project.longitude, project.latitude])
-          .addTo(map),
-      );
-    }
-
-    return () => {
-      markers.forEach((marker) => marker.remove());
-    };
-  }, [projects, selectedId, onSelect, mapReady]);
-
-  return <div ref={containerRef} className="h-full w-full" />;
 }
 
 function matchesFilters(

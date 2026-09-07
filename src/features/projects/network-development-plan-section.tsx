@@ -108,10 +108,12 @@ export function OfficialNetworkDevelopmentPlanSection({
           />
         </>
       ) : (
-        <p className="mt-3 text-sm text-muted">
-          No official Network Development Plan planning-area match is currently available for
-          this project location.
-        </p>
+        <>
+          <p className="mt-3 text-sm font-medium">No NUP context match</p>
+          <p className="mt-1 text-sm leading-6 text-muted">
+            No published NUP geography currently matched this project location.
+          </p>
+        </>
       )}
 
       <div className="mt-6 border-t border-line pt-4">
