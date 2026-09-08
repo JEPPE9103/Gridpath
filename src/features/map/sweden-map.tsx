@@ -6,23 +6,33 @@ import { markerColor, STYLE } from "@/features/map/mini-map";
 import type { MapProject } from "@/lib/data/map-types";
 import type { OfficialCoveringGeojson } from "@/lib/data/official-map";
 import type {
+  OfficialMapAreaPreview,
+  OfficialMapCachedViewport,
   OfficialMapFeatureCollection,
   OfficialMapLayer,
   OfficialMapLayerVisibility,
 } from "@/lib/domain/official-map";
 import {
+  OFFICIAL_MAP_FILL_MIN_ZOOM,
   OFFICIAL_MAP_OVERVIEW_MAX_ZOOM,
-  officialMapViewportFetchKey,
+  decideOfficialMapViewportFetch,
+  officialMapAreaPreviewFromProperties,
+  officialMapBboxContains,
+  shouldApplyOfficialMapResponse,
 } from "@/lib/domain/official-map";
+import {
+  getCachedOfficialGeometry,
+  officialGeometryCacheKey,
+  setCachedOfficialGeometry,
+} from "@/lib/map/official-geometry-cache";
 import { loadOfficialMapLayerAction } from "@/lib/map/actions";
-import { Map as MapLibreMap, Marker, NavigationControl, type GeoJSONSource, type MapMouseEvent } from "maplibre-gl";
+import { Map as MapLibreMap, Marker, NavigationControl, type GeoJSONSource, type MapGeoJSONFeature, type MapMouseEvent } from "maplibre-gl";
 import { memo, useEffect, useRef, useState } from "react";
 
 const LOCAL_SOURCE = "official-local-network";
 const NUP_SOURCE = "official-nup";
 const COVER_SOURCE = "official-covering";
 const CHANGE_HIGHLIGHT_SOURCE = "official-change-highlight";
-const FILL_MIN_ZOOM = 5.6;
 const EMPTY_COLLECTION = {
   type: "FeatureCollection" as const,
   features: [] as Array<Record<string, unknown>>,
@@ -36,6 +46,7 @@ export const SwedenMap = memo(function SwedenMap({
   planningArea,
   covering,
   highlightAreaId,
+  highlightLayer,
   onSelectProject,
   onSelectOfficial,
 }: {
@@ -46,8 +57,9 @@ export const SwedenMap = memo(function SwedenMap({
   planningArea: OfficialMapFeatureCollection;
   covering: OfficialCoveringGeojson | null;
   highlightAreaId?: string | null;
+  highlightLayer?: OfficialMapLayer | null;
   onSelectProject: (slug: string) => void;
-  onSelectOfficial: (input: { areaId: string; layer: OfficialMapLayer }) => void;
+  onSelectOfficial: (input: OfficialMapAreaPreview) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -56,9 +68,12 @@ export const SwedenMap = memo(function SwedenMap({
   const onSelectProjectRef = useRef(onSelectProject);
   const onSelectOfficialRef = useRef(onSelectOfficial);
   const markersRef = useRef(new Map<string, Marker>());
-  const ignoreMoveEndRef = useRef(0);
   const fetchKeyRef = useRef("overview");
+  const inFlightKeyRef = useRef<string | null>(null);
   const fetchGenerationRef = useRef(0);
+  const cachedViewportRef = useRef<OfficialMapCachedViewport | null>(null);
+  const selectedOfficialRef = useRef<{ areaId: string; layer: OfficialMapLayer } | null>(null);
+  const lastSelectedMarkerRef = useRef<string | null>(null);
   const lastFittedSlugRef = useRef<string | null>(null);
 
   onSelectProjectRef.current = onSelectProject;
@@ -90,6 +105,7 @@ export const SwedenMap = memo(function SwedenMap({
     map.touchZoomRotate.disableRotation();
     map.addControl(new NavigationControl({ showCompass: false }), "bottom-left");
     const unbindResize = bindMapResize(map, container);
+    const markers = markersRef.current;
     mapRef.current = map;
     map.once("load", () => {
       addOfficialLayers(map);
@@ -99,7 +115,6 @@ export const SwedenMap = memo(function SwedenMap({
     });
     return () => {
       unbindResize();
-      const markers = markersRef.current;
       markers.forEach((marker) => marker.remove());
       markers.clear();
       map.remove();
@@ -158,20 +173,18 @@ export const SwedenMap = memo(function SwedenMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
-    const highlight = findHighlightFeature(
-      highlightAreaId,
-      covering,
-      collectionsRef.current.localNetwork,
-      collectionsRef.current.planningArea,
-    );
-    setSourceData(map, CHANGE_HIGHLIGHT_SOURCE, {
-      type: "FeatureCollection",
-      features: highlight ? [highlight] : [],
-      truncated: false,
-      featureCount: highlight ? 1 : 0,
-      provenance: null,
-    });
-  }, [covering, highlightAreaId, localNetwork, planningArea, mapReady]);
+    if (highlightAreaId) {
+      selectedOfficialRef.current = {
+        areaId: highlightAreaId,
+        layer:
+          highlightLayer ??
+          inferOfficialLayer(highlightAreaId, covering, collectionsRef.current),
+      };
+    } else {
+      selectedOfficialRef.current = null;
+    }
+    applyOfficialSelection(map, selectedOfficialRef.current);
+  }, [highlightAreaId, highlightLayer, covering, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -187,24 +200,36 @@ export const SwedenMap = memo(function SwedenMap({
         ],
       });
       const hit = hits[0];
-      const areaId =
-        (typeof hit?.properties?.id === "string" && hit.properties.id) ||
-        (typeof hit?.id === "string" ? hit.id : null);
-      const layer =
-        hit?.properties?.layer === "planning_area"
-          ? "planning_area"
-          : hit?.properties?.layer === "local_network"
-            ? "local_network"
-            : hit?.layer?.id.includes("nup")
-              ? "planning_area"
-              : "local_network";
-      if (areaId) {
-        onSelectOfficialRef.current({ areaId, layer });
-      }
+      const preview = previewFromFeature(hit);
+      if (!preview) return;
+      selectedOfficialRef.current = { areaId: preview.areaId, layer: preview.layer };
+      applyOfficialSelection(map, selectedOfficialRef.current);
+      onSelectOfficialRef.current(preview);
+    };
+    const interactiveLayers = [
+      "official-local-network-fill",
+      "official-nup-fill",
+      "official-covering-fill",
+      "official-local-network-line",
+      "official-nup-line",
+    ];
+    const onEnter = () => {
+      map.getCanvas().style.cursor = "pointer";
+    };
+    const onLeave = () => {
+      map.getCanvas().style.cursor = "";
     };
     map.on("click", handleClick);
+    for (const layerId of interactiveLayers) {
+      map.on("mouseenter", layerId, onEnter);
+      map.on("mouseleave", layerId, onLeave);
+    }
     return () => {
       map.off("click", handleClick);
+      for (const layerId of interactiveLayers) {
+        map.off("mouseenter", layerId, onEnter);
+        map.off("mouseleave", layerId, onLeave);
+      }
     };
   }, [mapReady]);
 
@@ -216,54 +241,132 @@ export const SwedenMap = memo(function SwedenMap({
     const restoreOverview = () => {
       if (fetchKeyRef.current === "overview") return;
       fetchKeyRef.current = "overview";
+      inFlightKeyRef.current = null;
+      cachedViewportRef.current = null;
       setSourceData(map, LOCAL_SOURCE, collectionsRef.current.localNetwork);
       setSourceData(map, NUP_SOURCE, collectionsRef.current.planningArea);
+      applyOfficialSelection(map, selectedOfficialRef.current);
     };
 
-    const loadViewport = async () => {
-      if (ignoreMoveEndRef.current > 0) return;
-      const zoom = map.getZoom();
-      if (zoom < OFFICIAL_MAP_OVERVIEW_MAX_ZOOM) {
-        restoreOverview();
-        return;
-      }
+    const visibleBbox = () => {
       const bounds = map.getBounds();
-      const key = officialMapViewportFetchKey({
-        zoom,
-        west: bounds.getWest(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        north: bounds.getNorth(),
-      });
-      if (!key || key === fetchKeyRef.current) return;
-      fetchKeyRef.current = key;
-      const generation = (fetchGenerationRef.current += 1);
-      const bbox = {
+      return {
         west: bounds.getWest(),
         south: bounds.getSouth(),
         east: bounds.getEast(),
         north: bounds.getNorth(),
       };
+    };
+
+    const applyLayerCollection = (
+      sourceId: string,
+      layer: OfficialMapLayer,
+      fetchKey: string,
+      collection: OfficialMapFeatureCollection,
+    ) => {
+      setCachedOfficialGeometry(officialGeometryCacheKey(layer, fetchKey), collection);
+      setSourceData(map, sourceId, collection);
+    };
+
+    const loadViewport = async () => {
+      const zoom = map.getZoom();
+      const visible = visibleBbox();
+      const decision = decideOfficialMapViewportFetch({
+        zoom,
+        visible,
+        cached: cachedViewportRef.current,
+      });
+      if (decision.action === "overview") {
+        restoreOverview();
+        return;
+      }
+      if (decision.action === "keep") return;
+      if (decision.key === fetchKeyRef.current || decision.key === inFlightKeyRef.current) return;
+      inFlightKeyRef.current = decision.key;
+      const generation = (fetchGenerationRef.current += 1);
+      const localKey = officialGeometryCacheKey("local_network", decision.key);
+      const nupKey = officialGeometryCacheKey("planning_area", decision.key);
+      const cachedLocal = getCachedOfficialGeometry(localKey);
+      const cachedNup = getCachedOfficialGeometry(nupKey);
+      if (cachedLocal && cachedNup) {
+        fetchKeyRef.current = decision.key;
+        inFlightKeyRef.current = null;
+        setSourceData(map, LOCAL_SOURCE, cachedLocal);
+        setSourceData(map, NUP_SOURCE, cachedNup);
+        cachedViewportRef.current = {
+          key: decision.key,
+          band: decision.band,
+          bbox: decision.requestBbox,
+        };
+        applyOfficialSelection(map, selectedOfficialRef.current);
+        return;
+      }
       const [localResult, nupResult] = await Promise.all([
-        loadOfficialMapLayerAction({ layer: "local_network", bbox, zoom }),
-        loadOfficialMapLayerAction({ layer: "planning_area", bbox, zoom }),
+        cachedLocal
+          ? Promise.resolve({ ok: true as const, collection: cachedLocal })
+          : loadOfficialMapLayerAction({
+              layer: "local_network",
+              bbox: decision.requestBbox,
+              zoom,
+            }),
+        cachedNup
+          ? Promise.resolve({ ok: true as const, collection: cachedNup })
+          : loadOfficialMapLayerAction({
+              layer: "planning_area",
+              bbox: decision.requestBbox,
+              zoom,
+            }),
       ]);
-      if (generation !== fetchGenerationRef.current || mapRef.current !== map) return;
-      if (localResult.ok) setSourceData(map, LOCAL_SOURCE, localResult.collection);
-      if (nupResult.ok) setSourceData(map, NUP_SOURCE, nupResult.collection);
+      if (
+        !shouldApplyOfficialMapResponse(generation, fetchGenerationRef.current) ||
+        mapRef.current !== map
+      ) {
+        return;
+      }
+      inFlightKeyRef.current = null;
+      if (localResult.ok || nupResult.ok) {
+        fetchKeyRef.current = decision.key;
+      }
+      if (localResult.ok) {
+        applyLayerCollection(LOCAL_SOURCE, "local_network", decision.key, localResult.collection);
+      }
+      if (nupResult.ok) {
+        applyLayerCollection(NUP_SOURCE, "planning_area", decision.key, nupResult.collection);
+      }
+      if (localResult.ok || nupResult.ok) {
+        cachedViewportRef.current = {
+          key: decision.key,
+          band: decision.band,
+          bbox: decision.requestBbox,
+        };
+      }
+      applyOfficialSelection(map, selectedOfficialRef.current);
     };
 
     const refetch = () => {
-      if (ignoreMoveEndRef.current > 0) return;
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         void loadViewport();
-      }, 480);
+      }, 220);
     };
 
+    const onZoom = () => {
+      const zoom = map.getZoom();
+      if (zoom < OFFICIAL_MAP_OVERVIEW_MAX_ZOOM) {
+        restoreOverview();
+        return;
+      }
+      const cached = cachedViewportRef.current;
+      if (cached && !officialMapBboxContains(cached.bbox, visibleBbox())) {
+        restoreOverview();
+      }
+    };
+
+    map.on("zoom", onZoom);
     map.on("moveend", refetch);
     return () => {
       window.clearTimeout(timer);
+      map.off("zoom", onZoom);
       map.off("moveend", refetch);
     };
   }, [mapReady]);
@@ -291,7 +394,6 @@ export const SwedenMap = memo(function SwedenMap({
       const existing = markersRef.current.get(project.slug);
       if (existing) {
         existing.setLngLat([project.longitude, project.latitude]);
-        styleMarkerElement(existing.getElement(), selected, project);
         continue;
       }
       const el = document.createElement("button");
@@ -306,6 +408,23 @@ export const SwedenMap = memo(function SwedenMap({
         new Marker({ element: el }).setLngLat([project.longitude, project.latitude]).addTo(map),
       );
     }
+
+    const previousSelected = lastSelectedMarkerRef.current;
+    if (previousSelected && previousSelected !== selectedId) {
+      const previousProject = projects.find((project) => project.slug === previousSelected);
+      const previousMarker = markersRef.current.get(previousSelected);
+      if (previousProject && previousMarker) {
+        styleMarkerElement(previousMarker.getElement(), false, previousProject);
+      }
+    }
+    if (selectedId) {
+      const selectedProject = projects.find((project) => project.slug === selectedId);
+      const selectedMarker = markersRef.current.get(selectedId);
+      if (selectedProject && selectedMarker) {
+        styleMarkerElement(selectedMarker.getElement(), true, selectedProject);
+      }
+    }
+    lastSelectedMarkerRef.current = selectedId;
   }, [projects, selectedId, mapReady, layers.projects]);
 
   useEffect(() => {
@@ -315,33 +434,20 @@ export const SwedenMap = memo(function SwedenMap({
     const selectedProject = projects.find((project) => project.slug === selectedId);
     if (!selectedProject) return;
     lastFittedSlugRef.current = selectedId;
-    ignoreMoveEndRef.current += 1;
+    const alreadyClose =
+      Math.abs(map.getCenter().lng - selectedProject.longitude) < 0.04 &&
+      Math.abs(map.getCenter().lat - selectedProject.latitude) < 0.03 &&
+      map.getZoom() >= 7.2;
+    if (alreadyClose) return;
     map.easeTo({
       center: [selectedProject.longitude, selectedProject.latitude],
       zoom: Math.max(map.getZoom(), 7.2),
-      duration: 280,
-    });
-    map.once("moveend", () => {
-      window.setTimeout(() => {
-        ignoreMoveEndRef.current = Math.max(0, ignoreMoveEndRef.current - 1);
-      }, 400);
+      duration: 220,
     });
   }, [selectedId, mapReady, projects]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 });
-
-function styleMarkerElement(el: HTMLElement, selected: boolean, project: MapProject) {
-  el.style.width = selected ? "18px" : "14px";
-  el.style.height = selected ? "18px" : "14px";
-  el.style.borderRadius = "999px";
-  el.style.background = markerColor(project.outlook);
-  el.style.border = "2px solid white";
-  el.style.boxShadow = selected ? "0 0 0 3px rgba(42,122,111,0.35)" : "0 0 0 1px rgba(26,30,36,0.2)";
-  el.style.cursor = "pointer";
-  el.style.zIndex = selected ? "2" : "1";
-  el.title = project.name;
-}
 
 function addOfficialLayers(map: MapLibreMap) {
   const source = {
@@ -360,10 +466,15 @@ function addOfficialLayers(map: MapLibreMap) {
     id: "official-nup-fill",
     type: "fill",
     source: NUP_SOURCE,
-    minzoom: FILL_MIN_ZOOM,
+    minzoom: OFFICIAL_MAP_FILL_MIN_ZOOM,
     paint: {
       "fill-color": NUP_FILL,
-      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 5.6, 0.06, 8, 0.14],
+      "fill-opacity": [
+        "case",
+        ["boolean", ["feature-state", "selected"], false],
+        0.3,
+        ["interpolate", ["linear"], ["zoom"], 6, 0.06, 9, 0.14],
+      ],
     },
   });
   map.addLayer({
@@ -372,8 +483,13 @@ function addOfficialLayers(map: MapLibreMap) {
     source: NUP_SOURCE,
     paint: {
       "line-color": NUP_FILL,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.45, 8, 0.9],
-      "line-opacity": 0.7,
+      "line-width": [
+        "case",
+        ["boolean", ["feature-state", "selected"], false],
+        2.8,
+        ["interpolate", ["linear"], ["zoom"], 3.8, 0.9, 6, 1.15, 9, 1.5],
+      ],
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.55, 6, 0.78],
     },
     layout: { "line-join": "round", "line-cap": "round" },
   });
@@ -381,10 +497,15 @@ function addOfficialLayers(map: MapLibreMap) {
     id: "official-local-network-fill",
     type: "fill",
     source: LOCAL_SOURCE,
-    minzoom: FILL_MIN_ZOOM,
+    minzoom: OFFICIAL_MAP_FILL_MIN_ZOOM,
     paint: {
       "fill-color": LOCAL_NETWORK_FILL,
-      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 5.6, 0.08, 8, 0.16],
+      "fill-opacity": [
+        "case",
+        ["boolean", ["feature-state", "selected"], false],
+        0.32,
+        ["interpolate", ["linear"], ["zoom"], 6, 0.08, 9, 0.16],
+      ],
     },
   });
   map.addLayer({
@@ -393,8 +514,13 @@ function addOfficialLayers(map: MapLibreMap) {
     source: LOCAL_SOURCE,
     paint: {
       "line-color": LOCAL_NETWORK_FILL,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.5, 8, 1],
-      "line-opacity": 0.85,
+      "line-width": [
+        "case",
+        ["boolean", ["feature-state", "selected"], false],
+        3,
+        ["interpolate", ["linear"], ["zoom"], 3.8, 1, 6, 1.25, 9, 1.7],
+      ],
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.62, 6, 0.88],
     },
     layout: { "line-join": "round", "line-cap": "round" },
   });
@@ -432,22 +558,93 @@ function addOfficialLayers(map: MapLibreMap) {
   });
 }
 
-function findHighlightFeature(
-  areaId: string | null | undefined,
+function styleMarkerElement(el: HTMLElement, selected: boolean, project: MapProject) {
+  el.style.width = selected ? "18px" : "14px";
+  el.style.height = selected ? "18px" : "14px";
+  el.style.borderRadius = "999px";
+  el.style.background = markerColor(project.outlook);
+  el.style.border = "2px solid white";
+  el.style.boxShadow = selected ? "0 0 0 3px rgba(42,122,111,0.35)" : "0 0 0 1px rgba(26,30,36,0.2)";
+  el.style.cursor = "pointer";
+  el.style.zIndex = selected ? "2" : "1";
+  el.title = project.name;
+}
+
+const officialSelectionByMap = new WeakMap<MapLibreMap, { areaId: string; layer: OfficialMapLayer }>();
+
+function sourceForLayer(layer: OfficialMapLayer): string {
+  return layer === "planning_area" ? NUP_SOURCE : LOCAL_SOURCE;
+}
+
+function clearOfficialFeatureState(
+  map: MapLibreMap,
+  selection: { areaId: string; layer: OfficialMapLayer } | null,
+) {
+  if (!selection) return;
+  try {
+    map.removeFeatureState({ source: sourceForLayer(selection.layer), id: selection.areaId }, "selected");
+  } catch {
+    /* feature may not exist on this source */
+  }
+}
+
+function applyOfficialSelection(
+  map: MapLibreMap,
+  selection: { areaId: string; layer: OfficialMapLayer } | null,
+) {
+  const previous = officialSelectionByMap.get(map) ?? null;
+  if (previous && previous.areaId !== selection?.areaId) {
+    clearOfficialFeatureState(map, previous);
+  }
+  if (!selection) {
+    officialSelectionByMap.delete(map);
+    setSourceData(map, CHANGE_HIGHLIGHT_SOURCE, {
+      type: "FeatureCollection",
+      features: [],
+      truncated: false,
+      featureCount: 0,
+      provenance: null,
+    });
+    return;
+  }
+  officialSelectionByMap.set(map, selection);
+  try {
+    map.setFeatureState({ source: sourceForLayer(selection.layer), id: selection.areaId }, { selected: true });
+  } catch {
+    /* id may be missing until the viewport source loads */
+  }
+}
+
+function previewFromFeature(hit: MapGeoJSONFeature | undefined): OfficialMapAreaPreview | null {
+  if (!hit) return null;
+  const fallbackLayer: OfficialMapLayer = hit.layer?.id.includes("nup")
+    ? "planning_area"
+    : "local_network";
+  return officialMapAreaPreviewFromProperties(
+    hit.properties as Record<string, unknown> | null,
+    hit.id,
+    fallbackLayer,
+  );
+}
+
+function inferOfficialLayer(
+  areaId: string,
   covering: OfficialCoveringGeojson | null,
-  localNetwork: OfficialMapFeatureCollection,
-  planningArea: OfficialMapFeatureCollection,
-): OfficialMapFeatureCollection["features"][number] | null {
-  if (!areaId) return null;
-  const coveringHits = [covering?.localNetwork, covering?.planningArea].filter(
-    (feature): feature is NonNullable<typeof feature> => Boolean(feature?.geometry),
-  );
-  return (
-    coveringHits.find((feature) => feature.properties.id === areaId || feature.id === areaId) ??
-    localNetwork.features.find((feature) => feature.properties.id === areaId || feature.id === areaId) ??
-    planningArea.features.find((feature) => feature.properties.id === areaId || feature.id === areaId) ??
-    null
-  );
+  collections: {
+    localNetwork: OfficialMapFeatureCollection;
+    planningArea: OfficialMapFeatureCollection;
+  },
+): OfficialMapLayer {
+  if (covering?.planningArea?.properties.id === areaId || covering?.planningArea?.id === areaId) {
+    return "planning_area";
+  }
+  if (covering?.localNetwork?.properties.id === areaId || covering?.localNetwork?.id === areaId) {
+    return "local_network";
+  }
+  if (collections.planningArea.features.some((feature) => feature.properties.id === areaId || feature.id === areaId)) {
+    return "planning_area";
+  }
+  return "local_network";
 }
 
 function setSourceData(map: MapLibreMap, sourceId: string, collection: OfficialMapFeatureCollection) {

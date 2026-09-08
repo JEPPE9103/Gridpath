@@ -103,6 +103,33 @@ export const DEFAULT_OFFICIAL_MAP_LAYERS: OfficialMapLayerVisibility = {
 };
 
 export const OFFICIAL_MAP_OVERVIEW_MAX_ZOOM = 6;
+export const OFFICIAL_MAP_FILL_MIN_ZOOM = OFFICIAL_MAP_OVERVIEW_MAX_ZOOM;
+
+export type OfficialMapBbox = {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+};
+
+export type OfficialMapSimplifyBand = "overview" | "mid" | "near";
+
+export type OfficialMapAreaPreview = {
+  areaId: string;
+  layer: OfficialMapLayer;
+  name: string | null;
+  officialOperatorName: string | null;
+  concessionId: string | null;
+  accountingUnit: string | null;
+  delomrade: string | null;
+  externalId: string | null;
+};
+
+export function officialMapSimplifyBand(zoom: number): OfficialMapSimplifyBand {
+  if (zoom < OFFICIAL_MAP_OVERVIEW_MAX_ZOOM) return "overview";
+  if (zoom < 9) return "mid";
+  return "near";
+}
 
 export function officialMapSimplifyTolerance(zoom: number | null | undefined): number {
   if (zoom == null || zoom < OFFICIAL_MAP_OVERVIEW_MAX_ZOOM) return 0.02;
@@ -122,6 +149,125 @@ export function officialMapViewportFetchKey(input: {
   const round = (value: number) => value.toFixed(decimals);
   const band = input.zoom < 9 ? "mid" : "near";
   return `${band}:${round(input.west)},${round(input.south)},${round(input.east)},${round(input.north)}`;
+}
+
+function clampOfficialMapBbox(bbox: OfficialMapBbox): OfficialMapBbox {
+  const west = Math.min(Math.max(bbox.west, SWEDEN_MAP_BOUNDS.west - 1), SWEDEN_MAP_BOUNDS.east);
+  const south = Math.min(Math.max(bbox.south, SWEDEN_MAP_BOUNDS.south - 1), SWEDEN_MAP_BOUNDS.north);
+  const east = Math.min(Math.max(bbox.east, SWEDEN_MAP_BOUNDS.west), SWEDEN_MAP_BOUNDS.east + 1);
+  const north = Math.min(Math.max(bbox.north, SWEDEN_MAP_BOUNDS.south), SWEDEN_MAP_BOUNDS.north + 1);
+  if (west >= east || south >= north) {
+    return { ...SWEDEN_MAP_BOUNDS };
+  }
+  return { west, south, east, north };
+}
+
+export function expandOfficialMapBbox(bbox: OfficialMapBbox, zoom: number): OfficialMapBbox {
+  const pad = zoom < 9 ? 0.65 : 0.22;
+  return clampOfficialMapBbox({
+    west: bbox.west - pad,
+    south: bbox.south - pad,
+    east: bbox.east + pad,
+    north: bbox.north + pad,
+  });
+}
+
+export function officialMapBboxContains(outer: OfficialMapBbox, inner: OfficialMapBbox): boolean {
+  return (
+    outer.west <= inner.west &&
+    outer.south <= inner.south &&
+    outer.east >= inner.east &&
+    outer.north >= inner.north
+  );
+}
+
+export type OfficialMapCachedViewport = {
+  key: string;
+  band: Exclude<OfficialMapSimplifyBand, "overview">;
+  bbox: OfficialMapBbox;
+};
+
+export type OfficialMapViewportDecision =
+  | { action: "overview" }
+  | { action: "keep" }
+  | {
+      action: "fetch";
+      key: string;
+      band: Exclude<OfficialMapSimplifyBand, "overview">;
+      requestBbox: OfficialMapBbox;
+    };
+
+export function decideOfficialMapViewportFetch(input: {
+  zoom: number;
+  visible: OfficialMapBbox;
+  cached: OfficialMapCachedViewport | null;
+}): OfficialMapViewportDecision {
+  const band = officialMapSimplifyBand(input.zoom);
+  if (band === "overview") {
+    return { action: "overview" };
+  }
+  if (
+    input.cached &&
+    input.cached.band === band &&
+    officialMapBboxContains(input.cached.bbox, input.visible)
+  ) {
+    return { action: "keep" };
+  }
+  const requestBbox = expandOfficialMapBbox(input.visible, input.zoom);
+  const key =
+    officialMapViewportFetchKey({ zoom: input.zoom, ...requestBbox }) ?? `${band}:buffered`;
+  return { action: "fetch", key, band, requestBbox };
+}
+
+export function shouldApplyOfficialMapResponse(
+  requestGeneration: number,
+  latestGeneration: number,
+): boolean {
+  return requestGeneration === latestGeneration && requestGeneration > 0;
+}
+
+export function officialMapAreaPreviewFromProperties(
+  properties: Record<string, unknown> | null | undefined,
+  featureId?: string | number | null,
+  fallbackLayer: OfficialMapLayer = "local_network",
+): OfficialMapAreaPreview | null {
+  const props = properties ?? {};
+  const areaId =
+    (typeof props.id === "string" && props.id) || (typeof featureId === "string" ? featureId : null);
+  if (!areaId) return null;
+  const layer: OfficialMapLayer =
+    props.layer === "planning_area"
+      ? "planning_area"
+      : props.layer === "local_network"
+        ? "local_network"
+        : fallbackLayer;
+  return {
+    areaId,
+    layer,
+    name: typeof props.name === "string" ? props.name : null,
+    officialOperatorName:
+      typeof props.officialOperatorName === "string" ? props.officialOperatorName : null,
+    concessionId: typeof props.concessionId === "string" ? props.concessionId : null,
+    accountingUnit: typeof props.accountingUnit === "string" ? props.accountingUnit : null,
+    delomrade: typeof props.delomrade === "string" ? props.delomrade : null,
+    externalId: typeof props.externalId === "string" ? props.externalId : null,
+  };
+}
+
+export function officialMapAreaPreviewShell(input: {
+  areaId: string;
+  layer: OfficialMapLayer;
+}): OfficialMapAreaPreview {
+  return {
+    areaId: input.areaId,
+    layer: input.layer,
+    name: null,
+    officialOperatorName: null,
+    concessionId: null,
+    accountingUnit: null,
+    delomrade: null,
+    externalId: null,
+  };
 }
 
 export function isOfficialMapLayer(value: string | null | undefined): value is OfficialMapLayer {

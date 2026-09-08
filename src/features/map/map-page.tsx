@@ -22,12 +22,19 @@ import type { SavedComparisonsResult } from "@/lib/data/portfolio-comparisons";
 import {
   DEFAULT_OFFICIAL_MAP_LAYERS,
   isUnmatchedReviewProject,
+  officialMapAreaPreviewShell,
   summarizeOfficialSpatialMatches,
+  type OfficialMapAreaPreview,
   type OfficialMapFeatureCollection,
   type OfficialMapLayer,
   type OfficialSpatialMatch,
 } from "@/lib/domain/official-map";
 import { loadOfficialCoveringAction, loadOfficialMapAreaContextAction } from "@/lib/map/actions";
+import {
+  getCachedValue,
+  peekCachedValue,
+  setCachedValue,
+} from "@/lib/map/official-geometry-cache";
 import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { useWorkspace } from "@/lib/workspace-state";
@@ -157,13 +164,20 @@ function LoadedMapPage({
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [layers, setLayers] = useState(DEFAULT_OFFICIAL_MAP_LAYERS);
   const [unmatchedOnly, setUnmatchedOnly] = useState(false);
-  const [covering, setCovering] = useState<OfficialCoveringGeojson | null>(null);
+  const [fetchedCovering, setFetchedCovering] = useState<{
+    projectId: string;
+    covering: OfficialCoveringGeojson;
+  } | null>(null);
   const [officialContext, setOfficialContext] = useState<OfficialMapAreaContext | null>(null);
   const [officialLoading, setOfficialLoading] = useState(false);
+  const [officialPreview, setOfficialPreview] = useState<OfficialMapAreaPreview | null>(
+    initialChangeArea ? officialMapAreaPreviewShell(initialChangeArea) : null,
+  );
   const [officialAreaId, setOfficialAreaId] = useState<string | null>(
     initialChangeArea?.areaId ?? null,
   );
   const appliedChangeRef = useRef(false);
+  const officialFetchGenRef = useRef(0);
 
   const matchByProjectId = useMemo(
     () => new Map(spatialMatches.map((item) => [item.projectId, item])),
@@ -207,11 +221,21 @@ function LoadedMapPage({
   const compared = projects.filter((project) => compareIds.includes(project.slug));
   const filtersActive = hasActiveFilters(filters) || unmatchedOnly;
 
+  const covering = selected?.id
+    ? (peekCachedValue<OfficialCoveringGeojson>("covering", selected.id) ??
+      (fetchedCovering?.projectId === selected.id ? fetchedCovering.covering : null))
+    : null;
+
   useEffect(() => {
     if (!selected?.id) return;
+    const projectId = selected.id;
+    if (peekCachedValue<OfficialCoveringGeojson>("covering", projectId)) return;
     let cancelled = false;
-    loadOfficialCoveringAction(selected.id).then((result) => {
-      if (!cancelled && result.ok) setCovering(result.covering);
+    loadOfficialCoveringAction(projectId).then((result) => {
+      if (!cancelled && result.ok) {
+        setCachedValue("covering", projectId, result.covering);
+        setFetchedCovering({ projectId, covering: result.covering });
+      }
     });
     return () => {
       cancelled = true;
@@ -222,16 +246,30 @@ function LoadedMapPage({
     setSelectedSlug(slug);
     setOfficialAreaId(null);
     setOfficialContext(null);
+    setOfficialPreview(null);
     setDetailCollapsed(false);
   }, []);
 
-  const selectOfficial = useCallback((input: { areaId: string; layer: OfficialMapLayer }) => {
+  const selectOfficial = useCallback((input: OfficialMapAreaPreview) => {
+    const generation = (officialFetchGenRef.current += 1);
+    setOfficialPreview(input);
     setOfficialAreaId(input.areaId);
-    setOfficialLoading(true);
     setDetailCollapsed(false);
-    loadOfficialMapAreaContextAction(input.areaId).then((result) => {
+    const cached = getCachedValue<OfficialMapAreaContext>("area", input.areaId);
+    if (cached) {
+      setOfficialContext(cached);
       setOfficialLoading(false);
-      if (result.ok) setOfficialContext(result.context);
+      return;
+    }
+    setOfficialContext(null);
+    setOfficialLoading(true);
+    loadOfficialMapAreaContextAction(input.areaId).then((result) => {
+      if (generation !== officialFetchGenRef.current) return;
+      setOfficialLoading(false);
+      if (result.ok) {
+        setCachedValue("area", input.areaId, result.context);
+        setOfficialContext(result.context);
+      }
     });
   }, []);
 
@@ -243,7 +281,7 @@ function LoadedMapPage({
       localNetwork: initialChangeArea.layer === "local_network" ? true : current.localNetwork,
       planningArea: initialChangeArea.layer === "planning_area" ? true : current.planningArea,
     }));
-    selectOfficial(initialChangeArea);
+    selectOfficial(officialMapAreaPreviewShell(initialChangeArea));
   }, [initialChangeArea, selectOfficial]);
 
   return (
@@ -331,6 +369,7 @@ function LoadedMapPage({
             planningArea={planningArea}
             covering={selected ? covering : null}
             highlightAreaId={officialAreaId}
+            highlightLayer={officialPreview?.layer ?? initialChangeArea?.layer}
             onSelectProject={selectProject}
             onSelectOfficial={selectOfficial}
           />
@@ -409,6 +448,7 @@ function LoadedMapPage({
                           setSelectedSlug(project.slug);
                           setOfficialAreaId(null);
                           setOfficialContext(null);
+                          setOfficialPreview(null);
                           setDetailCollapsed(false);
                         }}
                         className={cn(
@@ -434,14 +474,16 @@ function LoadedMapPage({
             )}
           </div>
 
-          {officialAreaId ? (
+          {officialPreview && officialAreaId ? (
             <MapOfficialPanel
+              preview={officialPreview}
               context={officialContext}
               loading={officialLoading}
               fromPublishedChange={Boolean(initialChangeArea?.areaId && officialAreaId === initialChangeArea.areaId)}
               onClose={() => {
                 setOfficialAreaId(null);
                 setOfficialContext(null);
+                setOfficialPreview(null);
               }}
             />
           ) : selected && !detailCollapsed ? (

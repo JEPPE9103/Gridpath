@@ -6,16 +6,25 @@ import {
   LOCAL_NETWORK_UNMATCHED_BODY,
   NUP_FORECAST_NEED_MAP_DISCLAIMER,
   NUP_UNMATCHED_BODY,
+  OFFICIAL_MAP_FILL_MIN_ZOOM,
+  OFFICIAL_MAP_OVERVIEW_MAX_ZOOM,
   assertOfficialMapPayloadIsCustomerSafe,
   coveringFeatureIds,
+  decideOfficialMapViewportFetch,
+  expandOfficialMapBbox,
   isOfficialMapLayer,
   isUnmatchedReviewProject,
+  officialMapAreaPreviewFromProperties,
+  officialMapAreaPreviewShell,
+  officialMapBboxContains,
   officialMapContextLabel,
   officialMapCopyContainsForbiddenTerm,
+  officialMapSimplifyBand,
   officialMapSimplifyTolerance,
   officialMapViewportFetchKey,
   parseOfficialMapFeatureCollection,
   parseOfficialSpatialMatches,
+  shouldApplyOfficialMapResponse,
   summarizeOfficialSpatialMatches,
   unmatchedLocalNetworkCopy,
   unmatchedNupCopy,
@@ -55,6 +64,70 @@ describe("official map geometry helpers", () => {
     });
     assert.equal(stockholm, "mid:17.9,59.2,18.2,59.4");
     assert.equal(stockholm, nearbyPan);
+  });
+
+  it("keeps a buffered viewport instead of refetching every pan", () => {
+    const visible = { west: 17.91, south: 59.21, east: 18.21, north: 59.41 };
+    const requestBbox = expandOfficialMapBbox(visible, 7.5);
+    assert.equal(officialMapBboxContains(requestBbox, visible), true);
+    assert.ok(requestBbox.west < visible.west);
+    assert.ok(requestBbox.east > visible.east);
+
+    const first = decideOfficialMapViewportFetch({ zoom: 7.5, visible, cached: null });
+    assert.equal(first.action, "fetch");
+    if (first.action !== "fetch") throw new Error("expected fetch");
+
+    const nearby = decideOfficialMapViewportFetch({
+      zoom: 7.6,
+      visible: { west: 17.94, south: 59.24, east: 18.24, north: 59.44 },
+      cached: { key: first.key, band: first.band, bbox: first.requestBbox },
+    });
+    assert.equal(nearby.action, "keep");
+
+    const leftBuffer = decideOfficialMapViewportFetch({
+      zoom: 7.5,
+      visible: { west: 16.8, south: 59.21, east: 17.1, north: 59.41 },
+      cached: { key: first.key, band: first.band, bbox: first.requestBbox },
+    });
+    assert.equal(leftBuffer.action, "fetch");
+  });
+
+  it("restores overview below the fill/outline zoom boundary", () => {
+    assert.equal(OFFICIAL_MAP_FILL_MIN_ZOOM, OFFICIAL_MAP_OVERVIEW_MAX_ZOOM);
+    assert.equal(officialMapSimplifyBand(5.9), "overview");
+    assert.equal(officialMapSimplifyBand(6), "mid");
+    assert.equal(decideOfficialMapViewportFetch({
+      zoom: 5.5,
+      visible: { west: 10.3, south: 55, east: 24.6, north: 69.4 },
+      cached: {
+        key: "mid:17.9,59.2,18.2,59.4",
+        band: "mid",
+        bbox: { west: 17.2, south: 58.5, east: 18.9, north: 60.1 },
+      },
+    }).action, "overview");
+  });
+
+  it("discards stale viewport responses", () => {
+    assert.equal(shouldApplyOfficialMapResponse(1, 2), false);
+    assert.equal(shouldApplyOfficialMapResponse(2, 2), true);
+    assert.equal(shouldApplyOfficialMapResponse(0, 0), false);
+  });
+
+  it("opens official area context from GeoJSON properties without waiting for RPC fields", () => {
+    const preview = officialMapAreaPreviewFromProperties(
+      {
+        id: "area-1",
+        name: "Ellevio AB — 153BK",
+        layer: "local_network",
+        officialOperatorName: "Ellevio AB",
+        concessionId: "153BK",
+      },
+      "ignored",
+    );
+    assert.equal(preview?.areaId, "area-1");
+    assert.equal(preview?.name, "Ellevio AB — 153BK");
+    assert.equal(preview?.layer, "local_network");
+    assert.equal(officialMapAreaPreviewShell({ areaId: "x", layer: "planning_area" }).name, null);
   });
 });
 
