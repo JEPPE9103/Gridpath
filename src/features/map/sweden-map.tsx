@@ -13,12 +13,12 @@ import type {
   OfficialMapLayerVisibility,
 } from "@/lib/domain/official-map";
 import {
-  OFFICIAL_MAP_FILL_MIN_ZOOM,
   OFFICIAL_MAP_OVERVIEW_MAX_ZOOM,
   decideOfficialMapViewportFetch,
   officialMapAreaPreviewFromProperties,
   officialMapBboxContains,
   shouldApplyOfficialMapResponse,
+  shouldReplaceOfficialMapSource,
 } from "@/lib/domain/official-map";
 import {
   getCachedOfficialGeometry,
@@ -33,10 +33,6 @@ const LOCAL_SOURCE = "official-local-network";
 const NUP_SOURCE = "official-nup";
 const COVER_SOURCE = "official-covering";
 const CHANGE_HIGHLIGHT_SOURCE = "official-change-highlight";
-const EMPTY_COLLECTION = {
-  type: "FeatureCollection" as const,
-  features: [] as Array<Record<string, unknown>>,
-};
 
 export const SwedenMap = memo(function SwedenMap({
   projects,
@@ -75,9 +71,11 @@ export const SwedenMap = memo(function SwedenMap({
   const selectedOfficialRef = useRef<{ areaId: string; layer: OfficialMapLayer } | null>(null);
   const lastSelectedMarkerRef = useRef<string | null>(null);
   const lastFittedSlugRef = useRef<string | null>(null);
+  const coveringRef = useRef(covering);
 
   onSelectProjectRef.current = onSelectProject;
   onSelectOfficialRef.current = onSelectOfficial;
+  coveringRef.current = covering;
 
   useEffect(() => {
     collectionsRef.current = { localNetwork, planningArea };
@@ -183,7 +181,12 @@ export const SwedenMap = memo(function SwedenMap({
     } else {
       selectedOfficialRef.current = null;
     }
-    applyOfficialSelection(map, selectedOfficialRef.current);
+    applyOfficialSelection(
+      map,
+      selectedOfficialRef.current,
+      coveringRef.current,
+      collectionsRef.current,
+    );
   }, [highlightAreaId, highlightLayer, covering, mapReady]);
 
   useEffect(() => {
@@ -203,7 +206,12 @@ export const SwedenMap = memo(function SwedenMap({
       const preview = previewFromFeature(hit);
       if (!preview) return;
       selectedOfficialRef.current = { areaId: preview.areaId, layer: preview.layer };
-      applyOfficialSelection(map, selectedOfficialRef.current);
+      applyOfficialSelection(
+        map,
+        selectedOfficialRef.current,
+        coveringRef.current,
+        collectionsRef.current,
+      );
       onSelectOfficialRef.current(preview);
     };
     const interactiveLayers = [
@@ -245,7 +253,12 @@ export const SwedenMap = memo(function SwedenMap({
       cachedViewportRef.current = null;
       setSourceData(map, LOCAL_SOURCE, collectionsRef.current.localNetwork);
       setSourceData(map, NUP_SOURCE, collectionsRef.current.planningArea);
-      applyOfficialSelection(map, selectedOfficialRef.current);
+      applyOfficialSelection(
+        map,
+        selectedOfficialRef.current,
+        coveringRef.current,
+        collectionsRef.current,
+      );
     };
 
     const visibleBbox = () => {
@@ -264,6 +277,7 @@ export const SwedenMap = memo(function SwedenMap({
       fetchKey: string,
       collection: OfficialMapFeatureCollection,
     ) => {
+      if (!shouldReplaceOfficialMapSource(collection)) return;
       setCachedOfficialGeometry(officialGeometryCacheKey(layer, fetchKey), collection);
       setSourceData(map, sourceId, collection);
     };
@@ -288,29 +302,36 @@ export const SwedenMap = memo(function SwedenMap({
       const nupKey = officialGeometryCacheKey("planning_area", decision.key);
       const cachedLocal = getCachedOfficialGeometry(localKey);
       const cachedNup = getCachedOfficialGeometry(nupKey);
-      if (cachedLocal && cachedNup) {
+      const cachedLocalUsable = cachedLocal && shouldReplaceOfficialMapSource(cachedLocal) ? cachedLocal : null;
+      const cachedNupUsable = cachedNup && shouldReplaceOfficialMapSource(cachedNup) ? cachedNup : null;
+      if (cachedLocalUsable && cachedNupUsable) {
         fetchKeyRef.current = decision.key;
         inFlightKeyRef.current = null;
-        setSourceData(map, LOCAL_SOURCE, cachedLocal);
-        setSourceData(map, NUP_SOURCE, cachedNup);
+        setSourceData(map, LOCAL_SOURCE, cachedLocalUsable);
+        setSourceData(map, NUP_SOURCE, cachedNupUsable);
         cachedViewportRef.current = {
           key: decision.key,
           band: decision.band,
           bbox: decision.requestBbox,
         };
-        applyOfficialSelection(map, selectedOfficialRef.current);
+        applyOfficialSelection(
+          map,
+          selectedOfficialRef.current,
+          coveringRef.current,
+          collectionsRef.current,
+        );
         return;
       }
       const [localResult, nupResult] = await Promise.all([
-        cachedLocal
-          ? Promise.resolve({ ok: true as const, collection: cachedLocal })
+        cachedLocalUsable
+          ? Promise.resolve({ ok: true as const, collection: cachedLocalUsable })
           : loadOfficialMapLayerAction({
               layer: "local_network",
               bbox: decision.requestBbox,
               zoom,
             }),
-        cachedNup
-          ? Promise.resolve({ ok: true as const, collection: cachedNup })
+        cachedNupUsable
+          ? Promise.resolve({ ok: true as const, collection: cachedNupUsable })
           : loadOfficialMapLayerAction({
               layer: "planning_area",
               bbox: decision.requestBbox,
@@ -324,23 +345,30 @@ export const SwedenMap = memo(function SwedenMap({
         return;
       }
       inFlightKeyRef.current = null;
-      if (localResult.ok || nupResult.ok) {
+      const localOk = localResult.ok && shouldReplaceOfficialMapSource(localResult.collection);
+      const nupOk = nupResult.ok && shouldReplaceOfficialMapSource(nupResult.collection);
+      if (localOk || nupOk) {
         fetchKeyRef.current = decision.key;
       }
-      if (localResult.ok) {
+      if (localOk) {
         applyLayerCollection(LOCAL_SOURCE, "local_network", decision.key, localResult.collection);
       }
-      if (nupResult.ok) {
+      if (nupOk) {
         applyLayerCollection(NUP_SOURCE, "planning_area", decision.key, nupResult.collection);
       }
-      if (localResult.ok || nupResult.ok) {
+      if (localOk || nupOk) {
         cachedViewportRef.current = {
           key: decision.key,
           band: decision.band,
           bbox: decision.requestBbox,
         };
       }
-      applyOfficialSelection(map, selectedOfficialRef.current);
+      applyOfficialSelection(
+        map,
+        selectedOfficialRef.current,
+        coveringRef.current,
+        collectionsRef.current,
+      );
     };
 
     const refetch = () => {
@@ -450,31 +478,25 @@ export const SwedenMap = memo(function SwedenMap({
 });
 
 function addOfficialLayers(map: MapLibreMap) {
+  const empty = { type: "FeatureCollection" as const, features: [] as Array<Record<string, unknown>> };
   const source = {
     type: "geojson" as const,
-    data: EMPTY_COLLECTION as never,
+    data: empty as never,
     promoteId: "id",
     tolerance: 1.4,
-    buffer: 0,
   };
-  map.addSource(LOCAL_SOURCE, source);
-  map.addSource(NUP_SOURCE, { ...source });
-  map.addSource(COVER_SOURCE, { ...source, tolerance: 0.8 });
-  map.addSource(CHANGE_HIGHLIGHT_SOURCE, { ...source, tolerance: 0.8 });
+  map.addSource(LOCAL_SOURCE, { ...source, data: { ...empty } as never });
+  map.addSource(NUP_SOURCE, { ...source, data: { ...empty } as never });
+  map.addSource(COVER_SOURCE, { ...source, data: { ...empty } as never, tolerance: 0.8 });
+  map.addSource(CHANGE_HIGHLIGHT_SOURCE, { ...source, data: { ...empty } as never, tolerance: 0.8 });
 
   map.addLayer({
     id: "official-nup-fill",
     type: "fill",
     source: NUP_SOURCE,
-    minzoom: OFFICIAL_MAP_FILL_MIN_ZOOM,
     paint: {
       "fill-color": NUP_FILL,
-      "fill-opacity": [
-        "case",
-        ["boolean", ["feature-state", "selected"], false],
-        0.3,
-        ["interpolate", ["linear"], ["zoom"], 6, 0.06, 9, 0.14],
-      ],
+      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.07, 6, 0.1, 9, 0.16],
     },
   });
   map.addLayer({
@@ -483,13 +505,8 @@ function addOfficialLayers(map: MapLibreMap) {
     source: NUP_SOURCE,
     paint: {
       "line-color": NUP_FILL,
-      "line-width": [
-        "case",
-        ["boolean", ["feature-state", "selected"], false],
-        2.8,
-        ["interpolate", ["linear"], ["zoom"], 3.8, 0.9, 6, 1.15, 9, 1.5],
-      ],
-      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.55, 6, 0.78],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 3.8, 0.9, 6, 1.15, 9, 1.5],
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.7, 6, 0.82],
     },
     layout: { "line-join": "round", "line-cap": "round" },
   });
@@ -497,15 +514,9 @@ function addOfficialLayers(map: MapLibreMap) {
     id: "official-local-network-fill",
     type: "fill",
     source: LOCAL_SOURCE,
-    minzoom: OFFICIAL_MAP_FILL_MIN_ZOOM,
     paint: {
       "fill-color": LOCAL_NETWORK_FILL,
-      "fill-opacity": [
-        "case",
-        ["boolean", ["feature-state", "selected"], false],
-        0.32,
-        ["interpolate", ["linear"], ["zoom"], 6, 0.08, 9, 0.16],
-      ],
+      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.09, 6, 0.12, 9, 0.18],
     },
   });
   map.addLayer({
@@ -514,13 +525,8 @@ function addOfficialLayers(map: MapLibreMap) {
     source: LOCAL_SOURCE,
     paint: {
       "line-color": LOCAL_NETWORK_FILL,
-      "line-width": [
-        "case",
-        ["boolean", ["feature-state", "selected"], false],
-        3,
-        ["interpolate", ["linear"], ["zoom"], 3.8, 1, 6, 1.25, 9, 1.7],
-      ],
-      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.62, 6, 0.88],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 3.8, 1, 6, 1.25, 9, 1.7],
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.78, 6, 0.9],
     },
     layout: { "line-join": "round", "line-cap": "round" },
   });
@@ -570,49 +576,43 @@ function styleMarkerElement(el: HTMLElement, selected: boolean, project: MapProj
   el.title = project.name;
 }
 
-const officialSelectionByMap = new WeakMap<MapLibreMap, { areaId: string; layer: OfficialMapLayer }>();
-
-function sourceForLayer(layer: OfficialMapLayer): string {
-  return layer === "planning_area" ? NUP_SOURCE : LOCAL_SOURCE;
-}
-
-function clearOfficialFeatureState(
-  map: MapLibreMap,
-  selection: { areaId: string; layer: OfficialMapLayer } | null,
-) {
-  if (!selection) return;
-  try {
-    map.removeFeatureState({ source: sourceForLayer(selection.layer), id: selection.areaId }, "selected");
-  } catch {
-    /* feature may not exist on this source */
-  }
+function findHighlightFeature(
+  areaId: string | null | undefined,
+  covering: OfficialCoveringGeojson | null,
+  localNetwork: OfficialMapFeatureCollection,
+  planningArea: OfficialMapFeatureCollection,
+): OfficialMapFeatureCollection["features"][number] | null {
+  if (!areaId) return null;
+  const coveringHits = [covering?.localNetwork, covering?.planningArea].filter(
+    (feature): feature is NonNullable<typeof feature> => Boolean(feature?.geometry),
+  );
+  return (
+    coveringHits.find((feature) => feature.properties.id === areaId || feature.id === areaId) ??
+    localNetwork.features.find((feature) => feature.properties.id === areaId || feature.id === areaId) ??
+    planningArea.features.find((feature) => feature.properties.id === areaId || feature.id === areaId) ??
+    null
+  );
 }
 
 function applyOfficialSelection(
   map: MapLibreMap,
   selection: { areaId: string; layer: OfficialMapLayer } | null,
+  covering: OfficialCoveringGeojson | null,
+  collections: {
+    localNetwork: OfficialMapFeatureCollection;
+    planningArea: OfficialMapFeatureCollection;
+  },
 ) {
-  const previous = officialSelectionByMap.get(map) ?? null;
-  if (previous && previous.areaId !== selection?.areaId) {
-    clearOfficialFeatureState(map, previous);
-  }
-  if (!selection) {
-    officialSelectionByMap.delete(map);
-    setSourceData(map, CHANGE_HIGHLIGHT_SOURCE, {
-      type: "FeatureCollection",
-      features: [],
-      truncated: false,
-      featureCount: 0,
-      provenance: null,
-    });
-    return;
-  }
-  officialSelectionByMap.set(map, selection);
-  try {
-    map.setFeatureState({ source: sourceForLayer(selection.layer), id: selection.areaId }, { selected: true });
-  } catch {
-    /* id may be missing until the viewport source loads */
-  }
+  const highlight = selection
+    ? findHighlightFeature(selection.areaId, covering, collections.localNetwork, collections.planningArea)
+    : null;
+  setSourceData(map, CHANGE_HIGHLIGHT_SOURCE, {
+    type: "FeatureCollection",
+    features: highlight ? [highlight] : [],
+    truncated: false,
+    featureCount: highlight ? 1 : 0,
+    provenance: null,
+  });
 }
 
 function previewFromFeature(hit: MapGeoJSONFeature | undefined): OfficialMapAreaPreview | null {
@@ -652,11 +652,16 @@ function setSourceData(map: MapLibreMap, sourceId: string, collection: OfficialM
   if (!source) return;
   source.setData({
     type: "FeatureCollection",
-    features: collection.features.map((feature) => ({
-      type: "Feature",
-      id: feature.id ?? feature.properties.id,
-      geometry: feature.geometry as never,
-      properties: feature.properties,
-    })),
+    features: collection.features.flatMap((feature) => {
+      if (!feature.geometry) return [];
+      return [
+        {
+          type: "Feature" as const,
+          id: feature.id ?? feature.properties.id,
+          geometry: feature.geometry as never,
+          properties: feature.properties,
+        },
+      ];
+    }),
   });
 }

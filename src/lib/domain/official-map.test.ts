@@ -25,6 +25,7 @@ import {
   parseOfficialMapFeatureCollection,
   parseOfficialSpatialMatches,
   shouldApplyOfficialMapResponse,
+  shouldReplaceOfficialMapSource,
   summarizeOfficialSpatialMatches,
   unmatchedLocalNetworkCopy,
   unmatchedNupCopy,
@@ -111,6 +112,43 @@ describe("official map geometry helpers", () => {
     assert.equal(shouldApplyOfficialMapResponse(1, 2), false);
     assert.equal(shouldApplyOfficialMapResponse(2, 2), true);
     assert.equal(shouldApplyOfficialMapResponse(0, 0), false);
+  });
+
+  it("does not replace visible official geometry with an empty viewport payload", () => {
+    assert.equal(
+      shouldReplaceOfficialMapSource({
+        type: "FeatureCollection",
+        features: [],
+        truncated: false,
+        featureCount: 0,
+        provenance: null,
+      }),
+      false,
+    );
+    assert.equal(
+      shouldReplaceOfficialMapSource({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            id: "area-1",
+            geometry: { type: "Polygon", coordinates: [] },
+            properties: {
+              id: "area-1",
+              name: "Stockholm",
+              layer: "local_network",
+              areaType: null,
+              officialOperatorName: null,
+              externalId: null,
+            },
+          },
+        ],
+        truncated: false,
+        featureCount: 1,
+        provenance: null,
+      }),
+      true,
+    );
   });
 
   it("opens official area context from GeoJSON properties without waiting for RPC fields", () => {

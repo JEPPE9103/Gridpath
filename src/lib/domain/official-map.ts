@@ -226,6 +226,10 @@ export function shouldApplyOfficialMapResponse(
   return requestGeneration === latestGeneration && requestGeneration > 0;
 }
 
+export function shouldReplaceOfficialMapSource(collection: OfficialMapFeatureCollection): boolean {
+  return collection.features.length > 0;
+}
+
 export function officialMapAreaPreviewFromProperties(
   properties: Record<string, unknown> | null | undefined,
   featureId?: string | number | null,
