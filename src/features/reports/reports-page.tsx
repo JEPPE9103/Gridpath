@@ -5,6 +5,8 @@ import { OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
 import { EmptyState, EmptyWorkspaceAction } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { DevelopmentFunnel } from "@/features/opportunities/development-funnel";
+import type { OpportunityFunnel } from "@/lib/data/opportunities";
 import type {
   PortfolioReportResult,
   PortfolioReportViewModel,
@@ -25,7 +27,13 @@ import {
   YAxis,
 } from "recharts";
 
-export function ReportsPage({ result }: { result: PortfolioReportResult }) {
+export function ReportsPage({
+  result,
+  funnel,
+}: {
+  result: PortfolioReportResult;
+  funnel: OpportunityFunnel;
+}) {
   if (result.kind === "no_organization") {
     return (
       <>
@@ -55,10 +63,16 @@ export function ReportsPage({ result }: { result: PortfolioReportResult }) {
     );
   }
 
-  return <LoadedReportsPage report={result.report} />;
+  return <LoadedReportsPage report={result.report} funnel={funnel} />;
 }
 
-function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
+function LoadedReportsPage({
+  report,
+  funnel,
+}: {
+  report: PortfolioReportViewModel;
+  funnel: OpportunityFunnel;
+}) {
   const { summary, readiness } = report;
   const stageData = useMemo(
     () => report.stageCounts.map((row) => ({ stage: row.label, count: row.count })),
@@ -103,6 +117,8 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
             }
           />
         </section>
+
+        <DevelopmentFunnel funnel={funnel} />
 
         <section className="grid gap-4 xl:grid-cols-2">
           <ChartCard title="Projects by stage">

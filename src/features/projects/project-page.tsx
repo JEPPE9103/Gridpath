@@ -216,6 +216,16 @@ function LoadedProjectPage({
           <Meta label="Team outlook" value={<OutlookBadge outlook={project.outlook} />} />
           <Meta label="Team confidence" value={project.confidence} />
           <Meta label="Case ID" value={project.connectionCase?.caseId ?? "Not opened"} mono />
+          {project.originatingOpportunity ? (
+            <Meta
+              label="Originating opportunity"
+              value={
+                <Link href={`/opportunities/${project.originatingOpportunity.slug}`} className="text-teal hover:underline">
+                  {project.originatingOpportunity.name}
+                </Link>
+              }
+            />
+          ) : null}
         </dl>
       </div>
 

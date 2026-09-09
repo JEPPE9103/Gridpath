@@ -13,6 +13,8 @@ import {
   type PortfolioOverview,
 } from "@/lib/data/overview-types";
 import { PortfolioAttentionSection } from "@/features/overview/portfolio-attention-section";
+import { DevelopmentFunnel } from "@/features/opportunities/development-funnel";
+import type { OpportunityFunnel } from "@/lib/data/opportunities";
 import { OfficialChangesSignal } from "@/features/changes/official-changes-signal";
 import { formatMWTotal, formatRelative } from "@/lib/format";
 import {
@@ -53,7 +55,13 @@ const SEVERITY_STYLES: Record<
 
 const MAX_ALERT_ROWS = 3;
 
-export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
+export function OverviewPage({
+  overview,
+  funnel,
+}: {
+  overview: PortfolioOverview;
+  funnel: OpportunityFunnel;
+}) {
   const router = useRouter();
   const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -118,6 +126,17 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
               />
               <Fact label="Open alerts" value={String(alerts.length)} href="/alerts" />
             </section>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted">
+                Screen opportunities before they become projects. Ranking is current evidence, not
+                success.
+              </p>
+              <Link href="/opportunities" className="text-sm text-teal hover:underline">
+                Open Opportunities
+              </Link>
+            </div>
+            <DevelopmentFunnel funnel={funnel} />
 
             <PortfolioAttentionSection
               attention={portfolioAttention}

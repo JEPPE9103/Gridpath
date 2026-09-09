@@ -19,6 +19,7 @@ import { cn } from "@/lib/cn";
 import { formatOutlookLabel } from "@/lib/format";
 import type { OfficialCoveringGeojson, OfficialMapAreaContext } from "@/lib/data/official-map";
 import type { MapProject, MapProjectsResult } from "@/lib/data/map-types";
+import type { OpportunityListItem } from "@/lib/data/opportunities";
 import type { SavedComparisonsResult } from "@/lib/data/portfolio-comparisons";
 import {
   DEFAULT_OFFICIAL_MAP_LAYERS,
@@ -47,6 +48,7 @@ import {
 } from "@/types";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 const CONFIDENCES: Confidence[] = ["High", "Medium", "Low", "Unknown"];
@@ -63,6 +65,7 @@ const EMPTY_FILTERS = {
 
 export function MapPage({
   result,
+  opportunities = [],
   savedComparisons,
   localNetwork,
   planningArea,
@@ -71,6 +74,7 @@ export function MapPage({
   initialChangeArea,
 }: {
   result: MapProjectsResult;
+  opportunities?: OpportunityListItem[];
   savedComparisons: SavedComparisonsResult;
   localNetwork: OfficialMapFeatureCollection;
   planningArea: OfficialMapFeatureCollection;
@@ -107,14 +111,14 @@ export function MapPage({
     );
   }
 
-  if (result.projects.length === 0) {
+  if (result.projects.length === 0 && opportunities.length === 0) {
     return (
       <>
         <PageHeader title="Map & Compare" subtitle="Portfolio map" />
         <div className="space-y-4 px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
             title="No projects in this workspace"
-            description="Add a project to the portfolio to place it on Map & Compare. Saved team comparisons still appear below."
+            description="Add a project, or create an opportunity, to place it on Map & Compare. Saved team comparisons still appear below."
             action={<EmptyProjectsAction />}
           />
           {savedComparisons.kind === "ok" ? (
@@ -131,6 +135,7 @@ export function MapPage({
   return (
     <LoadedMapPage
       projects={result.projects}
+      opportunities={opportunities}
       savedComparisons={savedComparisons.kind === "ok" ? savedComparisons : null}
       localNetwork={localNetwork}
       planningArea={planningArea}
@@ -143,6 +148,7 @@ export function MapPage({
 
 function LoadedMapPage({
   projects,
+  opportunities,
   savedComparisons,
   localNetwork,
   planningArea,
@@ -151,6 +157,7 @@ function LoadedMapPage({
   initialChangeArea,
 }: {
   projects: MapProject[];
+  opportunities: OpportunityListItem[];
   savedComparisons: Extract<SavedComparisonsResult, { kind: "ok" }> | null;
   localNetwork: OfficialMapFeatureCollection;
   planningArea: OfficialMapFeatureCollection;
@@ -158,6 +165,7 @@ function LoadedMapPage({
   initialProjectSlug: string | null;
   initialChangeArea: { areaId: string; layer: OfficialMapLayer } | null;
 }) {
+  const router = useRouter();
   const { compareIds, addToCompare, removeFromCompare, clearCompare } = useWorkspace();
   const [selectedSlug, setSelectedSlug] = useState<string | null>(initialProjectSlug);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -368,6 +376,7 @@ function LoadedMapPage({
         <div className="relative h-[calc(100dvh-14.5rem)] min-h-[360px] overflow-hidden rounded-md border border-line bg-surface sm:h-[calc(100vh-220px)] sm:min-h-[520px]">
           <SwedenMap
             projects={mapped}
+            opportunities={opportunities}
             selectedId={visibleSelectedSlug}
             layers={layers}
             localNetwork={localNetwork}
@@ -376,6 +385,7 @@ function LoadedMapPage({
             highlightAreaId={officialAreaId}
             highlightLayer={officialPreview?.layer ?? initialChangeArea?.layer}
             onSelectProject={selectProject}
+            onSelectOpportunity={(slug) => router.push(`/opportunities/${slug}`)}
             onSelectOfficial={selectOfficial}
           />
 

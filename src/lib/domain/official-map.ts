@@ -94,12 +94,16 @@ export type OfficialMapLayerVisibility = {
   projects: boolean;
   localNetwork: boolean;
   planningArea: boolean;
+  opportunities: boolean;
+  rejectedOpportunities: boolean;
 };
 
 export const DEFAULT_OFFICIAL_MAP_LAYERS: OfficialMapLayerVisibility = {
   projects: true,
   localNetwork: true,
   planningArea: true,
+  opportunities: true,
+  rejectedOpportunities: false,
 };
 
 export const OFFICIAL_MAP_OVERVIEW_MAX_ZOOM = 6;

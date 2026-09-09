@@ -117,6 +117,7 @@ type ProjectRow = {
   target_cod: string | null;
   updated_at: string;
   archived_at: string | null;
+  originating_opportunity_id: string | null;
   grid_operator_id: string | null;
   grid_operators: GridOperatorRow | GridOperatorRow[] | null;
   project_sites: SiteRow[] | null;
@@ -240,6 +241,7 @@ function mapProject(
   officialGridAreaContext: OfficialGridAreaContext | null,
   officialNetworkDevelopmentPlanContext: OfficialNupContext | null,
   officialChanges: OfficialChangeImpactCounts,
+  originatingOpportunity: { slug: string; name: string } | null,
 ): ProjectDetailViewModel {
   const operator = asSingle(row.grid_operators);
   const site =
@@ -288,6 +290,7 @@ function mapProject(
     officialGridAreaContext,
     officialNetworkDevelopmentPlanContext,
     officialChanges,
+    originatingOpportunity,
   };
 }
 
@@ -323,6 +326,7 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
       target_cod,
       updated_at,
       archived_at,
+      originating_opportunity_id,
       grid_operator_id,
       grid_operators ( id, name ),
       project_sites ( name, location, geom, is_primary )
@@ -353,6 +357,7 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
     officialContext,
     officialNupContext,
     officialChanges,
+    originatingResult,
   ] =
     await Promise.all([
       supabase
@@ -389,6 +394,14 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
       getOfficialGridAreaContextForProject(projectId),
       getOfficialNetworkDevelopmentPlanContextForProject(projectId),
       getOfficialChangeImpactCounts(projectId),
+      project.originating_opportunity_id
+        ? supabase
+            .from("development_opportunities")
+            .select("slug, name")
+            .eq("id", project.originating_opportunity_id)
+            .eq("organization_id", organization.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
     ]);
 
   const relatedError =
@@ -452,6 +465,9 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
       officialContext,
       officialNupContext,
       officialChanges,
+      originatingResult.data
+        ? { slug: originatingResult.data.slug, name: originatingResult.data.name }
+        : null,
     ),
   };
 }

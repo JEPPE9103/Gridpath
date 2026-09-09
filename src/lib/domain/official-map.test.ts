@@ -263,6 +263,8 @@ describe("official map copy", () => {
       projects: true,
       localNetwork: true,
       planningArea: true,
+      opportunities: true,
+      rejectedOpportunities: false,
     });
   });
 });

@@ -20,6 +20,16 @@ export function MapLayerControl({
           onChange={(checked) => onChange({ ...layers, projects: checked })}
         />
         <LayerToggle
+          checked={layers.opportunities}
+          label="Opportunities"
+          onChange={(checked) => onChange({ ...layers, opportunities: checked })}
+        />
+        <LayerToggle
+          checked={layers.rejectedOpportunities}
+          label="Rejected opportunities"
+          onChange={(checked) => onChange({ ...layers, rejectedOpportunities: checked })}
+        />
+        <LayerToggle
           checked={layers.localNetwork}
           label="Local network areas"
           onChange={(checked) => onChange({ ...layers, localNetwork: checked })}

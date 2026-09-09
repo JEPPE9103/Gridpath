@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import {
   BarChart3,
   Briefcase,
+  Compass,
   FileText,
   LayoutGrid,
   LogOut,
@@ -26,6 +27,7 @@ import { usePathname } from "next/navigation";
 
 const NAV = [
   { href: "/overview", label: "Overview", icon: LayoutGrid, match: ["/overview"] },
+  { href: "/opportunities", label: "Opportunities", icon: Compass, match: ["/opportunities"] },
   { href: "/portfolio", label: "Portfolio", icon: Briefcase, match: ["/portfolio", "/projects"] },
   { href: "/map", label: "Map & Compare", icon: Map, match: ["/map", "/compare"] },
   { href: "/connections", label: "Connections", icon: Zap, match: ["/connections"] },

@@ -1,5 +1,6 @@
-import { getMapProjectsForCurrentOrganization } from "@/lib/data/map-projects";
+import { listOpportunitiesForCurrentOrganization } from "@/lib/data/opportunities";
 import { getOfficialChangeMapTarget } from "@/lib/data/grid-changes";
+import { getMapProjectsForCurrentOrganization } from "@/lib/data/map-projects";
 import { getOfficialMapLayerGeojson, getOrganizationOfficialSpatialMatches } from "@/lib/data/official-map";
 import { getSavedComparisonsForCurrentOrganization } from "@/lib/data/portfolio-comparisons";
 import { SWEDEN_MAP_BOUNDS } from "@/lib/domain/official-map";
@@ -15,7 +16,7 @@ export default async function Page({
   searchParams: Promise<{ project?: string; change?: string }>;
 }) {
   const params = await searchParams;
-  const [result, savedComparisons, localNetwork, planningArea, spatialMatches, changeTarget] =
+  const [result, savedComparisons, localNetwork, planningArea, spatialMatches, changeTarget, opportunities] =
     await Promise.all([
       getMapProjectsForCurrentOrganization(),
       getSavedComparisonsForCurrentOrganization(),
@@ -23,10 +24,12 @@ export default async function Page({
       getOfficialMapLayerGeojson("planning_area", SWEDEN_MAP_BOUNDS, 4.35),
       getOrganizationOfficialSpatialMatches(),
       params.change ? getOfficialChangeMapTarget(params.change) : Promise.resolve(null),
+      listOpportunitiesForCurrentOrganization(),
     ]);
   return (
     <MapPage
       result={result}
+      opportunities={opportunities.items}
       savedComparisons={savedComparisons}
       localNetwork={localNetwork}
       planningArea={planningArea}

@@ -13,7 +13,7 @@ Canonical identifiers for the reconstructible schema. Application queries, seed,
 | `grid_operators` | `id`, `name`, `country_code` |
 | `demo_requests` | marketing leads; authenticated/anon **INSERT only** (no client SELECT) |
 
-Tenant relationship: `organization_members` joins a profile to an organization. Projects, alerts, and `change_impacts` are organization-scoped via `organization_id`.
+Tenant relationship: `organization_members` joins a profile to an organization. Projects, alerts, `change_impacts`, and development opportunities are organization-scoped via `organization_id`.
 
 Membership **writes** (insert/update/delete) are not granted to `authenticated`. Use RPCs: `create_workspace`, invite/accept/revoke, `change_organization_member_role`, `remove_organization_member`, `leave_organization`.
 
@@ -23,7 +23,7 @@ Active workspace is an application cookie, not a database column. RLS remains me
 
 | Table | Important columns |
 | --- | --- |
-| `projects` | `organization_id`, `grid_operator_id`, `name`, `slug`, `location` (text), `region`, `technology`, `import_mw`, `export_mw`, `voltage_level`, `connection_stage`, `connection_outlook`, `confidence`, `target_cod`, `description`, `archived_at`, `archived_by` |
+| `projects` | `organization_id`, `grid_operator_id`, `name`, `slug`, `location` (text), `region`, `technology`, `import_mw`, `export_mw`, `voltage_level`, `connection_stage`, `connection_outlook`, `confidence`, `target_cod`, `description`, `archived_at`, `archived_by`, `originating_opportunity_id` |
 | `project_sites` | `project_id`, `name`, `location`, `geom` (`geometry(Point, 4326)`), `is_primary` |
 | `connection_cases` | `project_id`, `grid_operator_id`, `case_id`, `stage`, `status`, `submitted_at`, `next_milestone`, `deadline`, `notes` |
 | `project_requirements` | `project_id`, `connection_case_id`, `label`, `status`, `required`, `category`, `due_date` — case must belong to the same project (trigger) |
@@ -37,6 +37,21 @@ Active workspace is an application cookie, not a database column. RLS remains me
 | `notification_deliveries` | `kind` (`impact_email` \| `weekly_digest`), `status` (`attempted` \| `accepted` \| `failed`), `period_key` — no bodies, recipients, or API keys |
 
 Geometry: coordinates live on `project_sites.geom`. Primary site is `project_sites.is_primary` (one primary per project).
+
+## Development Intelligence
+
+Opportunities exist before projects. They are org-scoped. NOXHEIM does **not** estimate available grid capacity from these tables.
+
+| Table | Important columns |
+| --- | --- |
+| `opportunity_searches` | `organization_id`, `created_by`, screening criteria columns, `criteria` jsonb — reproducible search |
+| `development_opportunities` | `organization_id`, `slug`, `opportunity_type`, `status`, location, `geom`, `recommendation`, `data_confidence`, `key_positive`, `key_risk`, `promoted_project_id`, rejection fields |
+| `opportunity_assessments` | per-dimension explainable result, `source_kind` (`customer_data` \| `official` \| `noxheim_derived`), `completeness`, `evidence` |
+| `opportunity_events` | decision/history records |
+
+Statuses: `identified`, `screening`, `strong_candidate`, `under_review`, `shortlisted`, `promoted`, `rejected`.
+
+Recommendations: `prioritise`, `investigate`, `secondary`, `low_priority`, `insufficient_evidence`.
 
 ## Grid Intelligence
 
@@ -59,6 +74,8 @@ NUP numeric values are forecast transfer-capacity **need**, never available capa
 
 - `public.create_workspace(company_name, company_slug, user_full_name, user_job_title)` — onboarding (`src/lib/auth/actions.ts`)
 - `public.create_project_with_primary_site(...)` / `public.update_project_with_primary_site(...)` — portfolio CRUD (optional `description`, `region`, `voltage_level`)
+- `public.create_development_opportunity(...)` / `public.promote_opportunity_to_project(p_opportunity_id)` / `public.allocate_opportunity_slug(...)`
+- `public.get_official_covering_summary_for_point(p_latitude, p_longitude)` — covering Ei local-network + NUP names at a point; not capacity
 - `public.archive_project(p_project_id)` / `public.restore_project(p_project_id)`
 - `public.get_organization_project_aggregates(p_organization_id, p_include_archived)`
 - `public.import_organization_projects(p_organization_id, p_filename, p_rows, p_skipped_count)`

@@ -118,6 +118,7 @@ export type ProjectDetailViewModel = {
   officialGridAreaContext: OfficialGridAreaContext | null;
   officialNetworkDevelopmentPlanContext: OfficialNupContext | null;
   officialChanges: OfficialChangeImpactCounts;
+  originatingOpportunity: { slug: string; name: string } | null;
 };
 
 export type ProjectDetailResult =

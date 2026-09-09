@@ -4,6 +4,7 @@ import { LOCAL_NETWORK_FILL, NUP_FILL } from "@/features/map/map-legend";
 import { bindMapResize, ensureMapLibreWorker } from "@/features/map/maplibre-setup";
 import { markerColor, STYLE } from "@/features/map/mini-map";
 import type { MapProject } from "@/lib/data/map-types";
+import type { OpportunityListItem } from "@/lib/data/opportunities";
 import type { OfficialCoveringGeojson } from "@/lib/data/official-map";
 import type {
   OfficialMapAreaPreview,
@@ -36,6 +37,7 @@ const CHANGE_HIGHLIGHT_SOURCE = "official-change-highlight";
 
 export const SwedenMap = memo(function SwedenMap({
   projects,
+  opportunities = [],
   selectedId,
   layers,
   localNetwork,
@@ -44,9 +46,11 @@ export const SwedenMap = memo(function SwedenMap({
   highlightAreaId,
   highlightLayer,
   onSelectProject,
+  onSelectOpportunity,
   onSelectOfficial,
 }: {
   projects: MapProject[];
+  opportunities?: OpportunityListItem[];
   selectedId: string | null;
   layers: OfficialMapLayerVisibility;
   localNetwork: OfficialMapFeatureCollection;
@@ -55,6 +59,7 @@ export const SwedenMap = memo(function SwedenMap({
   highlightAreaId?: string | null;
   highlightLayer?: OfficialMapLayer | null;
   onSelectProject: (slug: string) => void;
+  onSelectOpportunity?: (slug: string) => void;
   onSelectOfficial: (input: OfficialMapAreaPreview) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -62,8 +67,10 @@ export const SwedenMap = memo(function SwedenMap({
   const [mapReady, setMapReady] = useState(false);
   const collectionsRef = useRef({ localNetwork, planningArea });
   const onSelectProjectRef = useRef(onSelectProject);
+  const onSelectOpportunityRef = useRef(onSelectOpportunity);
   const onSelectOfficialRef = useRef(onSelectOfficial);
   const markersRef = useRef(new Map<string, Marker>());
+  const opportunityMarkersRef = useRef(new Map<string, Marker>());
   const fetchKeyRef = useRef("overview");
   const inFlightKeyRef = useRef<string | null>(null);
   const fetchGenerationRef = useRef(0);
@@ -74,6 +81,7 @@ export const SwedenMap = memo(function SwedenMap({
   const coveringRef = useRef(covering);
 
   onSelectProjectRef.current = onSelectProject;
+  onSelectOpportunityRef.current = onSelectOpportunity;
   onSelectOfficialRef.current = onSelectOfficial;
   coveringRef.current = covering;
 
@@ -104,6 +112,7 @@ export const SwedenMap = memo(function SwedenMap({
     map.addControl(new NavigationControl({ showCompass: false }), "bottom-left");
     const unbindResize = bindMapResize(map, container);
     const markers = markersRef.current;
+    const opportunityMarkers = opportunityMarkersRef.current;
     mapRef.current = map;
     map.once("load", () => {
       addOfficialLayers(map);
@@ -115,6 +124,8 @@ export const SwedenMap = memo(function SwedenMap({
       unbindResize();
       markers.forEach((marker) => marker.remove());
       markers.clear();
+      opportunityMarkers.forEach((marker) => marker.remove());
+      opportunityMarkers.clear();
       map.remove();
       mapRef.current = null;
     };
@@ -457,6 +468,48 @@ export const SwedenMap = memo(function SwedenMap({
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const markers = opportunityMarkersRef.current;
+    if (!layers.opportunities && !layers.rejectedOpportunities) {
+      markers.forEach((marker) => marker.remove());
+      markers.clear();
+      return;
+    }
+    const plottable = opportunities.filter((item) => {
+      if (item.latitude == null || item.longitude == null) return false;
+      if (item.status === "rejected") return layers.rejectedOpportunities;
+      return layers.opportunities;
+    });
+    const nextIds = new Set(plottable.map((item) => item.slug));
+    markers.forEach((marker, slug) => {
+      if (!nextIds.has(slug)) {
+        marker.remove();
+        markers.delete(slug);
+      }
+    });
+    for (const item of plottable) {
+      const existing = markers.get(item.slug);
+      if (existing) {
+        existing.setLngLat([item.longitude as number, item.latitude as number]);
+        styleOpportunityMarker(existing.getElement(), item);
+        continue;
+      }
+      const el = document.createElement("button");
+      el.type = "button";
+      styleOpportunityMarker(el, item);
+      el.onclick = (event) => {
+        event.stopPropagation();
+        onSelectOpportunityRef.current?.(item.slug);
+      };
+      markers.set(
+        item.slug,
+        new Marker({ element: el }).setLngLat([item.longitude as number, item.latitude as number]).addTo(map),
+      );
+    }
+  }, [opportunities, mapReady, layers.opportunities, layers.rejectedOpportunities]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !mapReady || !selectedId) return;
     if (lastFittedSlugRef.current === selectedId) return;
     const selectedProject = projects.find((project) => project.slug === selectedId);
@@ -562,6 +615,20 @@ function addOfficialLayers(map: MapLibreMap) {
     paint: { "line-color": "#163A34", "line-width": 3.4 },
     layout: { "line-join": "round", "line-cap": "round" },
   });
+}
+
+function styleOpportunityMarker(el: HTMLElement, item: OpportunityListItem) {
+  const rejected = item.status === "rejected";
+  const shortlisted = item.status === "shortlisted" || item.status === "strong_candidate";
+  el.style.width = shortlisted ? "13px" : "12px";
+  el.style.height = shortlisted ? "13px" : "12px";
+  el.style.borderRadius = "2px";
+  el.style.background = rejected ? "#8A8F98" : shortlisted ? "#163A34" : "#2A7A6F";
+  el.style.border = "2px solid white";
+  el.style.boxShadow = "0 0 0 1px rgba(26,30,36,0.25)";
+  el.style.cursor = "pointer";
+  el.style.opacity = rejected ? "0.7" : "1";
+  el.title = `${item.name} · Opportunity`;
 }
 
 function styleMarkerElement(el: HTMLElement, selected: boolean, project: MapProject) {
