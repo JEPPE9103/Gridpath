@@ -7,6 +7,17 @@ export type ProjectAttentionLevel =
   | "on_track"
   | "insufficient_data";
 
+export type AttentionBand = "action" | "attention" | "review" | "clear";
+
+export type AttentionSignalSeverity = "action" | "attention" | "review";
+
+export type AttentionSignalSource =
+  | "requirement"
+  | "connection"
+  | "official_change"
+  | "project"
+  | "activity";
+
 export type AttentionSeverity = "high" | "medium" | "low";
 
 export type SourceCategory = "your_team" | "official_source" | "noxheim_derived";
@@ -19,6 +30,44 @@ export type AttentionReason = {
   sourceCategory: SourceCategory;
 };
 
+export type AttentionRequirement = {
+  id?: string;
+  label?: string;
+  required: boolean;
+  status: ChecklistStatus;
+  dueDate: string | null;
+};
+
+export type AttentionEvent = {
+  title: string;
+  occurredAt: string;
+};
+
+export type ProjectAttentionSignal = {
+  type: string;
+  severity: AttentionSignalSeverity;
+  title: string;
+  detail?: string;
+  dueAt?: string | null;
+  source: AttentionSignalSource;
+  href?: string;
+};
+
+export type ProjectNextAction = {
+  kind:
+    | "overdue_requirement"
+    | "due_soon_requirement"
+    | "connection_deadline_overdue"
+    | "connection_deadline_due_soon"
+    | "official_change"
+    | "incomplete_requirement"
+    | "missing_milestone"
+    | "none";
+  title: string;
+  detail: string;
+  href?: string;
+};
+
 export type ProjectAttentionInput = {
   stage: OverviewPipelineStage;
   confidence: Confidence;
@@ -26,18 +75,29 @@ export type ProjectAttentionInput = {
   connectionCaseStatus: string | null;
   connectionCaseStatusValue: string | null;
   hasConnectionCase: boolean;
-  requirements: Array<{
-    required: boolean;
-    status: ChecklistStatus;
-    dueDate: string | null;
-  }>;
+  requirements: AttentionRequirement[];
   openAlertSeverities: AlertSeverity[];
   unreviewedOfficialChangeCount?: number;
+  connectionDeadline?: string | null;
+  nextMilestone?: string | null;
+  connectionCaseCreatedAt?: string | null;
+  connectionCaseOwnerAssigned?: boolean | null;
+  events?: AttentionEvent[];
+  lastActivityAt?: string | null;
+  unmatchedOfficialGeography?: boolean;
+  projectSlug?: string;
+  projectId?: string;
 };
 
 export type ProjectAttentionResult = {
   level: ProjectAttentionLevel;
+  band: AttentionBand;
   reasons: AttentionReason[];
+  signals: ProjectAttentionSignal[];
+  nextAction: ProjectNextAction;
+  daysInCurrentStage: number | null;
+  daysInCurrentStageSource: "stage_event" | "case_created" | "unavailable";
+  lastActivityAt: string | null;
   priorityScore: number;
 };
 
@@ -87,14 +147,17 @@ export type PortfolioAttentionProjectInput = {
   readinessRequiredCount: number;
   confidence: Confidence;
   targetCOD: string;
-  requirements: Array<{
-    required: boolean;
-    status: ChecklistStatus;
-    dueDate: string | null;
-  }>;
+  requirements: AttentionRequirement[];
   openAlertSeverities: AlertSeverity[];
   unreviewedOfficialChangeCount?: number;
   lastUpdated: string;
+  connectionDeadline?: string | null;
+  nextMilestone?: string | null;
+  connectionCaseCreatedAt?: string | null;
+  connectionCaseOwnerAssigned?: boolean | null;
+  events?: AttentionEvent[];
+  lastActivityAt?: string | null;
+  unmatchedOfficialGeography?: boolean;
 };
 
 export type PortfolioAttentionItem = {
@@ -102,12 +165,21 @@ export type PortfolioAttentionItem = {
   slug: string;
   name: string;
   level: "needs_attention" | "watch";
+  band: "action" | "attention" | "review";
   summary: string;
   priorityScore: number;
   stage: OverviewPipelineStage;
+  daysInCurrentStage: number | null;
+  lastActivityAt: string | null;
+  nextAction: ProjectNextAction;
+  signals: ProjectAttentionSignal[];
 };
 
 export type PortfolioAttentionResult = {
   needsAttention: PortfolioAttentionItem[];
   watch: PortfolioAttentionItem[];
+  prioritized: PortfolioAttentionItem[];
+  actionRequiredCount: number;
+  upcomingCount: number;
+  reviewCount: number;
 };

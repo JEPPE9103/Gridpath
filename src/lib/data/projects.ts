@@ -10,6 +10,7 @@ import {
   technologyLabel,
   technologyToDb,
 } from "@/lib/domain/catalog-labels";
+import type { PortfolioAttentionFilter } from "@/lib/intelligence/portfolio-attention";
 import { parseArchiveView, type ArchiveView } from "@/lib/projects/archive-scope";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Outlook, PipelineStage, ProjectListItem, Technology } from "@/types";
@@ -52,7 +53,8 @@ export type PortfolioSortKey =
   | "stage"
   | "outlook"
   | "targetCOD"
-  | "lastUpdated";
+  | "lastUpdated"
+  | "attention";
 
 export type ListProjectsQuery = {
   view?: string | null;
@@ -64,6 +66,8 @@ export type ListProjectsQuery = {
   page?: string | null;
   sort?: string | null;
   dir?: string | null;
+  attention?: string | null;
+  unpaged?: boolean;
 };
 
 export type ListProjectsResult = {
@@ -82,6 +86,7 @@ export type ListProjectsResult = {
   outlook: Outlook | "All";
   sortKey: PortfolioSortKey;
   sortDir: "asc" | "desc";
+  attentionFilter: PortfolioAttentionFilter;
 };
 
 const PROJECT_SELECT = `
@@ -155,6 +160,7 @@ function parseSortKey(value: string | null | undefined): PortfolioSortKey {
     "outlook",
     "targetCOD",
     "lastUpdated",
+    "attention",
   ];
   return allowed.includes(value as PortfolioSortKey) ? (value as PortfolioSortKey) : "lastUpdated";
 }
@@ -189,6 +195,13 @@ function orderColumn(sortKey: PortfolioSortKey): { column: string; foreignTable?
   }
 }
 
+function parseAttentionFilter(value: string | null | undefined): PortfolioAttentionFilter {
+  if (value === "action" || value === "needs_attention" || value === "official_changes") {
+    return value;
+  }
+  return "all";
+}
+
 function sanitizeSearch(value: string): string {
   return value.replace(/[%_,()]/g, " ").trim();
 }
@@ -203,6 +216,8 @@ export async function listProjects(query: ListProjectsQuery = {}): Promise<ListP
   const sortKey = parseSortKey(query.sort);
   const sortDir = parseSortDir(query.dir, sortKey);
   const page = parsePage(query.page);
+  const attentionFilter = parseAttentionFilter(query.attention);
+  const unpaged = Boolean(query.unpaged) || sortKey === "attention" || attentionFilter !== "all";
   const empty: ListProjectsResult = {
     projects: [],
     blockedByRls: false,
@@ -219,6 +234,7 @@ export async function listProjects(query: ListProjectsQuery = {}): Promise<ListP
     outlook: outlookFilter,
     sortKey,
     sortDir,
+    attentionFilter,
   };
 
   const organization = await getCurrentOrganization();
@@ -324,16 +340,29 @@ function applyFilters(builder: FilterableQuery): FilterableQuery {
 
 type CountResult = { count: number | null; error: { message: string } | null };
 
+  const pagePromise = unpaged
+    ? fetchAllQueryPages<ProjectRow>(async (pageFrom, pageTo) => {
+        const result = await ordered.range(pageFrom, pageTo);
+        return {
+          data: (result.data ?? null) as ProjectRow[] | null,
+          error: result.error,
+        };
+      })
+    : ordered.range(from, to);
+
   const [countResult, pageResult, operatorResult] = await Promise.all([
     countBuilder as unknown as PromiseLike<CountResult>,
-    ordered.range(from, to),
+    pagePromise,
     operatorPromise,
   ]);
 
-  if (countResult.error || pageResult.error || operatorResult.error) {
+  const pagedError = unpaged
+    ? (pageResult as { error: string | null }).error
+    : (pageResult as { error: { message: string } | null }).error?.message ?? null;
+  if (countResult.error || pagedError || operatorResult.error) {
     console.error("listProjects failed", {
       count: countResult.error?.message,
-      page: pageResult.error?.message,
+      page: pagedError,
       operators: operatorResult.error,
     });
     return {
@@ -343,7 +372,9 @@ type CountResult = { count: number | null; error: { message: string } | null };
     };
   }
 
-  const rows = ((pageResult as { data?: ProjectRow[] }).data ?? []) as ProjectRow[];
+  const rows = unpaged
+    ? (pageResult as { rows: ProjectRow[] }).rows
+    : (((pageResult as { data?: ProjectRow[] }).data ?? []) as ProjectRow[]);
   if (!user && rows.length === 0 && (countResult.count ?? 0) === 0) {
     return { ...empty, blockedByRls: true };
   }

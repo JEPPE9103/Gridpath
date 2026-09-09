@@ -25,6 +25,7 @@ import {
   recentProjectDocuments,
 } from "@/lib/domain/connection-workspace";
 import { deadlineRelativeLabel } from "@/lib/domain/connection-deadlines";
+import { daysInCurrentStageLabel, deriveDaysInCurrentStage } from "@/lib/intelligence/project-attention";
 import { isOfficialSourceUpdateDelayed } from "@/lib/domain/official-change-summary";
 import { getDocumentDownloadUrl } from "@/lib/documents/actions";
 import { formatDate, formatImportExport, formatRelative } from "@/lib/format";
@@ -116,6 +117,10 @@ function LoadedConnectionWorkspace({
     requirements: project.requirements,
     caseDeadline: connectionCase.deadline,
     caseStatusValue: connectionCase.statusValue,
+    nextMilestone: connectionCase.nextMilestone,
+    unreviewedOfficialChangeCount: project.officialChanges.unreviewed,
+    projectSlug: project.slug,
+    projectId: project.id,
     now,
   });
   const journey = connectionStageJourney(connectionCase.stage);
@@ -125,6 +130,14 @@ function LoadedConnectionWorkspace({
     groups.upcoming.find((item) => item.dueDate)?.dueDate ??
     connectionCase.deadline;
   const lastActivity = latestActivityAt(project.events, project.lastUpdated);
+  const stageDuration = deriveDaysInCurrentStage(
+    {
+      hasConnectionCase: true,
+      connectionCaseCreatedAt: connectionCase.createdAt,
+      events: project.events,
+    },
+    now,
+  );
   const documents = recentProjectDocuments(project.documents);
   const localNetwork = project.officialGridAreaContext?.areas[0] ?? null;
   const nup = project.officialNetworkDevelopmentPlanContext?.planningAreas[0] ?? null;
@@ -171,7 +184,15 @@ function LoadedConnectionWorkspace({
           </div>
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 xl:grid-cols-6">
-          <Meta label="Stage" value={<StageBadge stage={connectionCase.stage} />} />
+          <Meta
+            label="Stage"
+            value={
+              <>
+                <StageBadge stage={connectionCase.stage} />
+                <p className="mt-1 text-xs text-muted">{daysInCurrentStageLabel(stageDuration.days)}</p>
+              </>
+            }
+          />
           <Meta label="Requested" value={formatImportExport(project)} />
           <Meta
             label="Target / milestone"
@@ -222,7 +243,15 @@ function LoadedConnectionWorkspace({
 
       <section className="rounded-md border border-line bg-surface p-5">
         <h2 className="text-base font-semibold">Next action</h2>
-        <p className="mt-2 text-sm font-medium">{nextAction.title}</p>
+        <p className="mt-2 text-sm font-medium">
+          {nextAction.href ? (
+            <Link href={nextAction.href} className="text-teal hover:underline">
+              {nextAction.title}
+            </Link>
+          ) : (
+            nextAction.title
+          )}
+        </p>
         <p className="mt-1 text-sm text-muted">{nextAction.detail}</p>
         <p className="mt-3 text-xs leading-5 text-muted">
           Deterministic workflow guidance from recorded requirements and deadlines. Not a connection
@@ -281,7 +310,7 @@ function LoadedConnectionWorkspace({
         {groups.outstandingRequiredCount > 0 ? (
           <ul className="mt-3 list-disc space-y-1 pl-5 text-sm">
             {groups.needsAttention.concat(groups.upcoming).map((item) => (
-              <li key={item.id}>
+              <li key={item.id} id={`requirement-${item.id}`} className="scroll-mt-24">
                 {item.label}
                 {item.dueLabel ? ` · ${item.dueLabel}` : ""}
               </li>

@@ -1,4 +1,8 @@
-import { deriveProjectAttention } from "@/lib/intelligence/project-attention";
+import {
+  attentionSortRank,
+  deriveProjectAttention,
+  earliestSignalDueAt,
+} from "@/lib/intelligence/project-attention";
 import type {
   PortfolioAttentionItem,
   PortfolioAttentionProjectInput,
@@ -6,96 +10,109 @@ import type {
 } from "@/lib/intelligence/types";
 import type { OverviewPipelineStage } from "@/lib/data/overview-types";
 
+export const EMPTY_PORTFOLIO_ATTENTION: PortfolioAttentionResult = {
+  needsAttention: [],
+  watch: [],
+  prioritized: [],
+  actionRequiredCount: 0,
+  upcomingCount: 0,
+  reviewCount: 0,
+};
+
 function buildPortfolioSummary(
   input: PortfolioAttentionProjectInput,
-  level: "needs_attention" | "watch",
+  attention: ReturnType<typeof deriveProjectAttention>,
 ): string {
-  const parts: string[] = [];
-  const statusValue =
-    input.connectionCaseStatusValue ??
-    input.connectionCaseStatus?.trim().toLowerCase().replace(/\s+/g, "_") ??
-    null;
+  const primary = attention.signals[0];
+  if (primary?.detail) {
+    return `${primary.title} · ${primary.detail}`;
+  }
+  if (primary) {
+    return primary.title;
+  }
 
-  if (statusValue === "at_risk") {
-    parts.push(`At-risk ${input.stage}`);
-  } else if (statusValue === "overdue") {
-    parts.push(`Overdue connection case · ${input.stage}`);
-  } else if (statusValue === "waiting") {
-    parts.push(`Waiting connection case · ${input.stage}`);
-  } else if (input.hasConnectionCase) {
-    parts.push(`${input.stage}`);
+  const parts: string[] = [];
+  if (input.hasConnectionCase) {
+    parts.push(input.stage);
   } else {
     parts.push(`${input.stage} · no connection case`);
   }
-
-  if (input.readinessRequiredCount > 0) {
-    if (input.readinessPercent != null) {
-      parts.push(`${input.readinessCompleteCount}/${input.readinessRequiredCount} required actions complete`);
-    } else {
-      parts.push(`${input.readinessRequiredCount} required actions tracked`);
-    }
-  }
-
-  if (level === "needs_attention") {
-    const overdue = input.requirements.filter(
-      (item) =>
-        item.required &&
-        item.status !== "Complete" &&
-        item.dueDate &&
-        new Date(`${item.dueDate}T00:00:00`).getTime() < Date.now(),
-    ).length;
-    if (overdue > 0) {
-      parts.push(
-        overdue === 1 ? "1 overdue required action" : `${overdue} overdue required actions`,
-      );
-    }
-  }
-
-  const unreviewed = input.unreviewedOfficialChangeCount ?? 0;
-  if (unreviewed > 0) {
-    parts.push(
-      unreviewed === 1
-        ? "1 official change needs review"
-        : `${unreviewed} official changes need review`,
-    );
-  }
-
   return parts.join(" · ");
+}
+
+function toAttentionInput(project: PortfolioAttentionProjectInput) {
+  return {
+    stage: project.stage,
+    confidence: project.confidence,
+    targetCOD: project.targetCOD,
+    connectionCaseStatus: project.connectionCaseStatus,
+    connectionCaseStatusValue: project.connectionCaseStatusValue,
+    hasConnectionCase: project.hasConnectionCase,
+    requirements: project.requirements,
+    openAlertSeverities: project.openAlertSeverities,
+    unreviewedOfficialChangeCount: project.unreviewedOfficialChangeCount,
+    connectionDeadline: project.connectionDeadline,
+    nextMilestone: project.nextMilestone,
+    connectionCaseCreatedAt: project.connectionCaseCreatedAt,
+    connectionCaseOwnerAssigned: project.connectionCaseOwnerAssigned,
+    events: project.events,
+    lastActivityAt: project.lastActivityAt,
+    unmatchedOfficialGeography: project.unmatchedOfficialGeography,
+    projectSlug: project.slug,
+    projectId: project.id,
+  };
+}
+
+function compareAttentionItems(
+  left: PortfolioAttentionItem & { _dueAt: string | null; _rank: number },
+  right: PortfolioAttentionItem & { _dueAt: string | null; _rank: number },
+): number {
+  if (left._rank !== right._rank) {
+    return left._rank - right._rank;
+  }
+  const leftDue = left._dueAt ?? "9999-12-31";
+  const rightDue = right._dueAt ?? "9999-12-31";
+  if (leftDue !== rightDue) {
+    return leftDue.localeCompare(rightDue);
+  }
+  return left.name.localeCompare(right.name, "sv");
 }
 
 export function buildPortfolioAttention(
   projects: PortfolioAttentionProjectInput[],
+  now: Date = new Date(),
 ): PortfolioAttentionResult {
-  const needsAttention: PortfolioAttentionItem[] = [];
-  const watch: PortfolioAttentionItem[] = [];
+  const needsAttention: Array<PortfolioAttentionItem & { _dueAt: string | null; _rank: number }> = [];
+  const watch: Array<PortfolioAttentionItem & { _dueAt: string | null; _rank: number }> = [];
+  const prioritized: Array<PortfolioAttentionItem & { _dueAt: string | null; _rank: number }> = [];
 
   for (const project of projects) {
-    const attention = deriveProjectAttention({
-      stage: project.stage,
-      confidence: project.confidence,
-      targetCOD: project.targetCOD,
-      connectionCaseStatus: project.connectionCaseStatus,
-      connectionCaseStatusValue: project.connectionCaseStatusValue,
-      hasConnectionCase: project.hasConnectionCase,
-      requirements: project.requirements,
-      openAlertSeverities: project.openAlertSeverities,
-      unreviewedOfficialChangeCount: project.unreviewedOfficialChangeCount,
-    });
-
+    const attention = deriveProjectAttention(toAttentionInput(project), now);
+    if (attention.band === "clear" || attention.level === "on_track" || attention.level === "insufficient_data") {
+      continue;
+    }
     if (attention.level !== "needs_attention" && attention.level !== "watch") {
       continue;
     }
 
-    const item: PortfolioAttentionItem = {
+    const item: PortfolioAttentionItem & { _dueAt: string | null; _rank: number } = {
       id: project.id,
       slug: project.slug,
       name: project.name,
       level: attention.level,
-      summary: buildPortfolioSummary(project, attention.level),
+      band: attention.band,
+      summary: buildPortfolioSummary(project, attention),
       priorityScore: attention.priorityScore,
       stage: project.stage,
+      daysInCurrentStage: attention.daysInCurrentStage,
+      lastActivityAt: attention.lastActivityAt,
+      nextAction: attention.nextAction,
+      signals: attention.signals,
+      _dueAt: earliestSignalDueAt(attention.signals),
+      _rank: attentionSortRank(attention),
     };
 
+    prioritized.push(item);
     if (attention.level === "needs_attention") {
       needsAttention.push(item);
     } else {
@@ -103,18 +120,24 @@ export function buildPortfolioAttention(
     }
   }
 
-  const sortItems = (items: PortfolioAttentionItem[]) =>
-    [...items].sort((a, b) => {
-      const scoreDelta = b.priorityScore - a.priorityScore;
-      if (scoreDelta !== 0) {
-        return scoreDelta;
-      }
-      return a.name.localeCompare(b.name, "sv");
-    });
+  const strip = (
+    items: Array<PortfolioAttentionItem & { _dueAt: string | null; _rank: number }>,
+  ): PortfolioAttentionItem[] =>
+    [...items]
+      .sort(compareAttentionItems)
+      .map(({ _dueAt: _d, _rank: _r, ...item }) => item);
+
+  const sortedNeeds = strip(needsAttention);
+  const sortedWatch = strip(watch);
+  const sortedPrioritized = strip(prioritized);
 
   return {
-    needsAttention: sortItems(needsAttention),
-    watch: sortItems(watch),
+    needsAttention: sortedNeeds,
+    watch: sortedWatch,
+    prioritized: sortedPrioritized,
+    actionRequiredCount: sortedNeeds.length,
+    upcomingCount: sortedPrioritized.filter((item) => item.band === "attention").length,
+    reviewCount: sortedPrioritized.filter((item) => item.band === "review").length,
   };
 }
 
@@ -128,19 +151,53 @@ export function portfolioAttentionCounts(result: PortfolioAttentionResult): {
   };
 }
 
-/** Overview / Reports KPI — same list as Portfolio Attention “Needs attention”. */
+/** Overview / Reports KPI — same list as Portfolio Attention action-required. */
 export function countNeedsAttentionProjects(
   projects: PortfolioAttentionProjectInput[],
+  now?: Date,
 ): number {
-  return buildPortfolioAttention(projects).needsAttention.length;
+  return buildPortfolioAttention(projects, now).needsAttention.length;
 }
 
 export function projectIdsNeedingAttention(
   projects: PortfolioAttentionProjectInput[],
+  now?: Date,
 ): Set<string> {
-  return new Set(buildPortfolioAttention(projects).needsAttention.map((item) => item.id));
+  return new Set(buildPortfolioAttention(projects, now).needsAttention.map((item) => item.id));
 }
 
 export function stageLabelForSummary(stage: OverviewPipelineStage): string {
   return stage;
+}
+
+export type PortfolioAttentionFilter = "all" | "action" | "needs_attention" | "official_changes";
+
+export function projectAttentionById(
+  projects: PortfolioAttentionProjectInput[],
+  now: Date = new Date(),
+): Map<string, ReturnType<typeof deriveProjectAttention>> {
+  const map = new Map<string, ReturnType<typeof deriveProjectAttention>>();
+  for (const project of projects) {
+    map.set(project.id, deriveProjectAttention(toAttentionInput(project), now));
+  }
+  return map;
+}
+
+export function matchesPortfolioAttentionFilter(
+  item: Pick<PortfolioAttentionItem, "band" | "signals"> | null,
+  filter: PortfolioAttentionFilter,
+): boolean {
+  if (filter === "all") {
+    return true;
+  }
+  if (!item) {
+    return false;
+  }
+  if (filter === "action") {
+    return item.band === "action";
+  }
+  if (filter === "needs_attention") {
+    return item.band === "action" || item.band === "attention";
+  }
+  return item.signals.some((signal) => signal.type === "unreviewed_official_changes");
 }

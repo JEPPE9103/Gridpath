@@ -55,13 +55,14 @@ export function PortfolioPage({
       operator: result.operator === "All" ? "" : result.operator,
       stage: result.stage === "All" ? "" : result.stage,
       outlook: result.outlook === "All" ? "" : result.outlook,
+      attention: result.attentionFilter === "all" ? "" : result.attentionFilter,
       sort: result.sortKey,
       dir: result.sortDir,
       page: String(result.page),
       ...overrides,
     };
     for (const [key, value] of Object.entries(next)) {
-      if (value && value !== "All" && !(key === "page" && value === "1") && !(key === "view" && value === "active") && !(key === "sort" && value === "lastUpdated") && !(key === "dir" && value === "desc")) {
+      if (value && value !== "All" && !(key === "page" && value === "1") && !(key === "view" && value === "active") && !(key === "sort" && value === "lastUpdated") && !(key === "dir" && value === "desc") && !(key === "attention" && value === "all")) {
         params.set(key, value);
       }
     }
@@ -173,6 +174,31 @@ export function PortfolioPage({
             options={["All", ...OUTLOOKS]}
             label="Team outlook"
           />
+          <Select
+            value={result.attentionFilter}
+            onChange={(value) => update({ attention: value === "all" ? "" : value, page: "1" })}
+            options={["all", "action", "needs_attention", "official_changes"]}
+            labels={{
+              all: "All",
+              action: "Action required",
+              needs_attention: "Needs attention",
+              official_changes: "Official changes",
+            }}
+            label="Attention"
+          />
+          <Select
+            value={result.sortKey === "attention" ? "attention" : "default"}
+            onChange={(value) =>
+              update({
+                sort: value === "attention" ? "attention" : "lastUpdated",
+                dir: value === "attention" ? "asc" : "desc",
+                page: "1",
+              })
+            }
+            options={["default", "attention"]}
+            labels={{ default: "Last update", attention: "Attention first" }}
+            label="Sort"
+          />
         </form>
         <p className="text-sm text-muted">
           {result.matchingCount === 0
@@ -187,7 +213,7 @@ export function PortfolioPage({
           />
         ) : error ? (
           <EmptyState title="Could not load projects" description={error} />
-        ) : result.matchingCount === 0 && !result.query && result.technology === "All" && result.operator === "All" && result.stage === "All" && result.outlook === "All" ? (
+        ) : result.matchingCount === 0 && !result.query && result.technology === "All" && result.operator === "All" && result.stage === "All" && result.outlook === "All" && result.attentionFilter === "all" ? (
           <EmptyState
             title={result.view === "archived" ? "No archived projects" : "No projects yet"}
             description={
@@ -210,7 +236,7 @@ export function PortfolioPage({
           />
         ) : (
           <div className="overflow-x-auto rounded-md border border-line bg-surface">
-            <table className="w-full min-w-[1100px] text-left text-sm">
+            <table className="w-full min-w-[1280px] text-left text-sm">
               <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
                 <tr>
                   <Th onClick={() => toggleSort("name")} active={result.sortKey === "name"} dir={result.sortDir}>
@@ -231,6 +257,7 @@ export function PortfolioPage({
                   <Th onClick={() => toggleSort("stage")} active={result.sortKey === "stage"} dir={result.sortDir}>
                     Stage
                   </Th>
+                  <Th>Next action</Th>
                   <Th>Team outlook</Th>
                   <Th>Team confidence</Th>
                   <Th onClick={() => toggleSort("targetCOD")} active={result.sortKey === "targetCOD"} dir={result.sortDir}>
@@ -249,7 +276,10 @@ export function PortfolioPage({
                     onClick={() => router.push(`/projects/${project.id}`)}
                   >
                     <td className="px-4 py-3 font-medium">
-                      {project.name}
+                      <span className="inline-flex items-center gap-2">
+                        <AttentionDot band={project.attentionBand} />
+                        {project.name}
+                      </span>
                       {project.archivedAt ? (
                         <span className="ml-2 text-xs font-normal text-muted">Archived</span>
                       ) : null}
@@ -260,6 +290,12 @@ export function PortfolioPage({
                     <td className="px-4 py-3">{project.gridOperator}</td>
                     <td className="px-4 py-3">
                       <StageBadge stage={project.stage} />
+                      {project.daysInCurrentStage != null ? (
+                        <p className="mt-1 text-xs text-muted">{project.daysInCurrentStage} days in stage</p>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-muted">
+                      {project.nextActionTitle ?? "—"}
                     </td>
                     <td className="px-4 py-3">
                       <OutlookBadge outlook={project.outlook} />
@@ -304,11 +340,13 @@ function Select({
   onChange,
   options,
   label,
+  labels,
 }: {
   value: string;
   onChange: (value: string) => void;
   options: string[];
   label: string;
+  labels?: Record<string, string>;
 }) {
   return (
     <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
@@ -320,12 +358,26 @@ function Select({
       >
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {labels?.[option] ?? option}
           </option>
         ))}
       </select>
     </label>
   );
+}
+
+function AttentionDot({ band }: { band?: "action" | "attention" | "review" | "clear" }) {
+  const tone =
+    band === "action" ? "bg-critical" : band === "attention" ? "bg-warning" : band === "review" ? "bg-info" : "bg-line";
+  const label =
+    band === "action"
+      ? "Action required"
+      : band === "attention"
+        ? "Needs attention"
+        : band === "review"
+          ? "Review"
+          : "No immediate action";
+  return <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${tone}`} title={label} aria-label={label} />;
 }
 
 function Th({

@@ -216,7 +216,7 @@ export function RequirementsManager({
           {project.requirements.map((item) => {
             const complete = item.status === "Complete";
             return (
-              <li key={item.id} className="flex items-start justify-between gap-3 py-2.5">
+              <li key={item.id} id={`requirement-${item.id}`} className="flex items-start justify-between gap-3 py-2.5 scroll-mt-24">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     {complete ? (
@@ -299,7 +299,7 @@ function GroupedRequirementLists({
             </h3>
             <ul className="mt-2 divide-y divide-line">
               {section.items.map((item) => (
-                <li key={item.id} className="flex items-start justify-between gap-3 py-2.5">
+                <li key={item.id} id={`requirement-${item.id}`} className="flex items-start justify-between gap-3 py-2.5 scroll-mt-24">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       {item.status === "Complete" ? (

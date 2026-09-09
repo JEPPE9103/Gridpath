@@ -148,14 +148,19 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
                 <KpiCard
                   label="Workflow attention"
                   value={kpis.needsAttention}
-                  hint="Projects needing workflow attention — not the open-alert count"
+                  hint="Projects with action-required workflow items — not the open-alert count"
                   icon={AlertTriangle}
                   tone="critical"
                 />
               </button>
             </section>
 
-            <PortfolioAttentionSection attention={portfolioAttention} />
+            <PortfolioAttentionSection
+              attention={portfolioAttention}
+              activeCount={kpis.activeSites}
+              officialChangesToReview={overview.officialChanges.unreviewed}
+              sourceDelayed={overview.officialSourceDelayed}
+            />
 
             <OfficialChangesSignal
               counts={overview.officialChanges}

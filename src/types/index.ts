@@ -229,6 +229,10 @@ export interface ProjectListItem {
   targetCOD: string;
   lastUpdated: string;
   archivedAt: string | null;
+  attentionBand?: "action" | "attention" | "review" | "clear";
+  nextActionTitle?: string;
+  daysInCurrentStage?: number | null;
+  unreviewedOfficialChangeCount?: number;
 }
 
 export const PIPELINE_STAGES: PipelineStage[] = [

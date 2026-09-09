@@ -2,41 +2,56 @@
 
 Authoritative implementation: `deriveProjectAttention` in `src/lib/intelligence/project-attention.ts`.
 
-Overview KPI **Workflow attention**, the **Portfolio Attention** list, project **Development Brief** status, and Reports **projects needing workflow attention** all use this function.
+Overview KPI **Workflow attention**, the **Portfolio attention** list, project **Project attention**, Connection Application next action, and Reports **projects needing workflow attention** all use this function.
 
 **Open alerts** (bell, Alerts page, Reports “Open alerts”, Compare “Open alerts”) count stored `alerts` rows. That is not the same number as workflow attention.
 
 Weekly digest “projects with open warning/critical alerts or overdue required items” is a SQL heuristic for email, not `deriveProjectAttention`.
 
-This is **NOXHEIM-derived** workflow hygiene. It is not official grid advice, available connection capacity, or probability of connection.
+This is **NOXHEIM-derived** workflow hygiene. It is not official grid advice, available connection capacity, or probability of connection. There is no numeric risk score.
 
-## Levels
+## Bands
 
-| Level | Meaning |
-| --- | --- |
-| Needs attention | High-severity workflow issues |
-| Watch | Incomplete or missing workflow data that should be reviewed |
-| On track | Workflow signals exist and none of the high/watch rules apply |
-| Limited data | No connection case, requirements, open alerts, or target COD yet |
+| Band | KPI / Overview | Meaning |
+| --- | --- | --- |
+| Action required | Counted in Workflow attention | Overdue required items, overdue connection deadlines, customer-entered At Risk / Overdue case status, open critical/warning alerts |
+| Needs attention / Upcoming | Listed, not in the KPI | Required item or connection deadline due within 7 days; official change awaiting review |
+| Review | Listed on the project, not in Overview “now” | Completeness / hygiene only |
+| Clear | Hidden | No current attention signals |
 
-## Needs attention (KPI count)
+## Action required
 
-A project is counted when any of these hold:
+- Required requirement overdue
+- Connection case deadline overdue (active case)
+- Connection case status At Risk or Overdue (customer entered)
+- Open critical or warning alert
 
-- Connection case status is At Risk or Overdue (customer entered)
-- A required development action is overdue (customer entered)
-- An open critical or warning **alert** exists (NOXHEIM-derived from stored alerts)
+## Needs attention
 
-## Watch (listed, not in the KPI)
+- Required requirement due within 7 days
+- Connection deadline due within 7 days
+- Unreviewed official change (team relevance, not a technical impact verdict)
 
-- Connection case Waiting
-- Incomplete required actions that are not overdue
-- Advanced connection stage with no connection case yet
-- Team confidence Unknown
-- Target COD missing
+## Review
+
+- No next milestone recorded
+- No connection-case owner assigned
+- Connection case exists but no required workflow items defined
+- Official grid geography needs review (no covering official area)
+- No recorded project activity in 30 days
+- Waiting case, incomplete required items that are not due soon, missing case at advanced stage, unknown confidence, missing target COD
+
+## Stage duration
+
+Days in current stage come from the latest `Connection stage changed` event. If none exists, the connection case `created_at` is used. Otherwise duration is unavailable. NOXHEIM does not say the stage is taking too long.
+
+## Next action
+
+Deterministic order: overdue required item → required item due soon → overdue connection deadline → connection deadline due soon → official change awaiting review → incomplete required item → missing next milestone → no immediate action identified.
 
 ## What this is not
 
 - Official source data
 - Grid feasibility
 - Forecast NUP transfer-capacity **need** interpreted as available MW
+- A risk, probability, or feasibility score

@@ -103,4 +103,13 @@ describe("official change inbox helpers", () => {
     assert.equal(isOfficialSourceUpdateDelayed("failed"), true);
     assert.equal(isOfficialSourceUpdateDelayed("stale"), true);
   });
+
+  it("scenario 12: delayed source stays delayed even with zero unreviewed changes", () => {
+    assert.equal(countOfficialChangeImpacts([]).unreviewed, 0);
+    assert.equal(isOfficialSourceUpdateDelayed("stale"), true);
+    assert.equal(
+      officialChangeCopyContainsForbiddenTerm("No unreviewed official changes are currently listed. Source update currently delayed."),
+      null,
+    );
+  });
 });

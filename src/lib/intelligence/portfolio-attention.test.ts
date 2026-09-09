@@ -122,6 +122,41 @@ describe("buildPortfolioAttention", () => {
     ]);
     assert.equal(result.needsAttention.length, 0);
     assert.equal(result.watch.length, 1);
-    assert.match(result.watch[0]?.summary ?? "", /official changes need review/);
+    assert.match(result.watch[0]?.summary ?? "", /Official change awaiting review/);
+  });
+
+  it("sorts overdue required ahead of due-soon and official changes", () => {
+    const now = new Date("2026-08-31T12:00:00Z");
+    const result = buildPortfolioAttention(
+      [
+        project({
+          id: "soon",
+          slug: "soon",
+          name: "Upcoming BESS",
+          requirements: [{ required: true, status: "Incomplete", dueDate: "2026-09-05" }],
+        }),
+        project({
+          id: "overdue",
+          slug: "overdue",
+          name: "Overdue BESS",
+          requirements: [{ required: true, status: "Incomplete", dueDate: "2026-08-20" }],
+        }),
+        project({
+          id: "change",
+          slug: "change",
+          name: "Change BESS",
+          requirements: [{ required: true, status: "Complete", dueDate: null }],
+          unreviewedOfficialChangeCount: 1,
+        }),
+      ],
+      now,
+    );
+    assert.deepEqual(
+      result.prioritized.map((item) => item.slug),
+      ["overdue", "soon", "change"],
+    );
+    assert.equal(result.actionRequiredCount, 1);
+    assert.equal(result.upcomingCount, 2);
   });
 });
+

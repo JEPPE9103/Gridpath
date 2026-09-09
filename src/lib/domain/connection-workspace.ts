@@ -9,6 +9,8 @@ import {
   deadlineAttention,
   deadlineRelativeLabel,
 } from "@/lib/domain/connection-deadlines";
+import { deriveProjectNextAction } from "@/lib/intelligence/project-attention";
+import type { ProjectNextAction } from "@/lib/intelligence/types";
 import { canWriteWorkflow } from "@/lib/projects/authorization";
 import type { ChecklistStatus } from "@/types";
 
@@ -49,16 +51,7 @@ export type ConnectionRequirementGroups = {
   requiredCount: number;
 };
 
-export type ConnectionNextAction = {
-  kind:
-    | "overdue_requirement"
-    | "due_soon_requirement"
-    | "connection_deadline"
-    | "incomplete_requirement"
-    | "none";
-  title: string;
-  detail: string;
-};
+export type ConnectionNextAction = ProjectNextAction;
 
 export type ConnectionStageJourney = {
   stages: OverviewPipelineStage[];
@@ -146,53 +139,31 @@ export function connectionNextAction(input: {
   requirements: ProjectRequirementItem[];
   caseDeadline?: string | null;
   caseStatusValue?: string | null;
+  nextMilestone?: string | null;
+  unreviewedOfficialChangeCount?: number;
+  projectSlug?: string;
+  projectId?: string;
   now?: Date;
 }): ConnectionNextAction {
   const now = input.now ?? new Date();
-  const groups = groupConnectionRequirements(input.requirements, now);
-  const overdue = groups.needsAttention.find((item) => item.attention === "overdue");
-  if (overdue) {
-    return {
-      kind: "overdue_requirement",
-      title: `Review ${overdue.label}`,
-      detail: overdue.dueLabel ?? "Overdue required item",
-    };
-  }
-  const dueSoon = groups.needsAttention.find((item) => item.attention === "approaching");
-  if (dueSoon) {
-    return {
-      kind: "due_soon_requirement",
-      title: dueSoon.label,
-      detail: dueSoon.dueLabel ?? "Due soon",
-    };
-  }
-
-  const lifecycle = connectionCaseLifecycle(input.caseStatusValue);
-  if (lifecycle === "active" && input.caseDeadline) {
-    const caseAttention = deadlineAttention(input.caseDeadline, now);
-    if (caseAttention === "overdue" || caseAttention === "approaching") {
-      return {
-        kind: "connection_deadline",
-        title: "Connection deadline needs attention",
-        detail: deadlineRelativeLabel(input.caseDeadline, now) ?? "Connection deadline",
-      };
-    }
-  }
-
-  const incomplete = groups.upcoming.find((item) => item.required && item.status !== "Complete");
-  if (incomplete) {
-    return {
-      kind: "incomplete_requirement",
-      title: incomplete.label,
-      detail: incomplete.dueLabel ?? "Required item still outstanding",
-    };
-  }
-
-  return {
-    kind: "none",
-    title: "No required workflow items need attention",
-    detail: "Recorded required items are complete or not yet due.",
-  };
+  return deriveProjectNextAction(
+    {
+      stage: "Application",
+      confidence: "High",
+      targetCOD: "set",
+      connectionCaseStatus: null,
+      connectionCaseStatusValue: input.caseStatusValue ?? "on_track",
+      hasConnectionCase: true,
+      requirements: input.requirements,
+      openAlertSeverities: [],
+      connectionDeadline: input.caseDeadline,
+      nextMilestone: input.nextMilestone,
+      unreviewedOfficialChangeCount: input.unreviewedOfficialChangeCount,
+      projectSlug: input.projectSlug,
+      projectId: input.projectId,
+    },
+    now,
+  );
 }
 
 export function connectionStageJourney(

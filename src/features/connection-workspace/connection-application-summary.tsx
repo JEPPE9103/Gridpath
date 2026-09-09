@@ -6,6 +6,7 @@ import {
   connectionNextAction,
   groupConnectionRequirements,
 } from "@/lib/domain/connection-workspace";
+import { daysInCurrentStageLabel, deriveDaysInCurrentStage } from "@/lib/intelligence/project-attention";
 import { formatDate } from "@/lib/format";
 
 export function ConnectionApplicationSummary({ project }: { project: ProjectDetailViewModel }) {
@@ -41,6 +42,10 @@ export function ConnectionApplicationSummary({ project }: { project: ProjectDeta
     requirements: project.requirements,
     caseDeadline: project.connectionCase.deadline,
     caseStatusValue: project.connectionCase.statusValue,
+    nextMilestone: project.connectionCase.nextMilestone,
+    unreviewedOfficialChangeCount: project.officialChanges.unreviewed,
+    projectSlug: project.slug,
+    projectId: project.id,
   });
   const nextItem = groups.needsAttention[0] ?? groups.upcoming[0] ?? null;
   const readiness =
@@ -54,7 +59,17 @@ export function ConnectionApplicationSummary({ project }: { project: ProjectDeta
         <div>
           <h2 className="text-base font-semibold">Connection</h2>
           <p className="mt-1 text-sm">
-            {project.connectionCase.stage} · {readiness}
+            {project.connectionCase.stage}
+            {" · "}
+            {daysInCurrentStageLabel(
+              deriveDaysInCurrentStage({
+                hasConnectionCase: true,
+                connectionCaseCreatedAt: project.connectionCase.createdAt,
+                events: project.events,
+              }).days,
+            )}
+            {" · "}
+            {readiness}
           </p>
           <p className="mt-1 text-sm text-muted">
             {groups.outstandingRequiredCount} required item

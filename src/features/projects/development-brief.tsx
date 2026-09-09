@@ -2,12 +2,17 @@
 
 import { cn } from "@/lib/cn";
 import { StageBadge } from "@/components/ui/badges";
+import { attentionInputFromProjectDetail } from "@/lib/intelligence/from-project-detail";
 import {
+  attentionBandLabel,
   attentionLevelLabel,
   buildDevelopmentBriefSummary,
   deriveProjectAttention,
+  daysInCurrentStageLabel,
   formatWorkflowReadinessLabel,
+  lastActivityLabel,
   summarizeOfficialContext,
+  type AttentionBand,
   type ProjectAttentionLevel,
 } from "@/lib/intelligence";
 import type { ProjectDetailViewModel } from "@/lib/data/project-detail-types";
@@ -48,49 +53,44 @@ export function DevelopmentBrief({ project }: { project: ProjectDetailViewModel 
       project.officialNetworkDevelopmentPlanContext,
     );
 
-    const attention = deriveProjectAttention({
-      stage: project.stage,
-      confidence: project.confidence,
-      targetCOD: project.targetCOD,
-      connectionCaseStatus: project.connectionCase?.status ?? null,
-      connectionCaseStatusValue: project.connectionCase?.statusValue ?? null,
-      hasConnectionCase: Boolean(project.connectionCase),
-      requirements: project.requirements,
-      openAlertSeverities: project.alerts.map((alert) => alert.severity),
-      unreviewedOfficialChangeCount: project.officialChanges.unreviewed,
-    });
+    const attention = deriveProjectAttention(attentionInputFromProjectDetail(project));
 
-    return buildDevelopmentBriefSummary({
-      name: project.name,
-      technology: project.technology,
-      exportMW: project.exportMW,
-      importMW: project.importMW,
-      stage: project.stage,
-      targetCOD: project.targetCOD,
-      connectionCase: project.connectionCase
-        ? {
-            caseId: project.connectionCase.caseId,
-            stage: project.connectionCase.stage,
-            status: project.connectionCase.status,
-          }
-        : null,
-      readinessPercent: project.readinessPercent,
-      readinessCompleteCount: project.readinessCompleteCount,
-      readinessRequiredCount: project.readinessRequiredCount,
-      officialContext,
+    return {
+      summary: buildDevelopmentBriefSummary({
+        name: project.name,
+        technology: project.technology,
+        exportMW: project.exportMW,
+        importMW: project.importMW,
+        stage: project.stage,
+        targetCOD: project.targetCOD,
+        connectionCase: project.connectionCase
+          ? {
+              caseId: project.connectionCase.caseId,
+              stage: project.connectionCase.stage,
+              status: project.connectionCase.status,
+            }
+          : null,
+        readinessPercent: project.readinessPercent,
+        readinessCompleteCount: project.readinessCompleteCount,
+        readinessRequiredCount: project.readinessRequiredCount,
+        officialContext,
+        attention,
+        recentEvents: project.events.slice(0, 3).map((event) => ({
+          title: event.title,
+          occurredAt: event.occurredAt,
+        })),
+      }),
       attention,
-      recentEvents: project.events.slice(0, 3).map((event) => ({
-        title: event.title,
-        occurredAt: event.occurredAt,
-      })),
-    });
+    };
   }, [project]);
 
-  const styles = LEVEL_STYLES[brief.statusLevel];
+  const styles = LEVEL_STYLES[brief.summary.statusLevel];
   const officialContext = summarizeOfficialContext(
     project.officialGridAreaContext,
     project.officialNetworkDevelopmentPlanContext,
   );
+  const attentionSignals = brief.attention.signals.slice(0, 3);
+  const stageName = project.connectionCase?.stage ?? project.stage;
 
   return (
     <section
@@ -122,11 +122,55 @@ export function DevelopmentBrief({ project }: { project: ProjectDetailViewModel 
                 styles.badge,
               )}
             >
-              {attentionLevelLabel(brief.statusLevel)}
+              {attentionLevelLabel(brief.summary.statusLevel)}
             </span>
           </div>
         </div>
-        <p className="mt-4 text-sm leading-6 text-ink">{brief.headline}</p>
+        <p className="mt-4 text-sm leading-6 text-ink">{brief.summary.headline}</p>
+      </div>
+
+      <div className="border-b border-line px-5 py-4">
+        <h3 className="text-sm font-semibold text-ink">Project attention</h3>
+        <p className="mt-1 text-sm text-muted">
+          {stageName}
+          {project.connectionCase
+            ? ` · ${daysInCurrentStageLabel(brief.attention.daysInCurrentStage)}`
+            : ""}
+        </p>
+        <p className="mt-1 text-xs text-muted">{lastActivityLabel(brief.attention.lastActivityAt)}</p>
+        {attentionSignals.length === 0 ? (
+          <p className="mt-3 text-sm text-ink">No immediate action identified.</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {attentionSignals.map((signal) => (
+              <li key={signal.type} className="text-sm">
+                <p className="font-medium text-ink">
+                  {attentionBandLabel(signal.severity as AttentionBand)}
+                </p>
+                <p className="text-muted">
+                  {signal.href ? (
+                    <Link href={signal.href} className="text-teal hover:underline">
+                      {signal.title}
+                    </Link>
+                  ) : (
+                    signal.title
+                  )}
+                  {signal.detail ? ` · ${signal.detail}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 text-sm">
+          <span className="text-muted">Next action: </span>
+          {brief.attention.nextAction.href ? (
+            <Link href={brief.attention.nextAction.href} className="font-medium text-teal hover:underline">
+              {brief.attention.nextAction.title}
+            </Link>
+          ) : (
+            <span className="font-medium text-ink">{brief.attention.nextAction.title}</span>
+          )}
+        </p>
       </div>
 
       <div className="grid gap-px border-b border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
@@ -192,22 +236,6 @@ export function DevelopmentBrief({ project }: { project: ProjectDetailViewModel 
           )}
         </BriefColumn>
       </div>
-
-      {brief.attentionReasons.length > 0 ? (
-        <div className="border-b border-line px-5 py-4">
-          <h3 className="text-sm font-semibold text-ink">Attention</h3>
-          <ul className="mt-2 space-y-1.5 text-sm text-ink">
-            {brief.attentionReasons.map((reason) => (
-              <li key={reason.key} className="flex gap-2">
-                <span aria-hidden="true" className="text-muted">
-                  ·
-                </span>
-                <span>{reason.label}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       <div className="px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-2">

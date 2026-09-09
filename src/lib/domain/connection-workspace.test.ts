@@ -93,15 +93,15 @@ describe("connection workspace domain", () => {
       now: NOW,
     });
     assert.equal(overdue.kind, "overdue_requirement");
-    assert.match(overdue.title, /Protection study/);
+    assert.match(overdue.title, /Complete Protection study/);
     assert.equal(connectionCopyContainsForbiddenTerm(`${overdue.title} ${overdue.detail}`), null);
 
     const dueSoon = connectionNextAction({
-      requirements: [req({ id: "1", label: "Single-line diagram", dueDate: "2026-09-18" })],
+      requirements: [req({ id: "1", label: "Single-line diagram", dueDate: "2026-09-10" })],
       now: NOW,
     });
     assert.equal(dueSoon.kind, "due_soon_requirement");
-    assert.equal(dueSoon.title, "Single-line diagram");
+    assert.match(dueSoon.title, /Complete Single-line diagram/);
 
     const caseDeadline = connectionNextAction({
       requirements: [req({ id: "1", label: "Site coordinates", status: "Complete" })],
@@ -109,7 +109,7 @@ describe("connection workspace domain", () => {
       caseStatusValue: "on_track",
       now: NOW,
     });
-    assert.equal(caseDeadline.kind, "connection_deadline");
+    assert.equal(caseDeadline.kind, "connection_deadline_due_soon");
 
     const incomplete = connectionNextAction({
       requirements: [req({ id: "1", label: "DSO questionnaire" })],
@@ -123,7 +123,7 @@ describe("connection workspace domain", () => {
       now: NOW,
     });
     assert.equal(none.kind, "none");
-    assert.match(none.title, /No required workflow items need attention/);
+    assert.match(none.title, /No immediate action identified/);
     assert.equal(connectionCopyContainsForbiddenTerm("Submit application now"), "submit application now");
   });
 
