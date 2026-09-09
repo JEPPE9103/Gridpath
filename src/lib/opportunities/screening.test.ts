@@ -23,8 +23,39 @@ const CRITERIA: ScreeningCriteria = {
   excludeNatura: true,
   maxSlopePercent: 8,
   minDistanceResidentialM: 200,
+  electricityArea: null,
   notes: "Customer screening memo",
 };
+
+function officialCovering(overrides: Partial<OpportunityCandidate["covering"]> = {}) {
+  return {
+    queried: true,
+    localCovered: true,
+    nupCovered: true,
+    localName: "Örebro Elnät",
+    nupName: "SE3 illustrative plan",
+    retrievedAt: "2026-09-01T00:00:00Z",
+    sourceName: "Ei",
+    ...overrides,
+  };
+}
+
+function clearEnvLayers(): Pick<OpportunityCandidate, "protectedOverlap" | "naturaOverlap"> {
+  return {
+    protectedOverlap: {
+      queried: true,
+      overlapPercent: 0,
+      names: [],
+      sourceName: "Naturvårdsverket",
+    },
+    naturaOverlap: {
+      queried: true,
+      overlapPercent: 0,
+      names: [],
+      sourceName: "Naturvårdsverket",
+    },
+  };
+}
 
 function candidate(overrides: Partial<OpportunityCandidate> = {}): OpportunityCandidate {
   return {
@@ -37,6 +68,7 @@ function candidate(overrides: Partial<OpportunityCandidate> = {}): OpportunityCa
     targetMw: 40,
     targetMwh: 80,
     siteAreaHa: 6,
+    usableAreaHa: 6,
     technology: "battery_storage",
     covering: emptyCovering(),
     ...overrides,
@@ -60,7 +92,7 @@ describe("opportunity screening", () => {
     assert.equal(result.excluded, false);
     const environmental = result.dimensions.find((item) => item.key === "environmental");
     assert.equal(environmental?.completeness, "insufficient");
-    assert.match(environmental?.explanation ?? "", /no supported/i);
+    assert.match(environmental?.explanation ?? "", /not available|no supported/i);
     assert.equal(result.recommendation, "insufficient_evidence");
   });
 
@@ -68,15 +100,8 @@ describe("opportunity screening", () => {
     const result = evaluateOpportunityScreening({
       criteria: CRITERIA,
       candidate: candidate({
-        covering: {
-          queried: true,
-          localCovered: true,
-          nupCovered: true,
-          localName: "Örebro Elnät",
-          nupName: "SE3 illustrative plan",
-          retrievedAt: "2026-09-01T00:00:00Z",
-          sourceName: "Ei",
-        },
+        covering: officialCovering(),
+        ...clearEnvLayers(),
       }),
     });
     assert.equal(result.recommendation, "prioritise");
@@ -87,6 +112,8 @@ describe("opportunity screening", () => {
     assert.match(grid?.explanation ?? "", /not mean available capacity/i);
     assert.equal(opportunityCopyContainsForbiddenTerm(result.recommendationSummary), null);
     assert.ok(result.risks.some((item) => /unconfirmed/i.test(item)));
+    const environmental = result.dimensions.find((item) => item.key === "environmental");
+    assert.equal(environmental?.result, "low_conflict");
   });
 
   it("applies hard region and area constraints from customer criteria", () => {
@@ -100,10 +127,10 @@ describe("opportunity screening", () => {
 
     const area = evaluateOpportunityScreening({
       criteria: CRITERIA,
-      candidate: candidate({ siteAreaHa: 0.5 }),
+      candidate: candidate({ siteAreaHa: 0.5, usableAreaHa: 0.5 }),
     });
     assert.equal(area.excluded, true);
-    assert.match(area.exclusionReason ?? "", /site area/i);
+    assert.match(area.exclusionReason ?? "", /usable assessed area|site area/i);
   });
 
   it("does not pretend unsupported countries have Swedish official layers", () => {
@@ -131,19 +158,86 @@ describe("opportunity screening", () => {
     const result = evaluateOpportunityScreening({
       criteria: CRITERIA,
       candidate: candidate({
-        covering: {
-          queried: true,
-          localCovered: true,
-          nupCovered: false,
-          localName: "Örebro Elnät",
-          nupName: null,
-          retrievedAt: "2026-09-01T00:00:00Z",
-          sourceName: "Ei",
-        },
+        covering: officialCovering({ nupCovered: false, nupName: null }),
+        ...clearEnvLayers(),
       }),
     });
     assert.equal(result.recommendation, "investigate");
     assert.equal(result.status, "screening");
+  });
+
+  it("fails hard on configured protected-area overlap above the sliver threshold", () => {
+    const result = evaluateOpportunityScreening({
+      criteria: CRITERIA,
+      candidate: candidate({
+        covering: officialCovering(),
+        protectedOverlap: {
+          queried: true,
+          overlapPercent: 34,
+          names: ["Tiveden"],
+          sourceName: "Naturvårdsverket",
+        },
+        naturaOverlap: {
+          queried: true,
+          overlapPercent: 0,
+          names: [],
+          sourceName: "Naturvårdsverket",
+        },
+      }),
+    });
+    assert.equal(result.excluded, true);
+    assert.match(result.exclusionReason ?? "", /protected-area exclusion/i);
+    assert.match(result.exclusionReason ?? "", /34%/);
+    assert.equal(result.recommendation, "low_priority");
+    const environmental = result.dimensions.find((item) => item.key === "environmental");
+    assert.equal(environmental?.result, "excluded");
+    assert.match(environmental?.explanation ?? "", /not a legal impossibility/i);
+  });
+
+  it("fails hard on configured Natura 2000 overlap", () => {
+    const result = evaluateOpportunityScreening({
+      criteria: CRITERIA,
+      candidate: candidate({
+        covering: officialCovering(),
+        protectedOverlap: {
+          queried: true,
+          overlapPercent: 0,
+          names: [],
+          sourceName: "Naturvårdsverket",
+        },
+        naturaOverlap: {
+          queried: true,
+          overlapPercent: 40,
+          names: ["Natura example"],
+          sourceName: "Naturvårdsverket",
+        },
+      }),
+    });
+    assert.equal(result.excluded, true);
+    assert.match(result.exclusionReason ?? "", /Natura 2000/i);
+    assert.equal(result.recommendation, "low_priority");
+  });
+
+  it("does not treat missing environmental layers as a pass when exclusions are configured", () => {
+    const result = evaluateOpportunityScreening({
+      criteria: CRITERIA,
+      candidate: candidate({ covering: officialCovering() }),
+    });
+    assert.equal(result.excluded, false);
+    assert.equal(result.recommendation, "insufficient_evidence");
+    assert.ok(result.uncertainties.some((item) => /environmental exclusions could not be evaluated/i.test(item)));
+  });
+
+  it("does not fabricate terrain or infrastructure proximity evidence", () => {
+    const result = evaluateOpportunityScreening({
+      criteria: CRITERIA,
+      candidate: candidate({ covering: officialCovering(), ...clearEnvLayers() }),
+    });
+    const terrain = result.dimensions.find((item) => item.key === "land_suitability");
+    const proximity = result.dimensions.find((item) => item.key === "grid_proximity");
+    assert.equal(terrain?.completeness, "insufficient");
+    assert.equal(proximity?.completeness, "insufficient");
+    assert.equal(opportunityCopyContainsForbiddenTerm(result.recommendationSummary), null);
   });
 
   it("maps promotion technologies without inventing project types", () => {

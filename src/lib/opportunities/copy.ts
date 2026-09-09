@@ -3,6 +3,8 @@ const FORBIDDEN_TERMS = [
   "available mw",
   "connectable mw",
   "guaranteed connection",
+  "good connection potential",
+  "high connection chance",
   "probability of connection",
   "will receive connection",
   "best place to build",

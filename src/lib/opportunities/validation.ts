@@ -3,6 +3,13 @@ import {
   OPPORTUNITY_TECHNOLOGY_VALUES,
   type OpportunityTechnologyValue,
 } from "@/lib/opportunities/catalog";
+import {
+  parseElectricityArea,
+  validateSearchBbox,
+  type SearchBbox,
+} from "@/lib/opportunities/spatial-screening";
+
+export type OpportunitySearchMode = "geography" | "point";
 
 export type OpportunityFormInput = {
   name: string;
@@ -10,6 +17,12 @@ export type OpportunityFormInput = {
   country: string;
   region: string;
   municipality: string;
+  electricityArea: string;
+  searchMode: string;
+  west: string;
+  south: string;
+  east: string;
+  north: string;
   latitude: string;
   longitude: string;
   targetMw: string;
@@ -32,6 +45,10 @@ export type ParsedOpportunityForm = {
   country: string;
   region: string | null;
   municipality: string | null;
+  electricityArea: string | null;
+  searchMode: OpportunitySearchMode;
+  bbox: SearchBbox | null;
+  cellSizeMeters: number | null;
   latitude: number | null;
   longitude: number | null;
   targetMw: number | null;
@@ -65,6 +82,20 @@ function parseOptionalNumber(
   return parsed;
 }
 
+function parseOptionalSigned(
+  raw: string,
+  field: keyof OpportunityFormInput,
+  errors: OpportunityFormFieldErrors,
+): number | null {
+  if (!raw) return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    errors[field] = "Enter a number.";
+    return null;
+  }
+  return parsed;
+}
+
 export function parseOpportunityForm(formData: FormData): {
   values: OpportunityFormInput;
   parsed: ParsedOpportunityForm | null;
@@ -76,6 +107,12 @@ export function parseOpportunityForm(formData: FormData): {
     country: readString(formData, "country") || "SE",
     region: readString(formData, "region"),
     municipality: readString(formData, "municipality"),
+    electricityArea: readString(formData, "electricityArea"),
+    searchMode: readString(formData, "searchMode") || "geography",
+    west: readString(formData, "west"),
+    south: readString(formData, "south"),
+    east: readString(formData, "east"),
+    north: readString(formData, "north"),
     latitude: readString(formData, "latitude"),
     longitude: readString(formData, "longitude"),
     targetMw: readString(formData, "targetMw"),
@@ -91,9 +128,16 @@ export function parseOpportunityForm(formData: FormData): {
   };
 
   const fieldErrors: OpportunityFormFieldErrors = {};
-  if (!values.name) fieldErrors.name = "Enter an opportunity name.";
+  if (!values.name) fieldErrors.name = "Enter a search or opportunity name.";
   if (!isOpportunityTechnology(values.technology)) {
     fieldErrors.technology = "Select a valid technology.";
+  }
+
+  const searchMode: OpportunitySearchMode = values.searchMode === "point" ? "point" : "geography";
+  const electricityAreaRaw = values.electricityArea;
+  const electricityArea = parseElectricityArea(electricityAreaRaw);
+  if (electricityAreaRaw && !electricityArea) {
+    fieldErrors.electricityArea = "Use SE1, SE2, SE3 or SE4, or leave blank.";
   }
 
   let latitude: number | null = null;
@@ -109,6 +153,25 @@ export function parseOpportunityForm(formData: FormData): {
     }
   }
 
+  const west = parseOptionalSigned(values.west, "west", fieldErrors);
+  const south = parseOptionalSigned(values.south, "south", fieldErrors);
+  const east = parseOptionalSigned(values.east, "east", fieldErrors);
+  const north = parseOptionalSigned(values.north, "north", fieldErrors);
+
+  let bbox: SearchBbox | null = null;
+  let cellSizeMeters: number | null = null;
+  if (searchMode === "geography") {
+    const bboxResult = validateSearchBbox({ west, south, east, north });
+    if (!bboxResult.ok) {
+      fieldErrors.west = bboxResult.error;
+    } else {
+      bbox = bboxResult.bbox;
+      cellSizeMeters = bboxResult.cellSizeMeters;
+    }
+  } else if (!values.latitude || !values.longitude) {
+    fieldErrors.latitude = "Enter coordinates for a single-candidate evaluation.";
+  }
+
   const parsed: ParsedOpportunityForm = {
     name: values.name,
     technology: isOpportunityTechnology(values.technology)
@@ -117,6 +180,10 @@ export function parseOpportunityForm(formData: FormData): {
     country: values.country.slice(0, 8).toUpperCase() || "SE",
     region: values.region || null,
     municipality: values.municipality || null,
+    electricityArea,
+    searchMode,
+    bbox,
+    cellSizeMeters,
     latitude: fieldErrors.latitude ? null : latitude,
     longitude: fieldErrors.longitude ? null : longitude,
     targetMw: parseOptionalNumber(values.targetMw, "targetMw", fieldErrors),

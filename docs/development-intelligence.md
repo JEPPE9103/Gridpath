@@ -39,17 +39,29 @@ See `docs/schema-contract.md` for columns and RPCs.
 
 ## Screening
 
-A screening search stores customer criteria so it can be reproduced.
+A screening **search** stores customer criteria. A screening **run** is one execution of those criteria against currently ingested official layers.
 
-**Hard constraints** (can exclude a candidate when the required data is present):
+**Geographic search** (primary): the user supplies a bounding box (clipped to Sweden, max 15 000 km²). NOXHEIM divides the box into square **screening cells** in SWEREF 99 TM (EPSG:3006). Cell size is `clamp(2000, 10000, sqrt(area_m² / 200))` metres, targeting about 200 cells. Adjacent cells are **not** merged. Results are **candidate / screening areas**, not cadastral parcels or land for purchase.
 
-- outside configured region or municipality
-- site area below configured minimum
-- customer-defined geographic mismatch
+**Single-point search** remains available for a known coordinate.
 
-**Soft signals** influence ranking when evidence exists (grid covering context, strategic technology fit). Missing datasets are **insufficient evidence**, never a silent pass.
+**Hard constraints** (exclude when the required data is present):
 
-Configured but unsupported layers (protected areas, Natura 2000, slope, access, residential distance) are recorded on the search and explained on the assessment. They do not eliminate candidates until a supported provider exists.
+- outside the configured bounding box
+- usable assessed area below configured minimum (cell area minus configured overlapping exclusions)
+- configured protected-area overlap ≥ 1% of the cell (Naturvårdsverket Naturvårdsregistret, when ingested)
+- configured Natura 2000 overlap ≥ 1% of the cell (Naturvårdsverket N2000, when ingested)
+- outside configured region or municipality labels when the candidate has those fields
+
+Copy for environmental hard fails: “Direct overlap with a configured protected-area exclusion.” This is **not** a legal impossibility finding.
+
+If an exclusion is configured but the layer is not ingested, candidates are **not** eliminated and must not be ranked `prioritise` / `investigate` from missing environmental evidence.
+
+**Soft signals**: official Ei covering geography at the cell centroid (local-network and/or NUP). Covering is not a connection point and is not available capacity.
+
+Unsupported in this release (insufficient evidence, never a silent pass): terrain/slope, land cover, electricity infrastructure proximity, connection capacity, municipal planning, roads, residential distance, land ownership, official SE1–SE4 geometry.
+
+SE1–SE4 may be stored as search intent. It is **not** used as a spatial clip.
 
 ## Recommendation language
 
@@ -74,7 +86,22 @@ Covering geography is not a connection point and is not available capacity.
 
 Data confidence describes how complete the **evidence** is, not probability of success.
 
-Drivers: number of dimensions with available evidence, presence of official covering, missing datasets. Values: `high`, `medium`, `low`, `unknown`.
+- HIGH: at least two official dimensions and at least four available dimensions, with no unevaluated critical exclusion
+- MEDIUM: at least one official dimension and at least three available dimensions, critical exclusions evaluated
+- LOW / UNKNOWN: thinner evidence or missing critical layers
+
+## Official datasets and licences
+
+| Dataset | Publisher | Access | Licence | Commercial use | Attribution | Refresh |
+| --- | --- | --- | --- | --- | --- | --- |
+| Naturvårdsregistret `SkyddadeOmraden` | Naturvårdsverket | WFS `https://geodata.naturvardsverket.se/naturvardsregistret/wfs` | CC0 | Yes | Preferred: “Källa: Naturvårdsverket” | NOXHEIM cadence 168h |
+| Natura 2000 `N2000` | Naturvårdsverket | WFS `https://geodata.naturvardsverket.se/n2000/wfs` | CC0 | Yes | Preferred: “Källa: Naturvårdsverket” | NOXHEIM cadence 168h |
+| Ei local-network concessions | Energimarknadsinspektionen | Existing ingest | Existing Ei terms | Existing | Ei | Existing |
+| Ei network development plans | Energimarknadsinspektionen | Existing ingest | Existing Ei terms | Existing | Ei | Existing |
+
+Terrain (Lantmäteriet Grid 50+), NMD land cover, and distribution/transmission asset layers are **not ingested**. Grid-infrastructure proximity is blocked pending a clearly documented, commercially reusable source. Absence of those layers is shown as evidence unavailable.
+
+Ingest: `npm run dev:ingest-nv-protected` and `npm run dev:ingest-nv-natura` (local). Scheduled official ingest also runs the cloud NV scripts after Ei.
 
 ## Provenance
 
@@ -100,27 +127,34 @@ Geometry, criteria and assessments are org-scoped. There is no cross-org access.
 
 ## Current supported data layers
 
-Supported:
+Supported when ingested:
 
 - Energimarknadsinspektionen covering local-network areas (Sweden)
 - Energimarknadsinspektionen covering network development plan areas (Sweden)
+- Naturvårdsverket Naturvårdsregistret protected areas (Sweden, CC0)
+- Naturvårdsverket Natura 2000 (Sweden, CC0)
 
 Not integrated (insufficient evidence, not a pass):
 
-- Lantmäteriet
-- Naturvårdsverket protected areas
-- Natura 2000
-- slope / terrain
+- Lantmäteriet parcels / terrain
+- slope / terrain raster
+- land cover
+- electricity infrastructure proximity (substations, lines)
+- available connection capacity
+- municipal planning
 - transport / roads
 - residential distance
+- land ownership / legal access
+- official electricity-area (SE1–SE4) geometry
 - any non-Swedish official geography
 
 Provider keys live in `src/lib/opportunities/providers.ts`. Country expansion should add providers and rules, not rewrite the product.
 
 ## Known limitations
 
-- New opportunity search records one candidate from the form; it does not auto-generate thousands of sites from national datasets.
-- Funnel counts are stored workflow counts only. NOXHEIM does not invent “areas screened”.
-- Map markers are org opportunities with coordinates. Viewport clustering of thousands of candidates is not required until a generator exists.
-- Opportunity compare is query-param, max four, and is separate from saved project Development Profile comparisons.
+- Geographic search uses screening cells, not parcel-perfect sites. Precision is the cell size stored on the run.
+- Adjacent qualifying cells are not merged in this release.
+- Search results are not automatically saved as `development_opportunities`. The user saves chosen candidate areas.
+- Funnel counts are stored workflow counts only. Search-run evaluated/excluded/returned counts are actual cell counts.
+- Terrain, land cover, roads and infrastructure proximity are unsupported; the UI must say evidence unavailable rather than invent distances.
 - Hybrid / hydrogen / data-centre opportunity types promote onto existing project technologies (`other` or `industrial`).

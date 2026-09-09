@@ -44,8 +44,11 @@ Opportunities exist before projects. They are org-scoped. NOXHEIM does **not** e
 
 | Table | Important columns |
 | --- | --- |
-| `opportunity_searches` | `organization_id`, `created_by`, screening criteria columns, `criteria` jsonb — reproducible search |
-| `development_opportunities` | `organization_id`, `slug`, `opportunity_type`, `status`, location, `geom`, `recommendation`, `data_confidence`, `key_positive`, `key_risk`, `promoted_project_id`, rejection fields |
+| `opportunity_searches` | `organization_id`, `created_by`, screening criteria, `electricity_area` (intent only), bounding box, `cell_size_m`, `latest_run_id`, `criteria` jsonb |
+| `opportunity_search_runs` | org-scoped execution: criteria snapshot, source versions, provider availability, cell size, evaluated/excluded/returned counts, warnings, `previous_run_id` |
+| `opportunity_run_candidates` | screening-cell geometry (not parcels), overlap metrics, covering names, recommendation, `screening` jsonb. Saved via `saved_opportunity_id` |
+| `development_opportunities` | as before, plus `originating_run_id`, `originating_candidate_id`, `area_geom`, usable/gross ha |
+| `official_geographic_features` | global official polygons (`protected_area`, `natura_2000`), GIST, provenance; authenticated SELECT only |
 | `opportunity_assessments` | per-dimension explainable result, `source_kind` (`customer_data` \| `official` \| `noxheim_derived`), `completeness`, `evidence` |
 | `opportunity_events` | decision/history records |
 
@@ -67,6 +70,7 @@ Recommendations: `prioritise`, `investigate`, `secondary`, `low_priority`, `insu
 | `change_impacts` | `external_change_id`, `organization_id`, `project_id`, `match_type`, `impact_level`, `review_status` (`unreviewed` \| `confirmed` \| `dismissed`), `reviewed_by`, `reviewed_at`, `review_note` — org must match project org (trigger); review is org/project scoped and does not mutate `external_changes` |
 
 Official Ei source slugs: `ei-network-area-concessions`, `ei-network-development-plans`.
+Naturvårdsverket slugs: `nv-protected-areas`, `nv-natura-2000` (CC0 WFS; not cadastral parcels).
 
 NUP numeric values are forecast transfer-capacity **need**, never available capacity / headroom / connection capacity.
 
@@ -75,6 +79,7 @@ NUP numeric values are forecast transfer-capacity **need**, never available capa
 - `public.create_workspace(company_name, company_slug, user_full_name, user_job_title)` — onboarding (`src/lib/auth/actions.ts`)
 - `public.create_project_with_primary_site(...)` / `public.update_project_with_primary_site(...)` — portfolio CRUD (optional `description`, `region`, `voltage_level`)
 - `public.create_development_opportunity(...)` / `public.promote_opportunity_to_project(p_opportunity_id)` / `public.allocate_opportunity_slug(...)`
+- `public.execute_opportunity_screening_run(p_search_id)` / `public.apply_opportunity_run_assessments(p_run_id, p_rows)` / `public.save_opportunity_from_run_candidate(p_candidate_id)` / `public.get_opportunity_run_geojson(p_run_id)` — org-scoped screening cells; covering is not capacity
 - `public.get_official_covering_summary_for_point(p_latitude, p_longitude)` — covering Ei local-network + NUP names at a point; not capacity
 - `public.archive_project(p_project_id)` / `public.restore_project(p_project_id)`
 - `public.get_organization_project_aggregates(p_organization_id, p_include_archived)`

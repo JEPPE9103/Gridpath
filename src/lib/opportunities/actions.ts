@@ -7,11 +7,13 @@ import { canCreateOrEditOpportunities, canPromoteOpportunities } from "@/lib/opp
 import {
   OPPORTUNITY_REJECT_REASON_VALUES,
   isOpportunityStatus,
+  isOpportunityTechnology,
   type OpportunityRejectReasonValue,
   type OpportunityStatusValue,
 } from "@/lib/opportunities/catalog";
-import { emptyCovering, evaluateOpportunityScreening } from "@/lib/opportunities/screening";
-import { parseOpportunityForm, type OpportunityFormFieldErrors, type OpportunityFormInput } from "@/lib/opportunities/validation";
+import { rankScreeningCells } from "@/lib/opportunities/run-ranking";
+import { emptyCovering, evaluateOpportunityScreening, type ScreeningCriteria } from "@/lib/opportunities/screening";
+import { parseOpportunityForm, type OpportunityFormFieldErrors, type OpportunityFormInput, type ParsedOpportunityForm } from "@/lib/opportunities/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -53,7 +55,65 @@ function publicError(message: string | undefined, fallback: string): string {
   if (text.includes("rejected")) {
     return "Reopen a rejected opportunity before promoting it.";
   }
+  if (text.includes("bounding box") || text.includes("15000")) {
+    return message ?? fallback;
+  }
   return fallback;
+}
+
+function screeningCriteriaFromParsed(parsed: ParsedOpportunityForm): ScreeningCriteria {
+  return {
+    technology: parsed.technology,
+    country: parsed.country,
+    region: parsed.region,
+    municipality: parsed.municipality,
+    targetMw: parsed.targetMw,
+    targetMwh: parsed.targetMwh,
+    minSiteAreaHa: parsed.minSiteAreaHa,
+    maxDistanceKm: parsed.maxDistanceKm,
+    excludeProtected: parsed.excludeProtected,
+    excludeNatura: parsed.excludeNatura,
+    maxSlopePercent: parsed.maxSlopePercent,
+    minDistanceResidentialM: parsed.minDistanceResidentialM,
+    electricityArea: parsed.electricityArea,
+    notes: parsed.notes,
+  };
+}
+
+async function applyScreeningRunAssessments(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  runId: string,
+  criteria: ScreeningCriteria,
+) {
+  const { data: rows, error } = await supabase
+    .from("opportunity_run_candidates")
+    .select(
+      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried",
+    )
+    .eq("run_id", runId);
+  if (error) {
+    throw new Error(error.message);
+  }
+  const ranked = rankScreeningCells(rows ?? [], criteria);
+  const payload = ranked.map((item) => ({
+    id: item.id,
+    rank: item.rank,
+    recommendation: item.recommendation,
+    recommendationSummary: item.recommendationSummary,
+    dataConfidence: item.dataConfidence,
+    excluded: item.excluded,
+    exclusionReason: item.exclusionReason,
+    keyPositive: item.keyPositive,
+    keyRisk: item.keyRisk,
+    screening: item.screening,
+  }));
+  const { error: applyError } = await supabase.rpc("apply_opportunity_run_assessments", {
+    p_run_id: runId,
+    p_rows: payload,
+  });
+  if (applyError) {
+    throw new Error(applyError.message);
+  }
 }
 
 export async function createOpportunityAction(
@@ -85,6 +145,12 @@ export async function createOpportunityAction(
       country: parsed.country,
       region: parsed.region,
       municipality: parsed.municipality,
+      electricity_area: parsed.electricityArea,
+      west: parsed.bbox?.west ?? null,
+      south: parsed.bbox?.south ?? null,
+      east: parsed.bbox?.east ?? null,
+      north: parsed.bbox?.north ?? null,
+      cell_size_m: parsed.cellSizeMeters,
       target_mw: parsed.targetMw,
       target_mwh: parsed.targetMwh,
       min_site_area_ha: parsed.minSiteAreaHa,
@@ -99,6 +165,8 @@ export async function createOpportunityAction(
         country: parsed.country,
         region: parsed.region,
         municipality: parsed.municipality,
+        electricityArea: parsed.electricityArea,
+        bbox: parsed.bbox,
         targetMw: parsed.targetMw,
         targetMwh: parsed.targetMwh,
         minSiteAreaHa: parsed.minSiteAreaHa,
@@ -117,27 +185,37 @@ export async function createOpportunityAction(
     return { error: publicError(searchError?.message, "Could not save screening criteria."), values };
   }
 
+  const criteria = screeningCriteriaFromParsed(parsed);
+
+  if (parsed.searchMode === "geography" && parsed.bbox) {
+    const { data: run, error: runError } = await supabase.rpc("execute_opportunity_screening_run", {
+      p_search_id: search.id,
+    });
+    if (runError || !run) {
+      console.error("createOpportunityAction screening run failed", runError?.message);
+      return { error: publicError(runError?.message, "Could not run geographic screening."), values };
+    }
+    const runRow = (Array.isArray(run) ? run[0] : run) as { run_id?: string } | undefined;
+    if (!runRow?.run_id) {
+      return { error: "Could not run geographic screening.", values };
+    }
+    try {
+      await applyScreeningRunAssessments(supabase, runRow.run_id, criteria);
+    } catch (error) {
+      console.error("createOpportunityAction ranking failed", error);
+      return { error: publicError(error instanceof Error ? error.message : undefined, "Screening ran but ranking failed."), values };
+    }
+    revalidateOpportunityPaths();
+    redirect(`/opportunities/searches/${search.id}/runs/${runRow.run_id}`);
+  }
+
   const covering =
     parsed.latitude != null && parsed.longitude != null
       ? await getOfficialCoveringSummaryForPoint(parsed.latitude, parsed.longitude)
       : emptyCovering();
 
   const screening = evaluateOpportunityScreening({
-    criteria: {
-      technology: parsed.technology,
-      country: parsed.country,
-      region: parsed.region,
-      municipality: parsed.municipality,
-      targetMw: parsed.targetMw,
-      targetMwh: parsed.targetMwh,
-      minSiteAreaHa: parsed.minSiteAreaHa,
-      maxDistanceKm: parsed.maxDistanceKm,
-      excludeProtected: parsed.excludeProtected,
-      excludeNatura: parsed.excludeNatura,
-      maxSlopePercent: parsed.maxSlopePercent,
-      minDistanceResidentialM: parsed.minDistanceResidentialM,
-      notes: parsed.notes,
-    },
+    criteria,
     candidate: {
       name: parsed.name,
       country: parsed.country,
@@ -148,6 +226,7 @@ export async function createOpportunityAction(
       targetMw: parsed.targetMw,
       targetMwh: parsed.targetMwh,
       siteAreaHa: parsed.siteAreaHa,
+      usableAreaHa: parsed.siteAreaHa,
       technology: parsed.technology,
       covering,
     },
@@ -191,7 +270,12 @@ export async function createOpportunityAction(
     explanation: item.explanation,
     source_kind: item.sourceKind,
     completeness: item.completeness,
-    provider_key: item.sourceKind === "official" ? "ei-official-covering" : null,
+    provider_key:
+      item.key === "environmental"
+        ? "nv-protected-areas"
+        : item.sourceKind === "official"
+          ? "ei-official-covering"
+          : null,
     evidence: covering,
   }));
   const { error: assessmentError } = await supabase.from("opportunity_assessments").insert(assessmentRows);
@@ -368,4 +452,107 @@ export async function promoteOpportunityAction(formData: FormData): Promise<void
     revalidatePath(`/projects/${row.project_slug}`);
     redirect(`/projects/${row.project_slug}`);
   }
+}
+
+export async function rerunOpportunitySearchAction(formData: FormData): Promise<void> {
+  const organization = await getCurrentOrganization();
+  if (!organization || !canCreateOrEditOpportunities(organization.role)) return;
+  const searchId = String(formData.get("searchId") ?? "");
+  if (!UUID_PATTERN.test(searchId)) return;
+  const supabase = await createSupabaseServerClient();
+  const { data: search, error } = await supabase
+    .from("opportunity_searches")
+    .select(
+      "id, technology, country, region, municipality, electricity_area, target_mw, target_mwh, min_site_area_ha, max_distance_km, exclude_protected, exclude_natura, max_slope_percent, min_distance_residential_m, notes, west",
+    )
+    .eq("id", searchId)
+    .eq("organization_id", organization.id)
+    .maybeSingle();
+  if (error || !search?.west) return;
+
+  const { data: run, error: runError } = await supabase.rpc("execute_opportunity_screening_run", {
+    p_search_id: searchId,
+  });
+  if (runError || !run) {
+    console.error("rerunOpportunitySearchAction failed", runError?.message);
+    return;
+  }
+  const runRow = (Array.isArray(run) ? run[0] : run) as { run_id?: string } | undefined;
+  if (!runRow?.run_id) return;
+
+  await applyScreeningRunAssessments(supabase, runRow.run_id, {
+    technology: isOpportunityTechnology(search.technology) ? search.technology : "other",
+    country: search.country,
+    region: search.region,
+    municipality: search.municipality,
+    targetMw: search.target_mw == null ? null : Number(search.target_mw),
+    targetMwh: search.target_mwh == null ? null : Number(search.target_mwh),
+    minSiteAreaHa: search.min_site_area_ha == null ? null : Number(search.min_site_area_ha),
+    maxDistanceKm: search.max_distance_km == null ? null : Number(search.max_distance_km),
+    excludeProtected: search.exclude_protected,
+    excludeNatura: search.exclude_natura,
+    maxSlopePercent: search.max_slope_percent == null ? null : Number(search.max_slope_percent),
+    minDistanceResidentialM:
+      search.min_distance_residential_m == null ? null : Number(search.min_distance_residential_m),
+    electricityArea: search.electricity_area,
+    notes: search.notes,
+  });
+
+  revalidateOpportunityPaths();
+  redirect(`/opportunities/searches/${searchId}/runs/${runRow.run_id}`);
+}
+
+export async function saveRunCandidateAction(formData: FormData): Promise<void> {
+  const organization = await getCurrentOrganization();
+  if (!organization || !canCreateOrEditOpportunities(organization.role)) return;
+  const candidateId = String(formData.get("candidateId") ?? "");
+  if (!UUID_PATTERN.test(candidateId)) return;
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("save_opportunity_from_run_candidate", {
+    p_candidate_id: candidateId,
+  });
+  if (error || !data) {
+    console.error("saveRunCandidateAction failed", error?.message);
+    return;
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as { opportunity_id?: string; slug?: string } | undefined;
+  if (!row?.opportunity_id || !row.slug) return;
+
+  const { data: candidate } = await supabase
+    .from("opportunity_run_candidates")
+    .select("screening")
+    .eq("id", candidateId)
+    .eq("organization_id", organization.id)
+    .maybeSingle();
+  const screening = candidate?.screening as { dimensions?: Array<{
+    key: string;
+    result: string;
+    explanation: string;
+    sourceKind: string;
+    completeness: string;
+  }> } | null;
+  if (screening?.dimensions?.length) {
+    await supabase.from("opportunity_assessments").upsert(
+      screening.dimensions.map((item) => ({
+        opportunity_id: row.opportunity_id,
+        organization_id: organization.id,
+        dimension: item.key,
+        result: item.result,
+        explanation: item.explanation,
+        source_kind: item.sourceKind,
+        completeness: item.completeness,
+        provider_key:
+          item.key === "environmental"
+            ? "nv-protected-areas"
+            : item.sourceKind === "official"
+              ? "ei-official-covering"
+              : null,
+        evidence: screening,
+      })),
+      { onConflict: "opportunity_id,dimension" },
+    );
+  }
+
+  revalidateOpportunityPaths(row.slug);
+  redirect(`/opportunities/${row.slug}`);
 }

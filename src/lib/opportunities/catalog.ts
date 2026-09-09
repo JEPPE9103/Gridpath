@@ -202,6 +202,10 @@ export function isOpportunityRecommendation(value: string): value is Opportunity
   return (OPPORTUNITY_RECOMMENDATION_VALUES as readonly string[]).includes(value);
 }
 
+export function isOpportunityConfidence(value: string): value is OpportunityConfidenceValue {
+  return (OPPORTUNITY_CONFIDENCE_VALUES as readonly string[]).includes(value);
+}
+
 export function technologyToProjectDb(
   value: OpportunityTechnologyValue,
 ): "battery_storage" | "solar" | "wind" | "ev_infrastructure" | "industrial" | "other" {

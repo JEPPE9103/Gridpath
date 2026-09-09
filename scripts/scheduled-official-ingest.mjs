@@ -47,7 +47,12 @@ console.log(
     officialArtifactTransport: scheduledIngestUsesCache()
       ? "noxheim_official_source_cache"
       : "direct_ei",
-    sources: ["ei-network-development-plans", "ei-network-area-concessions"],
+    sources: [
+      "ei-network-development-plans",
+      "ei-network-area-concessions",
+      "nv-protected-areas",
+      "nv-natura-2000",
+    ],
   }),
 );
 
@@ -65,6 +70,8 @@ function runCloudIngest(scriptName) {
 try {
   runCloudIngest("cloud-ingest-ei-nup.mjs");
   runCloudIngest("cloud-ingest-ei-network-areas.mjs");
+  runCloudIngest("cloud-ingest-naturvardsverket-protected.mjs");
+  runCloudIngest("cloud-ingest-naturvardsverket-natura.mjs");
   console.log(JSON.stringify({ event: "ingest.scheduled.complete", trigger }));
 } catch (error) {
   console.error(

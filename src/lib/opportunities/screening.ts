@@ -25,6 +25,7 @@ export type ScreeningCriteria = {
   excludeNatura: boolean;
   maxSlopePercent: number | null;
   minDistanceResidentialM: number | null;
+  electricityArea: string | null;
   notes: string | null;
 };
 
@@ -38,6 +39,15 @@ export type OfficialCoveringEvidence = {
   sourceName: string | null;
 };
 
+export type LayerOverlapEvidence = {
+  queried: boolean;
+  overlapPercent: number | null;
+  names: string[];
+  sourceName: string | null;
+};
+
+export const PROTECTED_OVERLAP_FAIL_PERCENT = 1;
+
 export type OpportunityCandidate = {
   name: string;
   country: string;
@@ -48,8 +58,11 @@ export type OpportunityCandidate = {
   targetMw: number | null;
   targetMwh: number | null;
   siteAreaHa: number | null;
+  usableAreaHa: number | null;
   technology: OpportunityTechnologyValue;
   covering: OfficialCoveringEvidence;
+  protectedOverlap?: LayerOverlapEvidence;
+  naturaOverlap?: LayerOverlapEvidence;
 };
 
 export type AssessmentDimension = {
@@ -76,6 +89,27 @@ export type ScreeningResult = {
 
 const UNSUPPORTED_LAYER =
   "No supported source evidence is available for this dimension yet.";
+
+/**
+ * Data confidence describes evidence coverage, not project success probability.
+ * HIGH requires multiple official dimensions and no unevaluated critical exclusion.
+ */
+export function deriveOpportunityConfidence(input: {
+  availableDimensions: number;
+  officialDimensions: number;
+  criticalUnevaluated: boolean;
+}): OpportunityConfidenceValue {
+  if (input.officialDimensions >= 2 && input.availableDimensions >= 4 && !input.criticalUnevaluated) {
+    return "high";
+  }
+  if (input.officialDimensions >= 1 && input.availableDimensions >= 3 && !input.criticalUnevaluated) {
+    return "medium";
+  }
+  if (input.availableDimensions >= 1) {
+    return "low";
+  }
+  return "unknown";
+}
 
 function normalizePlace(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -129,13 +163,34 @@ export function evaluateOpportunityScreening(input: {
     }
   }
 
-  if (
-    criteria.minSiteAreaHa != null &&
-    candidate.siteAreaHa != null &&
-    candidate.siteAreaHa < criteria.minSiteAreaHa
-  ) {
+  const usableArea = candidate.usableAreaHa ?? candidate.siteAreaHa;
+  if (criteria.minSiteAreaHa != null && usableArea != null && usableArea < criteria.minSiteAreaHa) {
     excluded = true;
-    exclusionReason = exclusionReason ?? "Site area is below the configured minimum.";
+    exclusionReason = exclusionReason ?? "Usable assessed area is below the configured minimum.";
+  }
+
+  const protectedOverlap = candidate.protectedOverlap;
+  if (criteria.excludeProtected && protectedOverlap?.queried) {
+    const pct = protectedOverlap.overlapPercent ?? 0;
+    if (pct >= PROTECTED_OVERLAP_FAIL_PERCENT) {
+      excluded = true;
+      const named = protectedOverlap.names[0] ? ` (${protectedOverlap.names[0]})` : "";
+      exclusionReason =
+        exclusionReason ??
+        `Direct overlap with a configured protected-area exclusion${named}: ${pct.toFixed(0)}% of the assessed area.`;
+    }
+  }
+
+  const naturaOverlap = candidate.naturaOverlap;
+  if (criteria.excludeNatura && naturaOverlap?.queried) {
+    const pct = naturaOverlap.overlapPercent ?? 0;
+    if (pct >= PROTECTED_OVERLAP_FAIL_PERCENT) {
+      excluded = true;
+      const named = naturaOverlap.names[0] ? ` (${naturaOverlap.names[0]})` : "";
+      exclusionReason =
+        exclusionReason ??
+        `Direct overlap with a configured Natura 2000 exclusion${named}: ${pct.toFixed(0)}% of the assessed area.`;
+    }
   }
 
   if (candidate.technology === criteria.technology) {
@@ -239,24 +294,96 @@ export function evaluateOpportunityScreening(input: {
     ),
   );
 
-  const envParts: string[] = [];
-  if (criteria.excludeProtected) {
-    envParts.push("Exclude protected areas is configured, but no supported protected-area layer is integrated. Candidates were not eliminated on this rule.");
-  }
-  if (criteria.excludeNatura) {
-    envParts.push("Exclude Natura 2000 is configured, but no supported Natura 2000 layer is integrated. Candidates were not eliminated on this rule.");
-  }
-  dimensions.push(
-    dimension(
-      "environmental",
-      "unavailable",
-      envParts.length > 0 ? envParts.join(" ") : UNSUPPORTED_LAYER,
-      "noxheim_derived",
-      "insufficient",
-    ),
-  );
-  if (envParts.length > 0) {
-    uncertainties.push("Environmental exclusion rules are recorded but cannot be evaluated yet.");
+  const protQueried = Boolean(protectedOverlap?.queried);
+  const natQueried = Boolean(naturaOverlap?.queried);
+  const protPct = protQueried ? (protectedOverlap?.overlapPercent ?? 0) : null;
+  const natPct = natQueried ? (naturaOverlap?.overlapPercent ?? 0) : null;
+  const protFail = Boolean(criteria.excludeProtected && protQueried && (protPct ?? 0) >= PROTECTED_OVERLAP_FAIL_PERCENT);
+  const natFail = Boolean(criteria.excludeNatura && natQueried && (natPct ?? 0) >= PROTECTED_OVERLAP_FAIL_PERCENT);
+
+  if (protFail || natFail) {
+    const parts: string[] = [];
+    if (protFail) {
+      const named = protectedOverlap?.names[0] ? ` (${protectedOverlap.names[0]})` : "";
+      parts.push(
+        `Direct overlap with a configured protected-area exclusion${named}: ${(protPct ?? 0).toFixed(0)}% of the assessed area.`,
+      );
+    }
+    if (natFail) {
+      const named = naturaOverlap?.names[0] ? ` (${naturaOverlap.names[0]})` : "";
+      parts.push(
+        `Direct overlap with a configured Natura 2000 exclusion${named}: ${(natPct ?? 0).toFixed(0)}% of the assessed area.`,
+      );
+    }
+    dimensions.push(
+      dimension(
+        "environmental",
+        "excluded",
+        `${parts.join(" ")} This is not a legal impossibility finding.`,
+        "official",
+        "available",
+      ),
+    );
+  } else if (protQueried || natQueried) {
+    const notable = (protPct ?? 0) > 0 || (natPct ?? 0) > 0;
+    if (notable) {
+      const bits = [
+        protQueried && (protPct ?? 0) > 0
+          ? `protected-area data intersects ${(protPct ?? 0).toFixed(0)}%${protectedOverlap?.names[0] ? ` (${protectedOverlap.names[0]})` : ""}`
+          : null,
+        natQueried && (natPct ?? 0) > 0
+          ? `Natura 2000 data intersects ${(natPct ?? 0).toFixed(0)}%${naturaOverlap?.names[0] ? ` (${naturaOverlap.names[0]})` : ""}`
+          : null,
+      ].filter(Boolean);
+      dimensions.push(
+        dimension(
+          "environmental",
+          "review_required",
+          `Supported ${bits.join("; ")} of the assessed area. Overlap is below the ${PROTECTED_OVERLAP_FAIL_PERCENT}% fail threshold or exclusion was not configured.`,
+          "official",
+          "available",
+        ),
+      );
+    } else {
+      const checked = [
+        protQueried ? "protected-area" : null,
+        natQueried ? "Natura 2000" : null,
+      ].filter(Boolean);
+      dimensions.push(
+        dimension(
+          "environmental",
+          "low_conflict",
+          `No direct overlap with supported ${checked.join(" and ")} datasets in the assessed area.`,
+          "official",
+          "available",
+        ),
+      );
+      positives.push(`No direct overlap with supported ${checked.join(" and ")} datasets.`);
+    }
+  } else {
+    const envParts: string[] = [];
+    if (criteria.excludeProtected) {
+      envParts.push(
+        "Exclude protected areas is configured, but a supported protected-area layer is not available for this search. Candidates were not eliminated on this rule.",
+      );
+    }
+    if (criteria.excludeNatura) {
+      envParts.push(
+        "Exclude Natura 2000 is configured, but a supported Natura 2000 layer is not available for this search. Candidates were not eliminated on this rule.",
+      );
+    }
+    dimensions.push(
+      dimension(
+        "environmental",
+        "unavailable",
+        envParts.length > 0 ? envParts.join(" ") : UNSUPPORTED_LAYER,
+        "noxheim_derived",
+        "insufficient",
+      ),
+    );
+    if (envParts.length > 0) {
+      uncertainties.push("Environmental exclusion rules are recorded but cannot be fully evaluated yet.");
+    }
   }
 
   dimensions.push(
@@ -284,16 +411,22 @@ export function evaluateOpportunityScreening(input: {
     ),
   );
 
+  if (criteria.electricityArea) {
+    uncertainties.push(
+      `Electricity area ${criteria.electricityArea} is recorded as search intent. NOXHEIM does not have official reusable bidding-zone geometry, so it was not used as a spatial filter.`,
+    );
+  }
+
   const available = dimensions.filter((item) => item.completeness === "available");
   const officialAvailable = available.filter((item) => item.sourceKind === "official").length;
-  const dataConfidence: OpportunityConfidenceValue =
-    officialAvailable >= 1 && available.length >= 3
-      ? "high"
-      : available.length >= 2
-        ? "medium"
-        : available.length >= 1
-          ? "low"
-          : "unknown";
+  const environmentalUnevaluated =
+    (criteria.excludeProtected && !protectedOverlap?.queried) ||
+    (criteria.excludeNatura && !naturaOverlap?.queried);
+  const dataConfidence = deriveOpportunityConfidence({
+    availableDimensions: available.length,
+    officialDimensions: officialAvailable,
+    criticalUnevaluated: environmentalUnevaluated,
+  });
 
   let recommendation: OpportunityRecommendationValue = "insufficient_evidence";
   if (excluded) {
@@ -306,6 +439,17 @@ export function evaluateOpportunityScreening(input: {
     recommendation = "investigate";
   } else if (candidate.covering.queried) {
     recommendation = "secondary";
+  }
+
+  if (
+    !excluded &&
+    environmentalUnevaluated &&
+    (recommendation === "prioritise" || recommendation === "investigate")
+  ) {
+    recommendation = "insufficient_evidence";
+    uncertainties.push(
+      "Configured environmental exclusions could not be evaluated because a supporting official layer is unavailable.",
+    );
   }
 
   const recommendationSummary = excluded

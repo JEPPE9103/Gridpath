@@ -17,7 +17,7 @@ export default async function Page() {
     <>
       <PageHeader
         title="New opportunity search"
-        subtitle="Define screening criteria, then record a candidate. Unsupported layers stay insufficient evidence."
+        subtitle="Define a bounded Swedish search, then let NOXHEIM return ranked candidate areas from supported official layers. Unsupported layers stay insufficient evidence."
       />
       <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         {canWrite ? (

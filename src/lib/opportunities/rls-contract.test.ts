@@ -5,12 +5,14 @@ import { supportedEvidenceProviders, unsupportedEvidenceProviders } from "./prov
 
 /**
  * Contract for development_opportunities / opportunity_searches / assessments / events
- * after 20260909170000_development_opportunities.sql.
+ * after 20260909170000_development_opportunities.sql and
+ * 20260910120000_swedish_opportunity_screening.sql.
  *
  * SELECT: organization members including viewer.
  * INSERT/UPDATE: owner, admin, member (private.can_write_organization).
- * DELETE: admin/owner on opportunities, searches, and events.
- * Creates and promote go through SECURITY DEFINER RPCs that re-check membership.
+ * DELETE: admin/owner on opportunities, searches, runs, candidates, and events.
+ * Official geographic features are a global catalog (authenticated SELECT), like grid_areas.
+ * Creates, screening runs, save-candidate and promote go through SECURITY DEFINER RPCs that re-check membership.
  */
 describe("opportunity tenancy and provider contract", () => {
   it("keeps Viewer read-only and Member able to write and promote", () => {
@@ -23,7 +25,10 @@ describe("opportunity tenancy and provider contract", () => {
 
   it("does not treat unsupported geodata providers as live evidence", () => {
     assert.ok(supportedEvidenceProviders().some((item) => item.key === "ei-official-covering"));
-    assert.ok(unsupportedEvidenceProviders().some((item) => item.key === "natura-2000"));
+    assert.ok(supportedEvidenceProviders().some((item) => item.key === "nv-protected-areas"));
+    assert.ok(supportedEvidenceProviders().some((item) => item.key === "nv-natura-2000"));
+    assert.ok(unsupportedEvidenceProviders().some((item) => item.key === "slope"));
+    assert.ok(unsupportedEvidenceProviders().some((item) => item.key === "grid-infrastructure"));
     assert.equal(
       supportedEvidenceProviders().every((item) => item.status === "supported"),
       true,

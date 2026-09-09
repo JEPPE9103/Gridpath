@@ -15,10 +15,10 @@ export function SourceHealthSection({
     <section className="max-w-3xl rounded-md border border-line bg-surface p-5">
       <h2 className="text-base font-semibold">Data sources</h2>
       <p className="mt-2 text-sm leading-6 text-muted">
-        Noxheim periodically refreshes supported official sources. A healthy source with unchanged
-        published content is expected. Noxheim’s check cadence is not the same as Ei’s publication
-        schedule. This is not real-time grid monitoring, and it does not mean available connection
-        capacity.
+        Noxheim periodically refreshes supported official sources (Ei covering geography and
+        Naturvårdsverket protected-area / Natura 2000 layers when ingest is configured). A healthy
+        source with unchanged published content is expected. This is not real-time grid monitoring,
+        and it does not mean available connection capacity.
       </p>
       {sources.length === 0 ? (
         <div className="mt-4">
