@@ -11,8 +11,9 @@ export type SourceHealthInput = {
 };
 
 /**
- * Stale threshold is 2× configured cadence after the last successful snapshot.
- * Unchanged source content is healthy, not an error.
+ * Stale threshold is 2× configured cadence after the last successful usable ingest.
+ * Cache-only downloads and unchanged published content do not define freshness.
+ * An older snapshot (last time published content changed) is not a delay by itself.
  */
 export function deriveSourceHealth(input: SourceHealthInput): SourceHealthStatus {
   if (!input.lastSnapshotAt && !input.lastSuccessAt) {
@@ -22,7 +23,7 @@ export function deriveSourceHealth(input: SourceHealthInput): SourceHealthStatus
     return "failed";
   }
 
-  const freshnessAnchor = input.lastSnapshotAt ?? input.lastSuccessAt;
+  const freshnessAnchor = input.lastSuccessAt ?? input.lastSnapshotAt;
   if (!freshnessAnchor) {
     return "never_ingested";
   }

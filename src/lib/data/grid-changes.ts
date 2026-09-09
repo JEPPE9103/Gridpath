@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { fetchAllInChunks, fetchAllQueryPages } from "@/lib/data/paged-select";
 import type {
@@ -624,9 +625,9 @@ export async function getGridChangesForCurrentOrganization(): Promise<GridChange
   };
 }
 
-export async function getOfficialChangeImpactCounts(
+export const getOfficialChangeImpactCounts = cache(async (
   projectId?: string,
-): Promise<OfficialChangeImpactCounts> {
+): Promise<OfficialChangeImpactCounts> => {
   const empty = { unreviewed: 0, confirmed: 0, dismissed: 0, unreviewedProjectCount: 0 };
   const organization = await getCurrentOrganization();
   if (!organization) return empty;
@@ -682,12 +683,12 @@ export async function getOfficialChangeImpactCounts(
           ),
         ).size,
   };
-}
+});
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function getUnreviewedOfficialChangeCountsByProject(): Promise<Map<string, number>> {
+export const getUnreviewedOfficialChangeCountsByProject = cache(async (): Promise<Map<string, number>> => {
   const counts = new Map<string, number>();
   const organization = await getCurrentOrganization();
   if (!organization) return counts;
@@ -705,7 +706,7 @@ export async function getUnreviewedOfficialChangeCountsByProject(): Promise<Map<
     counts.set(row.project_id, (counts.get(row.project_id) ?? 0) + 1);
   }
   return counts;
-}
+});
 
 export async function getOfficialChangeMapTarget(
   impactId: string,

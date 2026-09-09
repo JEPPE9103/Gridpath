@@ -58,6 +58,7 @@ export type PortfolioOverview =
       portfolioAttention: PortfolioAttentionResult;
       officialChanges: OfficialChangeImpactCounts;
       officialSourceDelayed: boolean;
+      officialSourceDelayMessage: string | null;
       error: null;
     }
   | {
@@ -70,6 +71,7 @@ export type PortfolioOverview =
       portfolioAttention: PortfolioAttentionResult;
       officialChanges: OfficialChangeImpactCounts;
       officialSourceDelayed: boolean;
+      officialSourceDelayMessage: string | null;
       error: null;
     }
   | {
@@ -82,5 +84,6 @@ export type PortfolioOverview =
       portfolioAttention: PortfolioAttentionResult;
       officialChanges: OfficialChangeImpactCounts;
       officialSourceDelayed: boolean;
+      officialSourceDelayMessage: string | null;
       error: string;
     };

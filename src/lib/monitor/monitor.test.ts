@@ -178,6 +178,34 @@ describe("source health", () => {
       "stale",
     );
   });
+
+  it("treats a recent full ingest as healthy even when the last content snapshot is old", () => {
+    assert.equal(
+      deriveSourceHealth({
+        lastAttemptStatus: "success",
+        lastAttemptSourceChanged: false,
+        lastSuccessAt: now,
+        lastSnapshotAt: new Date("2026-01-01T12:00:00Z"),
+        refreshIntervalHours: 168,
+        now,
+      }),
+      "healthy",
+    );
+  });
+
+  it("does not treat a recent cache snapshot as fresh when full ingest is stale", () => {
+    assert.equal(
+      deriveSourceHealth({
+        lastAttemptStatus: "success",
+        lastAttemptSourceChanged: false,
+        lastSuccessAt: new Date("2026-08-01T12:00:00Z"),
+        lastSnapshotAt: now,
+        refreshIntervalHours: 168,
+        now,
+      }),
+      "stale",
+    );
+  });
 });
 
 describe("cron authorization", () => {

@@ -4,11 +4,11 @@ import type { OfficialChangeImpactCounts } from "@/lib/data/grid-changes-types";
 export function OfficialChangesSignal({
   counts,
   href,
-  sourceDelayed = false,
+  sourceDelayMessage = null,
 }: {
   counts: OfficialChangeImpactCounts;
   href: string;
-  sourceDelayed?: boolean;
+  sourceDelayMessage?: string | null;
 }) {
   return (
     <section className="rounded-md border border-line bg-surface p-5">
@@ -30,15 +30,15 @@ export function OfficialChangesSignal({
             ? ` · ${counts.unreviewedProjectCount} project${counts.unreviewedProjectCount === 1 ? "" : "s"} with a geographic match`
             : ""}
         </p>
-      ) : sourceDelayed ? (
+      ) : sourceDelayMessage ? (
         <p className="mt-3 text-sm text-muted">
-          Nothing waiting for review. Source update currently delayed.
+          Nothing waiting for review. {sourceDelayMessage}
         </p>
       ) : (
         <p className="mt-3 text-sm text-muted">Nothing waiting for review</p>
       )}
-      {sourceDelayed && counts.unreviewed > 0 ? (
-        <p className="mt-2 text-sm text-warning">Source update currently delayed</p>
+      {sourceDelayMessage && counts.unreviewed > 0 ? (
+        <p className="mt-2 text-sm text-warning">{sourceDelayMessage.replace(/\.$/, "")}</p>
       ) : null}
     </section>
   );

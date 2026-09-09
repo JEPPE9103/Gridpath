@@ -93,7 +93,7 @@ describe("connection workspace domain", () => {
       now: NOW,
     });
     assert.equal(overdue.kind, "overdue_requirement");
-    assert.match(overdue.title, /Complete Protection study/);
+    assert.equal(overdue.title, "Complete requirement: Protection study");
     assert.equal(connectionCopyContainsForbiddenTerm(`${overdue.title} ${overdue.detail}`), null);
 
     const dueSoon = connectionNextAction({
@@ -101,7 +101,7 @@ describe("connection workspace domain", () => {
       now: NOW,
     });
     assert.equal(dueSoon.kind, "due_soon_requirement");
-    assert.match(dueSoon.title, /Complete Single-line diagram/);
+    assert.equal(dueSoon.title, "Complete requirement: Single-line diagram");
 
     const caseDeadline = connectionNextAction({
       requirements: [req({ id: "1", label: "Site coordinates", status: "Complete" })],

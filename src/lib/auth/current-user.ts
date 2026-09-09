@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type CurrentUserProfile = {
@@ -37,7 +38,7 @@ function initialsFromName(fullName: string, email: string): string {
   return "?";
 }
 
-export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null> {
+export const getCurrentUserProfile = cache(async (): Promise<CurrentUserProfile | null> => {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -68,4 +69,4 @@ export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null
     jobTitle,
     initials: initialsFromName(fullName, email),
   };
-}
+});

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { fetchAllQueryPages } from "@/lib/data/paged-select";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -45,7 +46,7 @@ export async function getOpenCriticalAlertCountForCurrentOrganization(): Promise
   return snapshot.criticalCount;
 }
 
-export async function getAlertCenterForCurrentOrganization(): Promise<AlertCenterSnapshot> {
+export const getAlertCenterForCurrentOrganization = cache(async (): Promise<AlertCenterSnapshot> => {
   const organization = await getCurrentOrganization();
   if (!organization) {
     return { openCount: 0, criticalCount: 0, recent: [], canWrite: false };
@@ -106,4 +107,4 @@ export async function getAlertCenterForCurrentOrganization(): Promise<AlertCente
       organization.role === "admin" ||
       organization.role === "member",
   };
-}
+});

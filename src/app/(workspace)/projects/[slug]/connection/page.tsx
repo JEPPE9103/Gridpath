@@ -8,7 +8,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -62,14 +61,12 @@ export default async function Page({
 
   return (
     <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-      <Suspense fallback={<p className="text-sm text-muted">Loading connection application…</p>}>
-        <ConnectionWorkspace
-          project={result.project}
-          operators={operators}
-          sourceHealth={sourceHealth}
-          standalone
-        />
-      </Suspense>
+      <ConnectionWorkspace
+        project={result.project}
+        operators={operators}
+        sourceHealth={sourceHealth}
+        standalone
+      />
     </div>
   );
 }

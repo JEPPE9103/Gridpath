@@ -9,6 +9,7 @@ import {
   canReviewOfficialChangeImpacts,
   countOfficialChangeImpacts,
   isOfficialSourceUpdateDelayed,
+  officialSourceDelayMessage,
   officialChangeCopyContainsForbiddenTerm,
   paginateItems,
   summarizeOfficialChange,
@@ -107,8 +108,13 @@ describe("official change inbox helpers", () => {
   it("scenario 12: delayed source stays delayed even with zero unreviewed changes", () => {
     assert.equal(countOfficialChangeImpacts([]).unreviewed, 0);
     assert.equal(isOfficialSourceUpdateDelayed("stale"), true);
+    assert.equal(officialSourceDelayMessage(0), null);
+    assert.equal(officialSourceDelayMessage(1), "One supported official source is currently delayed.");
+    assert.equal(officialSourceDelayMessage(2), "2 supported official sources are currently delayed.");
     assert.equal(
-      officialChangeCopyContainsForbiddenTerm("No unreviewed official changes are currently listed. Source update currently delayed."),
+      officialChangeCopyContainsForbiddenTerm(
+        "Nothing waiting for review. One supported official source is currently delayed.",
+      ),
       null,
     );
   });

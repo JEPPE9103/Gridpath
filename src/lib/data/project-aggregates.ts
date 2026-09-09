@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { portfolioCapacityMW } from "@/lib/domain/portfolio-capacity";
@@ -41,9 +42,9 @@ export function emptyProjectAggregates(): OrganizationProjectAggregates {
   return { ...EMPTY };
 }
 
-export async function getOrganizationProjectAggregates(
+export const getOrganizationProjectAggregates = cache(async (
   includeArchived = false,
-): Promise<{ aggregates: OrganizationProjectAggregates; error: string | null }> {
+): Promise<{ aggregates: OrganizationProjectAggregates; error: string | null }> => {
   const organization = await getCurrentOrganization();
   if (!organization) {
     return { aggregates: EMPTY, error: null };
@@ -76,7 +77,7 @@ export async function getOrganizationProjectAggregates(
     },
     error: null,
   };
-}
+});
 
 export function activeMwFromProjects(projects: Array<{ importMW: number; exportMW: number }>): number {
   return projects.reduce((sum, project) => sum + portfolioCapacityMW(project), 0);

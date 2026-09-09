@@ -30,7 +30,7 @@ import {
 import { DevelopmentBrief } from "@/features/projects/development-brief";
 import type { GridOperatorOption } from "@/lib/data/grid-operators";
 import type { SourceHealthView } from "@/lib/data/source-health";
-import { isOfficialSourceUpdateDelayed } from "@/lib/domain/official-change-summary";
+import { isOfficialSourceUpdateDelayed, officialSourceDelayMessage } from "@/lib/domain/official-change-summary";
 import {
   formatDate,
   formatImportExport,
@@ -282,7 +282,9 @@ function OverviewTab({
       <OfficialChangesSignal
         counts={project.officialChanges}
         href={`/changes?project=${encodeURIComponent(project.id)}`}
-        sourceDelayed={sourceHealth.some((item) => isOfficialSourceUpdateDelayed(item.health))}
+        sourceDelayMessage={officialSourceDelayMessage(
+          sourceHealth.filter((item) => isOfficialSourceUpdateDelayed(item.health)).length,
+        )}
       />
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
@@ -398,7 +400,9 @@ function GridTab({
       <OfficialChangesSignal
         counts={project.officialChanges}
         href={`/changes?project=${encodeURIComponent(project.id)}`}
-        sourceDelayed={sourceHealth.some((item) => isOfficialSourceUpdateDelayed(item.health))}
+        sourceDelayMessage={officialSourceDelayMessage(
+          sourceHealth.filter((item) => isOfficialSourceUpdateDelayed(item.health)).length,
+        )}
       />
       <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4">

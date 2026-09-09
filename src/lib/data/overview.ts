@@ -3,16 +3,16 @@ import {
   EMPTY_OFFICIAL_CHANGE_COUNTS,
   type OverviewAlertItem,
   type OverviewKpis,
-  type OverviewProject,
   type PortfolioOverview,
 } from "@/lib/data/overview-types";
-import { getOfficialChangeImpactCounts } from "@/lib/data/grid-changes";
 import { getOfficialSourceHealth } from "@/lib/data/source-health";
 import { fetchAllQueryPages } from "@/lib/data/paged-select";
 import { getOrganizationProjectAggregates } from "@/lib/data/project-aggregates";
 import { loadOrganizationAttentionInputs } from "@/lib/data/project-attention-load";
-import { listAllProjectsForOrganization } from "@/lib/data/projects";
-import { isOfficialSourceUpdateDelayed } from "@/lib/domain/official-change-summary";
+import {
+  isOfficialSourceUpdateDelayed,
+  officialSourceDelayMessage,
+} from "@/lib/domain/official-change-summary";
 import { buildPortfolioAttention, EMPTY_PORTFOLIO_ATTENTION } from "@/lib/intelligence/portfolio-attention";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AlertSeverity } from "@/types";
@@ -90,6 +90,7 @@ function emptyOverview(
       portfolioAttention: EMPTY_PORTFOLIO_ATTENTION,
       officialChanges: EMPTY_OFFICIAL_CHANGE_COUNTS,
       officialSourceDelayed: false,
+      officialSourceDelayMessage: null,
       error: null,
     };
   }
@@ -103,6 +104,7 @@ function emptyOverview(
     portfolioAttention: EMPTY_PORTFOLIO_ATTENTION,
     officialChanges: EMPTY_OFFICIAL_CHANGE_COUNTS,
     officialSourceDelayed: false,
+    officialSourceDelayMessage: null,
     error: error ?? "Could not load overview.",
   };
 }
@@ -149,15 +151,13 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
   }
 
   const supabase = await createSupabaseServerClient();
-  const [aggregatesResult, projectsResult, alertsResult, officialChanges, sourceHealth, attentionLoad] =
-    await Promise.all([
-      getOrganizationProjectAggregates(false),
-      listAllProjectsForOrganization("active"),
-      fetchAllQueryPages<AlertRow>(async (from, to) => {
-        const page = await supabase
-          .from("alerts")
-          .select(
-            `
+  const [aggregatesResult, alertsResult, sourceHealth, attentionLoad] = await Promise.all([
+    getOrganizationProjectAggregates(false),
+    fetchAllQueryPages<AlertRow>(async (from, to) => {
+      const page = await supabase
+        .from("alerts")
+        .select(
+          `
           id,
           severity,
           title,
@@ -169,38 +169,24 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
           project_id,
           projects ( name, slug, archived_at, grid_operators ( name ) )
         `,
-          )
-          .eq("organization_id", organization.id)
-          .eq("status", "open")
-          .range(from, to);
-        return { data: page.data as AlertRow[] | null, error: page.error };
-      }),
-      getOfficialChangeImpactCounts(),
-      getOfficialSourceHealth(),
-      loadOrganizationAttentionInputs(),
-    ]);
+        )
+        .eq("organization_id", organization.id)
+        .eq("status", "open")
+        .range(from, to);
+      return { data: page.data as AlertRow[] | null, error: page.error };
+    }),
+    getOfficialSourceHealth(),
+    loadOrganizationAttentionInputs(),
+  ]);
 
-  if (aggregatesResult.error || projectsResult.error || alertsResult.error || attentionLoad.error) {
+  if (aggregatesResult.error || alertsResult.error || attentionLoad.error) {
     console.error("getPortfolioOverview query failed", {
       aggregates: aggregatesResult.error,
-      projects: projectsResult.error,
       alerts: alertsResult.error,
       attention: attentionLoad.error,
     });
     return emptyOverview("error", "Could not load overview.", organization.name);
   }
-
-  const projects: OverviewProject[] = projectsResult.projects.map((project) => ({
-    id: project.id,
-    name: project.name,
-    location: project.location,
-    technology: project.technology,
-    importMW: project.importMW,
-    exportMW: project.exportMW,
-    stage: project.stage,
-    outlook: project.outlook,
-    lastUpdated: project.lastUpdated,
-  }));
 
   const alertRows = alertsResult.rows.filter((row) => {
     const project = asSingle(row.projects);
@@ -210,6 +196,19 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
     alertRows.map(mapAlert).filter((item): item is OverviewAlertItem => item !== null),
   );
   const portfolioAttention = buildPortfolioAttention(attentionLoad.inputs);
+  const projects = attentionLoad.projects;
+  const delayMessage = officialSourceDelayMessage(
+    sourceHealth.filter((item) => isOfficialSourceUpdateDelayed(item.health)).length,
+  );
+  let unreviewed = 0;
+  let unreviewedProjectCount = 0;
+  for (const input of attentionLoad.inputs) {
+    const count = input.unreviewedOfficialChangeCount ?? 0;
+    if (count > 0) {
+      unreviewed += count;
+      unreviewedProjectCount += 1;
+    }
+  }
 
   return {
     kind: "ok",
@@ -225,8 +224,14 @@ export async function getPortfolioOverview(): Promise<PortfolioOverview> {
     projects,
     recentProjects: projects.slice(0, 6),
     portfolioAttention,
-    officialChanges,
-    officialSourceDelayed: sourceHealth.some((item) => isOfficialSourceUpdateDelayed(item.health)),
+    officialChanges: {
+      unreviewed,
+      confirmed: 0,
+      dismissed: 0,
+      unreviewedProjectCount,
+    },
+    officialSourceDelayed: delayMessage != null,
+    officialSourceDelayMessage: delayMessage,
     error: null,
   };
 }

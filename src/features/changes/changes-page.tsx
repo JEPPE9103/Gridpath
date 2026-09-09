@@ -18,6 +18,7 @@ import { reviewStatusLabel } from "@/lib/domain/grid-change-presentation";
 import {
   GEOGRAPHIC_OVERLAP_EXPLANATION,
   NUP_FORECAST_NEED_CHANGE_DISCLAIMER,
+  officialSourceDelayMessage,
   paginateItems,
 } from "@/lib/domain/official-change-summary";
 import { formatDate } from "@/lib/format";
@@ -211,7 +212,7 @@ function LoadedChangesPage({
 
         {delayedSources.length > 0 ? (
           <p className="rounded-md border border-warning/40 bg-warning-bg/60 px-3 py-2 text-sm text-warning">
-            Source update currently delayed
+            {officialSourceDelayMessage(delayedSources.length)}
             {delayedSources.map((item) => ` · ${item.name}`).join("")}
           </p>
         ) : null}
@@ -276,7 +277,7 @@ function LoadedChangesPage({
           <ul className="text-xs text-muted">
             {result.sourceHealth.map((item) => (
               <li key={item.slug}>
-                {item.name}: {item.delayed ? "Source update currently delayed" : item.healthLabel}
+                {item.name}: {item.delayed ? "Currently delayed" : item.healthLabel}
                 {item.changeLabel !== "—" ? ` · ${item.changeLabel}` : ""}
               </li>
             ))}

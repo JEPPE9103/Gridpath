@@ -73,7 +73,7 @@ describe("deriveProjectAttention", () => {
     assert.match(signal?.detail ?? "", /Technical documentation was due 4 days ago/);
     assert.equal(signal?.dueAt, "2026-08-27");
     assert.equal(result.nextAction.kind, "overdue_requirement");
-    assert.equal(result.nextAction.title, "Complete Technical documentation");
+    assert.equal(result.nextAction.title, "Complete requirement: Technical documentation");
     assert.equal(attentionCopyContainsForbiddenTerm(`${signal?.title} ${signal?.detail}`), null);
   });
 
@@ -193,7 +193,7 @@ describe("deriveProjectAttention", () => {
     );
     assert.equal(result.band, "action");
     assert.equal(result.nextAction.kind, "overdue_requirement");
-    assert.equal(result.nextAction.title, "Complete Technical submission");
+    assert.equal(result.nextAction.title, "Complete requirement: Technical submission");
     const types = result.signals.map((item) => item.type);
     assert.ok(types.includes("overdue_requirements"));
     assert.ok(types.includes("connection_deadline_overdue"));

@@ -1,14 +1,19 @@
+import { cache } from "react";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { applyArchiveFilter } from "@/lib/data/archive-filter";
 import { fetchAllQueryPages } from "@/lib/data/paged-select";
 import { getUnreviewedOfficialChangeCountsByProject } from "@/lib/data/grid-changes";
 import { getOrganizationOfficialSpatialMatches } from "@/lib/data/official-map";
+import type { OverviewProject } from "@/lib/data/overview-types";
+import { toNumber } from "@/lib/data/row-utils";
 import { applicationReadinessFromRequirements } from "@/lib/domain/application-readiness";
 import {
   checklistStatusLabel,
   confidenceLabel,
   connectionCaseStatusLabel,
+  outlookLabel,
   pipelineStageLabel,
+  technologyLabel,
 } from "@/lib/domain/catalog-labels";
 import { isUnmatchedReviewProject } from "@/lib/domain/official-map";
 import type { PortfolioAttentionProjectInput } from "@/lib/intelligence/types";
@@ -38,7 +43,12 @@ type ProjectMetaRow = {
   id: string;
   slug: string;
   name: string;
+  location: string | null;
+  technology: string | null;
+  import_mw: number | string | null;
+  export_mw: number | string | null;
   connection_stage: string;
+  connection_outlook: string;
   confidence: string;
   target_cod: string | null;
   updated_at: string;
@@ -73,13 +83,20 @@ function groupByProject<T extends { project_id: string | null }>(rows: T[]): Map
   return map;
 }
 
-export async function loadOrganizationAttentionInputs(): Promise<{
+function laterIso(left: string | null | undefined, right: string | null | undefined): string | null {
+  if (!left) return right ?? null;
+  if (!right) return left;
+  return new Date(left).getTime() >= new Date(right).getTime() ? left : right;
+}
+
+export const loadOrganizationAttentionInputs = cache(async (): Promise<{
   inputs: PortfolioAttentionProjectInput[];
+  projects: OverviewProject[];
   error: string | null;
-}> {
+}> => {
   const organization = await getCurrentOrganization();
   if (!organization) {
-    return { inputs: [], error: null };
+    return { inputs: [], projects: [], error: null };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -122,7 +139,7 @@ export async function loadOrganizationAttentionInputs(): Promise<{
       const page = await applyArchiveFilter(
         supabase
           .from("projects")
-          .select("id, slug, name, connection_stage, confidence, target_cod, updated_at, archived_at")
+          .select("id, slug, name, location, technology, import_mw, export_mw, connection_stage, connection_outlook, confidence, target_cod, updated_at, archived_at")
           .eq("organization_id", organization.id)
           .order("updated_at", { ascending: false }),
         "active",
@@ -135,6 +152,7 @@ export async function loadOrganizationAttentionInputs(): Promise<{
           .from("project_events")
           .select("project_id, title, occurred_at, projects!inner ( organization_id, archived_at )")
           .eq("projects.organization_id", organization.id)
+          .ilike("title", "%stage%")
           .order("occurred_at", { ascending: false }),
         "active",
         "projects.archived_at",
@@ -168,7 +186,7 @@ export async function loadOrganizationAttentionInputs(): Promise<{
       events: eventsResult.error,
       alerts: alertsResult.error,
     });
-    return { inputs: [], error: "Could not load portfolio attention." };
+    return { inputs: [], projects: [], error: "Could not load portfolio attention." };
   }
 
   const casesByProject = groupByProject(casesResult.rows);
@@ -202,12 +220,13 @@ export async function loadOrganizationAttentionInputs(): Promise<{
     }));
     const match = matchByProject.get(row.id);
     const hasCoordinates = Boolean(match);
+    const stage = pipelineStageLabel(row.connection_stage);
 
     return {
       id: row.id,
       slug: row.slug,
       name: row.name,
-      stage: pipelineStageLabel(row.connection_stage),
+      stage,
       connectionCaseStatus: projectCase ? connectionCaseStatusLabel(projectCase.status) : null,
       connectionCaseStatusValue: projectCase?.status ?? null,
       hasConnectionCase: Boolean(projectCase),
@@ -225,11 +244,23 @@ export async function loadOrganizationAttentionInputs(): Promise<{
       connectionCaseCreatedAt: projectCase?.created_at ?? null,
       connectionCaseOwnerAssigned: projectCase ? Boolean(projectCase.owner_id) : null,
       events,
-      lastActivityAt: events[0]?.occurredAt ?? null,
+      lastActivityAt: laterIso(events[0]?.occurredAt, row.updated_at),
       unmatchedOfficialGeography:
         matchByProject.size === 0 ? undefined : isUnmatchedReviewProject(match, hasCoordinates),
     };
   });
 
-  return { inputs, error: null };
-}
+  const projects: OverviewProject[] = projectMetaResult.rows.map((row) => ({
+    id: row.slug || row.id,
+    name: row.name,
+    location: row.location ?? "",
+    technology: technologyLabel(row.technology),
+    importMW: toNumber(row.import_mw),
+    exportMW: toNumber(row.export_mw),
+    stage: pipelineStageLabel(row.connection_stage),
+    outlook: outlookLabel(row.connection_outlook),
+    lastUpdated: row.updated_at,
+  }));
+
+  return { inputs, projects, error: null };
+});

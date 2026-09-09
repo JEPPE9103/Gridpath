@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { deriveSourceHealth, sourceChangeLabel, sourceHealthLabel } from "@/lib/monitor/source-health";
 import { logError } from "@/lib/observability/log";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -49,7 +50,7 @@ type SourceHealthRow = {
   is_running: boolean | null;
 };
 
-export async function getOfficialSourceHealth(): Promise<SourceHealthView[]> {
+export const getOfficialSourceHealth = cache(async (): Promise<SourceHealthView[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("list_source_health");
   if (error) {
@@ -92,4 +93,4 @@ export async function getOfficialSourceHealth(): Promise<SourceHealthView[]> {
       isRunning: row.is_running === true,
     };
   });
-}
+});

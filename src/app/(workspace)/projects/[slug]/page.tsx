@@ -4,7 +4,6 @@ import { getOfficialSourceHealth } from "@/lib/data/source-health";
 import { ProjectPage } from "@/features/projects/project-page";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -38,17 +37,11 @@ export default async function Page({
   }
 
   return (
-    <Suspense
-      fallback={
-        <div className="px-4 py-10 text-sm text-muted sm:px-6 lg:px-8">Loading project…</div>
-      }
-    >
-      <ProjectPage
-        project={result.kind === "ok" ? result.project : null}
-        error={result.kind === "error" ? result.message : null}
-        operators={operators}
-        sourceHealth={sourceHealth}
-      />
-    </Suspense>
+    <ProjectPage
+      project={result.kind === "ok" ? result.project : null}
+      error={result.kind === "error" ? result.message : null}
+      operators={operators}
+      sourceHealth={sourceHealth}
+    />
   );
 }

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type GridOperatorOption = {
@@ -5,7 +6,7 @@ export type GridOperatorOption = {
   name: string;
 };
 
-export async function listGridOperators(): Promise<GridOperatorOption[]> {
+export const listGridOperators = cache(async (): Promise<GridOperatorOption[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("grid_operators")
@@ -18,4 +19,4 @@ export async function listGridOperators(): Promise<GridOperatorOption[]> {
   }
 
   return ((data ?? []) as GridOperatorOption[]).filter((row) => row.id && row.name);
-}
+});

@@ -13,12 +13,12 @@ export function PortfolioAttentionSection({
   attention,
   activeCount,
   officialChangesToReview,
-  sourceDelayed,
+  sourceDelayMessage,
 }: {
   attention: PortfolioAttentionResult;
   activeCount: number;
   officialChangesToReview: number;
-  sourceDelayed: boolean;
+  sourceDelayMessage: string | null;
 }) {
   const nowItems = attention.prioritized
     .filter((item) => item.band === "action" || item.band === "attention")
@@ -57,8 +57,8 @@ export function PortfolioAttentionSection({
         <div className="mt-5 rounded-md border border-line bg-surface px-5 py-8">
           <p className="text-sm font-medium text-ink">Nothing needs action right now.</p>
           <p className="mt-1 max-w-xl text-sm text-muted">
-            {sourceDelayed
-              ? "No overdue workflow items or unreviewed official changes. Official source update is delayed, so this is not a confirmation that published sources are current."
+            {sourceDelayMessage
+              ? `No overdue workflow items or unreviewed official changes. ${sourceDelayMessage.slice(0, -1)}, so this is not a confirmation that published sources are current.`
               : "No overdue workflow items or unreviewed official changes across the active portfolio."}
           </p>
         </div>

@@ -123,14 +123,14 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
               attention={portfolioAttention}
               activeCount={kpis.activeSites}
               officialChangesToReview={overview.officialChanges.unreviewed}
-              sourceDelayed={overview.officialSourceDelayed}
+              sourceDelayMessage={overview.officialSourceDelayMessage}
             />
 
             <div className="grid gap-4 lg:grid-cols-2">
               <OfficialChangesSignal
                 counts={overview.officialChanges}
                 href="/changes"
-                sourceDelayed={overview.officialSourceDelayed}
+                sourceDelayMessage={overview.officialSourceDelayMessage}
               />
 
               <section className="rounded-md border border-line bg-surface">

@@ -39,6 +39,16 @@ export function isOfficialSourceUpdateDelayed(health: string): boolean {
   return health === "failed" || health === "stale";
 }
 
+export function officialSourceDelayMessage(delayedCount: number): string | null {
+  if (delayedCount <= 0) {
+    return null;
+  }
+  if (delayedCount === 1) {
+    return "One supported official source is currently delayed.";
+  }
+  return `${delayedCount} supported official sources are currently delayed.`;
+}
+
 export function officialChangeCopyContainsForbiddenTerm(text: string): string | null {
   const lower = text.toLowerCase();
   for (const term of FORBIDDEN_CHANGE_TERMS) {

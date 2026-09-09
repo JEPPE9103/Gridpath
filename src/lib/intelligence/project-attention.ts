@@ -102,6 +102,10 @@ function pickEarliestDue(items: AttentionRequirement[]): AttentionRequirement | 
   return dated[0] ?? items[0] ?? null;
 }
 
+function completeRequirementTitle(item: AttentionRequirement | null | undefined): string {
+  return `Complete requirement: ${requirementName(item)}`;
+}
+
 function requirementName(item: AttentionRequirement | null | undefined): string {
   const label = item?.label?.trim();
   return label || "Required item";
@@ -218,7 +222,7 @@ export function deriveProjectNextAction(
   if (earliestOverdue) {
     return {
       kind: "overdue_requirement",
-      title: `Complete ${requirementName(earliestOverdue)}`,
+      title: completeRequirementTitle(earliestOverdue),
       detail: deadlineRelativeLabel(earliestOverdue.dueDate, today) ?? "Required item overdue",
       href: requirementHref(input, earliestOverdue),
     };
@@ -228,7 +232,7 @@ export function deriveProjectNextAction(
   if (earliestDueSoon) {
     return {
       kind: "due_soon_requirement",
-      title: `Complete ${requirementName(earliestDueSoon)}`,
+      title: completeRequirementTitle(earliestDueSoon),
       detail: deadlineRelativeLabel(earliestDueSoon.dueDate, today) ?? "Required item due soon",
       href: requirementHref(input, earliestDueSoon),
     };
@@ -269,7 +273,7 @@ export function deriveProjectNextAction(
   if (nextIncomplete) {
     return {
       kind: "incomplete_requirement",
-      title: `Complete ${requirementName(nextIncomplete)}`,
+      title: completeRequirementTitle(nextIncomplete),
       detail: nextIncomplete.dueDate
         ? (deadlineRelativeLabel(nextIncomplete.dueDate, today) ?? "Required item still outstanding")
         : "Required item still outstanding",

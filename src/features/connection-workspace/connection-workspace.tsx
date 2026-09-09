@@ -25,7 +25,7 @@ import {
 } from "@/lib/domain/connection-workspace";
 import { deadlineRelativeLabel } from "@/lib/domain/connection-deadlines";
 import { daysInCurrentStageLabel, deriveDaysInCurrentStage } from "@/lib/intelligence/project-attention";
-import { isOfficialSourceUpdateDelayed } from "@/lib/domain/official-change-summary";
+import { isOfficialSourceUpdateDelayed, officialSourceDelayMessage } from "@/lib/domain/official-change-summary";
 import { getDocumentDownloadUrl } from "@/lib/documents/actions";
 import { formatDate, formatImportExport, formatRelative } from "@/lib/format";
 import { deleteConnectionCaseAction } from "@/lib/connection-cases/actions";
@@ -46,7 +46,9 @@ export function ConnectionWorkspace({
 }) {
   const params = useSearchParams();
   const editRequested = params.get("edit") === "1";
-  const delayed = sourceHealth.some((item) => isOfficialSourceUpdateDelayed(item.health));
+  const delayMessage = officialSourceDelayMessage(
+    sourceHealth.filter((item) => isOfficialSourceUpdateDelayed(item.health)).length,
+  );
 
   if (!project.connectionCase) {
     return (
@@ -69,7 +71,7 @@ export function ConnectionWorkspace({
   return (
     <LoadedConnectionWorkspace
       project={project}
-      sourceDelayed={delayed}
+      sourceDelayMessage={delayMessage}
       standalone={standalone}
     />
   );
@@ -94,11 +96,11 @@ function WorkspaceHeader({ project }: { project: ProjectDetailViewModel }) {
 
 function LoadedConnectionWorkspace({
   project,
-  sourceDelayed,
+  sourceDelayMessage,
   standalone,
 }: {
   project: ProjectDetailViewModel;
-  sourceDelayed: boolean;
+  sourceDelayMessage: string | null;
   standalone: boolean;
 }) {
   const nowMs = useSyncExternalStore(
@@ -350,7 +352,7 @@ function LoadedConnectionWorkspace({
       <OfficialChangesSignal
         counts={project.officialChanges}
         href={`/changes?project=${encodeURIComponent(project.id)}`}
-        sourceDelayed={sourceDelayed}
+        sourceDelayMessage={sourceDelayMessage}
       />
 
       <section className="rounded-md border border-line bg-surface p-5">
