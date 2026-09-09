@@ -12,7 +12,9 @@ const FORBIDDEN_TERMS = [
   "build here",
   "87% chance",
   "ai says",
-  "chance of success",
+  "guaranteed site",
+  "grid connection likely",
+  "permitting will succeed",
 ] as const;
 
 export function opportunityCopyContainsForbiddenTerm(text: string): string | null {

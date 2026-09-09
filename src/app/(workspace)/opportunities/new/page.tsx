@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { OpportunityForm } from "@/features/opportunities/opportunity-form";
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { getOpportunityScreeningProfiles } from "@/lib/data/screening-profiles";
 import { createOpportunityAction } from "@/lib/opportunities/actions";
 import { canCreateOrEditOpportunities } from "@/lib/opportunities/authorization";
 import type { Metadata } from "next";
@@ -12,16 +13,17 @@ export const dynamic = "force-dynamic";
 export default async function Page() {
   const organization = await getCurrentOrganization();
   const canWrite = canCreateOrEditOpportunities(organization?.role);
+  const profiles = canWrite ? await getOpportunityScreeningProfiles() : [];
 
   return (
     <>
       <PageHeader
         title="New opportunity search"
-        subtitle="Define a bounded Swedish search, then let NOXHEIM return ranked candidate areas from supported official layers. Unsupported layers stay insufficient evidence."
+        subtitle="Define a bounded Swedish search and a reusable screening profile. NOXHEIM returns ranked contiguous candidate areas from supported official environmental, terrain, land and infrastructure evidence."
       />
       <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         {canWrite ? (
-          <OpportunityForm action={createOpportunityAction} />
+          <OpportunityForm action={createOpportunityAction} profiles={profiles} />
         ) : (
           <EmptyState
             title="You cannot create opportunities"

@@ -1,7 +1,8 @@
 /**
  * Geographic screening helpers for Swedish opportunity search.
  *
- * Candidate generation uses screening cells, not land parcels.
+ * Analysis uses screening cells internally. User-facing results are contiguous
+ * Candidate Areas after official exclusions, dissolve, and minimum-area checks.
  * Recommendation is relative investigation priority from configured criteria
  * and currently supported evidence — not “best site”, buildability, or connection chance.
  */
@@ -14,19 +15,25 @@ export const SWEDEN_WEST = 10.5;
 export const SWEDEN_SOUTH = 55.0;
 export const SWEDEN_EAST = 24.5;
 export const SWEDEN_NORTH = 69.6;
+export const SLIVER_AREA_HA = 0.5;
+export const CONTIGUITY_RULE =
+  "4-connected shared-boundary dissolve: remaining usable polygons that share an edge are unioned; corner-only and disconnected fragments stay separate. Centroids are not used.";
 
 export const SCREENING_CRS_METRIC = "EPSG:3006";
 export const SCREENING_CRS_STORAGE = "EPSG:4326";
 
 export const SCREENING_METHODOLOGY = [
-  "Bounded search geography is clipped to the Swedish envelope and divided into square screening cells in SWEREF 99 TM (EPSG:3006).",
-  `Cell size is clamp(${SCREENING_CELL_MIN_METERS}, ${SCREENING_CELL_MAX_METERS}, sqrt(area_m2 / ${SCREENING_CELL_TARGET_COUNT})) metres, targeting about ${SCREENING_CELL_TARGET_COUNT} cells.`,
-  "Results are candidate / screening areas, not cadastral parcels or land available for purchase.",
-  "Adjacent qualifying cells are not merged in this release, so neighbouring cells can remain separate ranked areas.",
-  "Hard exclusions use official protected-area and Natura 2000 polygons when ingested. Overlap at or above 1% of cell area fails the configured exclusion.",
-  "Usable area is cell area minus configured overlapping exclusion polygons. It is not legal land availability.",
-  "Grid context uses official Ei covering geography at the cell centroid. Covering is not a connection point and is not available capacity.",
-  "Terrain, land cover, roads, planning, land ownership, substations, and connection capacity are unsupported unless a dedicated official provider is ingested.",
+  "Bounded search geography is clipped to the Swedish envelope and divided into square analysis cells in SWEREF 99 TM (EPSG:3006).",
+  `Cell size is clamp(${SCREENING_CELL_MIN_METERS}, ${SCREENING_CELL_MAX_METERS}, sqrt(area_m2 / ${SCREENING_CELL_TARGET_COUNT})) metres, targeting about ${SCREENING_CELL_TARGET_COUNT} analysis cells.`,
+  "Official exclusion polygons (protected areas, Natura 2000, and configured hard terrain/land-cover summaries when ingested) are subtracted with ST_Difference.",
+  `${CONTIGUITY_RULE} Geometry is repaired with ST_MakeValid / ST_CollectionExtract; slivers below 0.5 ha are dropped.`,
+  "The user-facing object is a Candidate Area: the contiguous remaining usable polygon, not the original analysis square and not a cadastral parcel.",
+  "Screening decisions use largest contiguous usable area, not the sum of disconnected leftovers.",
+  "Hard exclusions use official protected-area and Natura 2000 polygons when ingested. Remaining overlap at or above 1% of a fragment fails the configured exclusion.",
+  "Grid context uses official Ei covering geography at the candidate centroid. Covering is not a connection point and is not available capacity.",
+  "Terrain slope is Noxheim-derived from Copernicus DEM GLO-90 (DSM, 90 m) when ingested — not Lantmäteriet Grid 50+.",
+  "Land cover uses Naturvårdsverket NMD 2018 basskikt (CC0) when ingested, evaluated against the organisation profile.",
+  "Road proximity uses Trafikverket INSPIRE RoadLink when that ingest succeeds. Residential proximity is blocked pending data rights.",
 ].join(" ");
 
 export type SearchBbox = {
@@ -146,13 +153,11 @@ export function describeRunDelta(previous: RunCountSnapshot | null, current: Run
 }
 
 export const UNSUPPORTED_SCREENING_DIMENSIONS = [
-  "Terrain / slope (Lantmäteriet Grid 50+ not ingested in this release)",
-  "Land cover / land use",
-  "Electricity infrastructure proximity (substations, lines)",
+  "Residential proximity (blocked pending Lantmäteriet / GDPR-safe building data rights)",
+  "Electricity infrastructure proximity (substations, lines) — blocked pending a commercially reusable source",
   "Available connection capacity",
   "Municipal planning status",
-  "Road access / logistics",
-  "Residential proximity",
   "Land ownership / legal access",
   "Official electricity-area (SE1–SE4) geometry",
+  "Lantmäteriet Grid 50+ DTM (CC0 but Geotorget OAuth is not configured)",
 ] as const;

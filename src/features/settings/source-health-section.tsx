@@ -15,10 +15,12 @@ export function SourceHealthSection({
     <section className="max-w-3xl rounded-md border border-line bg-surface p-5">
       <h2 className="text-base font-semibold">Data sources</h2>
       <p className="mt-2 text-sm leading-6 text-muted">
-        Noxheim periodically refreshes supported official sources (Ei covering geography and
-        Naturvårdsverket protected-area / Natura 2000 layers when ingest is configured). A healthy
-        source with unchanged published content is expected. This is not real-time grid monitoring,
-        and it does not mean available connection capacity.
+        Noxheim periodically refreshes supported official sources (Ei covering geography,
+        Naturvårdsverket protected-area / Natura 2000 / NMD, Copernicus DEM slope summaries, and
+        Trafikverket RoadLink when ingest is configured). A healthy source with unchanged published
+        content is expected. Failed or never-ingested providers reduce screening data confidence.
+        This is not real-time grid monitoring, and it does not mean available connection capacity.
+        Residential building data remains licence-blocked.
       </p>
       {sources.length === 0 ? (
         <div className="mt-4">

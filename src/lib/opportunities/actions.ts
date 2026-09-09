@@ -12,6 +12,7 @@ import {
   type OpportunityStatusValue,
 } from "@/lib/opportunities/catalog";
 import { rankScreeningCells } from "@/lib/opportunities/run-ranking";
+import { METHODOLOGY_VERSION, RANKING_VERSION } from "@/lib/opportunities/screening-profiles";
 import { emptyCovering, evaluateOpportunityScreening, type ScreeningCriteria } from "@/lib/opportunities/screening";
 import { parseOpportunityForm, type OpportunityFormFieldErrors, type OpportunityFormInput, type ParsedOpportunityForm } from "@/lib/opportunities/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -74,9 +75,15 @@ function screeningCriteriaFromParsed(parsed: ParsedOpportunityForm): ScreeningCr
     excludeProtected: parsed.excludeProtected,
     excludeNatura: parsed.excludeNatura,
     maxSlopePercent: parsed.maxSlopePercent,
+    maxSlopeDegrees: parsed.maxSlopeDegrees,
+    slopeMode: parsed.slopeMode,
+    landCoverProfile: parsed.landCoverProfile,
+    maxRoadDistanceM: parsed.maxRoadDistanceM,
+    roadMode: parsed.roadMode,
     minDistanceResidentialM: parsed.minDistanceResidentialM,
     electricityArea: parsed.electricityArea,
     notes: parsed.notes,
+    rankingVersion: "suitability-v2",
   };
 }
 
@@ -88,7 +95,7 @@ async function applyScreeningRunAssessments(
   const { data: rows, error } = await supabase
     .from("opportunity_run_candidates")
     .select(
-      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried",
+      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, mean_slope_deg, median_slope_deg, p90_slope_deg, pct_below_slope, terrain_queried, land_cover, land_cover_queried, road_distance_m, road_class, road_queried, exclusion_breakdown",
     )
     .eq("run_id", runId);
   if (error) {
@@ -158,6 +165,14 @@ export async function createOpportunityAction(
       exclude_protected: parsed.excludeProtected,
       exclude_natura: parsed.excludeNatura,
       max_slope_percent: parsed.maxSlopePercent,
+      max_slope_degrees: parsed.maxSlopeDegrees,
+      slope_mode: parsed.slopeMode,
+      land_cover_rules: parsed.landCoverProfile,
+      max_road_distance_m: parsed.maxRoadDistanceM,
+      road_mode: parsed.roadMode,
+      screening_profile_id: parsed.profileId && UUID_PATTERN.test(parsed.profileId) ? parsed.profileId : null,
+      investigation_budget_note: parsed.investigationBudgetNote,
+      hurdle_note: parsed.hurdleNote,
       min_distance_residential_m: parsed.minDistanceResidentialM,
       notes: parsed.notes,
       criteria: {
@@ -174,7 +189,14 @@ export async function createOpportunityAction(
         excludeProtected: parsed.excludeProtected,
         excludeNatura: parsed.excludeNatura,
         maxSlopePercent: parsed.maxSlopePercent,
+        maxSlopeDegrees: parsed.maxSlopeDegrees,
+        slopeMode: parsed.slopeMode,
+        landCoverProfile: parsed.landCoverProfile,
+        maxRoadDistanceM: parsed.maxRoadDistanceM,
+        roadMode: parsed.roadMode,
         minDistanceResidentialM: parsed.minDistanceResidentialM,
+        rankingVersion: RANKING_VERSION,
+        methodologyVersion: METHODOLOGY_VERSION,
       },
     })
     .select("id")
@@ -183,6 +205,38 @@ export async function createOpportunityAction(
   if (searchError || !search?.id) {
     console.error("createOpportunityAction search failed", searchError?.message);
     return { error: publicError(searchError?.message, "Could not save screening criteria."), values };
+  }
+
+  if (parsed.saveProfileName && profile?.id) {
+    const { error: profileError } = await supabase.from("opportunity_screening_profiles").insert({
+      organization_id: organization.id,
+      created_by: profile.id,
+      name: parsed.saveProfileName,
+      origin: "customer",
+      technology: parsed.technology,
+      criteria: {
+        technology: parsed.technology,
+        targetMw: parsed.targetMw,
+        targetMwh: parsed.targetMwh,
+        minSiteAreaHa: parsed.minSiteAreaHa,
+        excludeProtected: parsed.excludeProtected,
+        excludeNatura: parsed.excludeNatura,
+        slopeMode: parsed.slopeMode,
+        maxSlopeDegrees: parsed.maxSlopeDegrees,
+        landCover: parsed.landCoverProfile,
+        maxRoadDistanceM: parsed.maxRoadDistanceM,
+        roadMode: parsed.roadMode,
+        minDistanceResidentialM: parsed.minDistanceResidentialM,
+        assumptions: {
+          maxInvestigationDistanceKm: parsed.maxDistanceKm,
+          investigationBudgetNote: parsed.investigationBudgetNote,
+          hurdleNote: parsed.hurdleNote,
+        },
+      },
+    });
+    if (profileError) {
+      console.error("createOpportunityAction save profile failed", profileError.message);
+    }
   }
 
   const criteria = screeningCriteriaFromParsed(parsed);
@@ -463,7 +517,7 @@ export async function rerunOpportunitySearchAction(formData: FormData): Promise<
   const { data: search, error } = await supabase
     .from("opportunity_searches")
     .select(
-      "id, technology, country, region, municipality, electricity_area, target_mw, target_mwh, min_site_area_ha, max_distance_km, exclude_protected, exclude_natura, max_slope_percent, min_distance_residential_m, notes, west",
+      "id, technology, country, region, municipality, electricity_area, target_mw, target_mwh, min_site_area_ha, max_distance_km, exclude_protected, exclude_natura, max_slope_percent, max_slope_degrees, slope_mode, land_cover_rules, max_road_distance_m, road_mode, min_distance_residential_m, notes, west",
     )
     .eq("id", searchId)
     .eq("organization_id", organization.id)
@@ -492,10 +546,16 @@ export async function rerunOpportunitySearchAction(formData: FormData): Promise<
     excludeProtected: search.exclude_protected,
     excludeNatura: search.exclude_natura,
     maxSlopePercent: search.max_slope_percent == null ? null : Number(search.max_slope_percent),
+    maxSlopeDegrees: search.max_slope_degrees == null ? null : Number(search.max_slope_degrees),
+    slopeMode: search.slope_mode === "hard" ? "hard" : "preference",
+    landCoverProfile: (search.land_cover_rules ?? undefined) as ScreeningCriteria["landCoverProfile"],
+    maxRoadDistanceM: search.max_road_distance_m == null ? null : Number(search.max_road_distance_m),
+    roadMode: search.road_mode === "hard" ? "hard" : "preference",
     minDistanceResidentialM:
       search.min_distance_residential_m == null ? null : Number(search.min_distance_residential_m),
     electricityArea: search.electricity_area,
     notes: search.notes,
+    rankingVersion: RANKING_VERSION,
   });
 
   revalidateOpportunityPaths();

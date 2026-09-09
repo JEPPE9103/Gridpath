@@ -130,7 +130,7 @@ describe("opportunity screening", () => {
       candidate: candidate({ siteAreaHa: 0.5, usableAreaHa: 0.5 }),
     });
     assert.equal(area.excluded, true);
-    assert.match(area.exclusionReason ?? "", /usable assessed area|site area/i);
+    assert.match(area.exclusionReason ?? "", /contiguous screened area|usable assessed area|site area/i);
   });
 
   it("does not pretend unsupported countries have Swedish official layers", () => {
@@ -238,6 +238,21 @@ describe("opportunity screening", () => {
     assert.equal(terrain?.completeness, "insufficient");
     assert.equal(proximity?.completeness, "insufficient");
     assert.equal(opportunityCopyContainsForbiddenTerm(result.recommendationSummary), null);
+  });
+
+  it("uses contiguous usable area for the minimum-area decision", () => {
+    const result = evaluateOpportunityScreening({
+      criteria: CRITERIA,
+      candidate: candidate({
+        covering: officialCovering(),
+        ...clearEnvLayers(),
+        siteAreaHa: 40,
+        usableAreaHa: 17,
+        contiguousUsableAreaHa: 1.5,
+      }),
+    });
+    assert.equal(result.excluded, true);
+    assert.match(result.exclusionReason ?? "", /contiguous screened area/i);
   });
 
   it("maps promotion technologies without inventing project types", () => {

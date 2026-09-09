@@ -4,9 +4,11 @@ import { bindMapResize, ensureMapLibreWorker } from "@/features/map/maplibre-set
 import { STYLE } from "@/features/map/mini-map";
 import type { OpportunityRunCandidate } from "@/lib/data/opportunity-runs";
 import { Map as MapLibreMap, NavigationControl, type GeoJSONSource } from "maplibre-gl";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-const SOURCE = "screening-cells";
+const SOURCE = "screening-areas";
+const BBOX_SOURCE = "search-bbox";
+const SELECTED_SOURCE = "selected-area";
 
 function emptyCollection(geojson: unknown): Parameters<GeoJSONSource["setData"]>[0] {
   if (
@@ -18,6 +20,33 @@ function emptyCollection(geojson: unknown): Parameters<GeoJSONSource["setData"]>
     return geojson as Parameters<GeoJSONSource["setData"]>[0];
   }
   return { type: "FeatureCollection", features: [] };
+}
+
+function bboxCollection(west: number | null, south: number | null, east: number | null, north: number | null) {
+  if (west == null || south == null || east == null || north == null) {
+    return { type: "FeatureCollection" as const, features: [] };
+  }
+  return {
+    type: "FeatureCollection" as const,
+    features: [
+      {
+        type: "Feature" as const,
+        properties: { kind: "search-boundary" },
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [
+            [
+              [west, south],
+              [east, south],
+              [east, north],
+              [west, north],
+              [west, south],
+            ],
+          ],
+        },
+      },
+    ],
+  };
 }
 
 function fillForRecommendation(value: string, excluded: boolean): string {
@@ -33,15 +62,26 @@ export function ScreeningResultsMap({
   candidates,
   selectedId,
   onSelect,
+  west = null,
+  south = null,
+  east = null,
+  north = null,
 }: {
   geojson: unknown;
   candidates: OpportunityRunCandidate[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  west?: number | null;
+  south?: number | null;
+  east?: number | null;
+  north?: number | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const onSelectRef = useRef(onSelect);
+  const [showQualifying, setShowQualifying] = useState(true);
+  const [showExcluded, setShowExcluded] = useState(true);
+  const [showBoundary, setShowBoundary] = useState(true);
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -63,10 +103,14 @@ export function ScreeningResultsMap({
     const unbind = bindMapResize(map, container);
     mapRef.current = map;
     map.on("load", () => {
-      map.addSource(SOURCE, {
-        type: "geojson",
-        data: emptyCollection(geojson),
+      map.addSource(BBOX_SOURCE, { type: "geojson", data: bboxCollection(west, south, east, north) });
+      map.addLayer({
+        id: `${BBOX_SOURCE}-line`,
+        type: "line",
+        source: BBOX_SOURCE,
+        paint: { "line-color": "#1A1E24", "line-width": 1.4, "line-dasharray": [2, 1] },
       });
+      map.addSource(SOURCE, { type: "geojson", data: emptyCollection(geojson) });
       map.addLayer({
         id: `${SOURCE}-fill`,
         type: "fill",
@@ -84,7 +128,7 @@ export function ScreeningResultsMap({
             "#B54708",
             "#8B9098",
           ],
-          "fill-opacity": 0.35,
+          "fill-opacity": 0.38,
         },
       });
       map.addLayer({
@@ -92,6 +136,13 @@ export function ScreeningResultsMap({
         type: "line",
         source: SOURCE,
         paint: { "line-color": "#1A1E24", "line-width": 0.8, "line-opacity": 0.7 },
+      });
+      map.addLayer({
+        id: `${SELECTED_SOURCE}-line`,
+        type: "line",
+        source: SOURCE,
+        filter: ["==", ["get", "id"], ""],
+        paint: { "line-color": "#0B3D2E", "line-width": 2.4 },
       });
       map.on("click", `${SOURCE}-fill`, (event) => {
         const id = event.features?.[0]?.properties?.id;
@@ -103,13 +154,46 @@ export function ScreeningResultsMap({
       map.remove();
       mapRef.current = null;
     };
-  }, [candidates, geojson]);
+  }, [candidates, east, geojson, north, south, west]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map?.getSource(SOURCE)) return;
     (map.getSource(SOURCE) as GeoJSONSource).setData(emptyCollection(geojson));
   }, [geojson]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map?.getSource(BBOX_SOURCE)) return;
+    (map.getSource(BBOX_SOURCE) as GeoJSONSource).setData(bboxCollection(west, south, east, north));
+  }, [east, north, south, west]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map?.getLayer(`${SELECTED_SOURCE}-line`)) return;
+    map.setFilter(`${SELECTED_SOURCE}-line`, ["==", ["get", "id"], selectedId ?? ""]);
+  }, [selectedId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map?.getLayer(`${SOURCE}-fill`)) return;
+    if (!showQualifying && !showExcluded) {
+      map.setFilter(`${SOURCE}-fill`, ["==", ["get", "id"], ""]);
+      map.setFilter(`${SOURCE}-line`, ["==", ["get", "id"], ""]);
+    } else if (!showQualifying) {
+      map.setFilter(`${SOURCE}-fill`, ["==", ["get", "excluded"], true]);
+      map.setFilter(`${SOURCE}-line`, ["==", ["get", "excluded"], true]);
+    } else if (!showExcluded) {
+      map.setFilter(`${SOURCE}-fill`, ["!=", ["get", "excluded"], true]);
+      map.setFilter(`${SOURCE}-line`, ["!=", ["get", "excluded"], true]);
+    } else {
+      map.setFilter(`${SOURCE}-fill`, null);
+      map.setFilter(`${SOURCE}-line`, null);
+    }
+    if (map.getLayer(`${BBOX_SOURCE}-line`)) {
+      map.setLayoutProperty(`${BBOX_SOURCE}-line`, "visibility", showBoundary ? "visible" : "none");
+    }
+  }, [showBoundary, showExcluded, showQualifying]);
 
   useEffect(() => {
     const selected = candidates.find((item) => item.id === selectedId);
@@ -119,9 +203,24 @@ export function ScreeningResultsMap({
 
   return (
     <div className="overflow-hidden rounded-md border border-line">
+      <div className="flex flex-wrap gap-3 border-b border-line bg-surface px-3 py-2 text-xs">
+        <label className="flex items-center gap-1">
+          <input type="checkbox" checked={showQualifying} onChange={(event) => setShowQualifying(event.target.checked)} />
+          Candidate areas
+        </label>
+        <label className="flex items-center gap-1">
+          <input type="checkbox" checked={showExcluded} onChange={(event) => setShowExcluded(event.target.checked)} />
+          Excluded
+        </label>
+        <label className="flex items-center gap-1">
+          <input type="checkbox" checked={showBoundary} onChange={(event) => setShowBoundary(event.target.checked)} />
+          Search boundary
+        </label>
+      </div>
       <div ref={containerRef} className="h-80 w-full" />
       <p className="border-t border-line bg-surface px-3 py-2 text-xs text-muted">
-        Screening areas, not land parcels. Colour is investigation priority from supported evidence.
+        Contiguous candidate areas after supported exclusions, not land parcels and not the original
+        analysis squares. Colour is investigation priority from supported evidence.
         {selectedId
           ? ` Selected fill uses ${fillForRecommendation(
               candidates.find((item) => item.id === selectedId)?.recommendation ?? "",

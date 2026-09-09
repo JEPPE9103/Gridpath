@@ -11,6 +11,23 @@ import {
   type OpportunityTechnologyValue,
 } from "@/lib/opportunities/catalog";
 import { opportunityCopyContainsForbiddenTerm } from "@/lib/opportunities/copy";
+import {
+  formatExclusionBreakdown,
+  type ExclusionBreakdown,
+} from "@/lib/opportunities/contiguous-geometry";
+import {
+  landCoverPreferenceScore,
+  landCoverShareForRule,
+  parseLandCoverProfile,
+  type LandCoverComposition,
+  type LandCoverProfile,
+} from "@/lib/opportunities/land-cover";
+import {
+  classifySlopeAgainstThreshold,
+  resolveMaxSlopeDegrees,
+  type SlopeConstraintMode,
+  type TerrainMetrics,
+} from "@/lib/opportunities/terrain";
 
 export type ScreeningCriteria = {
   technology: OpportunityTechnologyValue;
@@ -24,9 +41,15 @@ export type ScreeningCriteria = {
   excludeProtected: boolean;
   excludeNatura: boolean;
   maxSlopePercent: number | null;
+  maxSlopeDegrees?: number | null;
+  slopeMode?: SlopeConstraintMode;
+  landCoverProfile?: LandCoverProfile;
+  maxRoadDistanceM?: number | null;
+  roadMode?: SlopeConstraintMode;
   minDistanceResidentialM: number | null;
   electricityArea: string | null;
   notes: string | null;
+  rankingVersion?: string;
 };
 
 export type OfficialCoveringEvidence = {
@@ -48,6 +71,13 @@ export type LayerOverlapEvidence = {
 
 export const PROTECTED_OVERLAP_FAIL_PERCENT = 1;
 
+export type RoadAccessEvidence = {
+  queried: boolean;
+  nearestDistanceM: number | null;
+  nearestClass: string | null;
+  sourceName: string | null;
+};
+
 export type OpportunityCandidate = {
   name: string;
   country: string;
@@ -59,10 +89,19 @@ export type OpportunityCandidate = {
   targetMwh: number | null;
   siteAreaHa: number | null;
   usableAreaHa: number | null;
+  contiguousUsableAreaHa?: number | null;
   technology: OpportunityTechnologyValue;
   covering: OfficialCoveringEvidence;
   protectedOverlap?: LayerOverlapEvidence;
   naturaOverlap?: LayerOverlapEvidence;
+  terrain?: TerrainMetrics;
+  landCover?: {
+    queried: boolean;
+    composition: LandCoverComposition;
+    sourceName: string | null;
+  };
+  road?: RoadAccessEvidence;
+  exclusionBreakdown?: ExclusionBreakdown | null;
 };
 
 export type AssessmentDimension = {
@@ -90,19 +129,40 @@ export type ScreeningResult = {
 const UNSUPPORTED_LAYER =
   "No supported source evidence is available for this dimension yet.";
 
+export const CORE_SCREENING_DIMENSIONS = [
+  "environmental",
+  "terrain",
+  "land_cover",
+  "road",
+  "grid_context",
+  "residential",
+] as const;
+
 /**
  * Data confidence describes evidence coverage, not project success probability.
- * HIGH requires multiple official dimensions and no unevaluated critical exclusion.
+ * HIGH requires several currently supported core dimensions and no unevaluated
+ * critical exclusion. Missing evidence never counts as a positive.
  */
 export function deriveOpportunityConfidence(input: {
   availableDimensions: number;
   officialDimensions: number;
   criticalUnevaluated: boolean;
+  coreAvailable?: number;
+  coreSupported?: number;
 }): OpportunityConfidenceValue {
-  if (input.officialDimensions >= 2 && input.availableDimensions >= 4 && !input.criticalUnevaluated) {
+  const coreAvailable = input.coreAvailable ?? input.officialDimensions;
+  const coreSupported = input.coreSupported ?? CORE_SCREENING_DIMENSIONS.length;
+  if (input.criticalUnevaluated) {
+    if (coreAvailable >= 1) return "low";
+    return "unknown";
+  }
+  if (coreAvailable >= 5 && input.officialDimensions >= 3 && input.availableDimensions >= 5) {
     return "high";
   }
-  if (input.officialDimensions >= 1 && input.availableDimensions >= 3 && !input.criticalUnevaluated) {
+  if (input.officialDimensions >= 2 && input.availableDimensions >= 4) {
+    return "high";
+  }
+  if (coreAvailable >= Math.min(3, coreSupported) && input.officialDimensions >= 1) {
     return "medium";
   }
   if (input.availableDimensions >= 1) {
@@ -163,10 +223,12 @@ export function evaluateOpportunityScreening(input: {
     }
   }
 
-  const usableArea = candidate.usableAreaHa ?? candidate.siteAreaHa;
-  if (criteria.minSiteAreaHa != null && usableArea != null && usableArea < criteria.minSiteAreaHa) {
+  const contiguousArea = candidate.contiguousUsableAreaHa ?? candidate.usableAreaHa ?? candidate.siteAreaHa;
+  if (criteria.minSiteAreaHa != null && contiguousArea != null && contiguousArea < criteria.minSiteAreaHa) {
     excluded = true;
-    exclusionReason = exclusionReason ?? "Usable assessed area is below the configured minimum.";
+    exclusionReason =
+      exclusionReason ??
+      `No contiguous screened area meets the configured minimum ${criteria.minSiteAreaHa} ha requirement.`;
   }
 
   const protectedOverlap = candidate.protectedOverlap;
@@ -282,17 +344,94 @@ export function evaluateOpportunityScreening(input: {
     uncertainties.push("Official grid context is incomplete for ranking.");
   }
 
-  dimensions.push(
-    dimension(
-      "land_suitability",
-      "unavailable",
-      criteria.maxSlopePercent != null
-        ? "Maximum slope is configured, but a supported slope dataset is not integrated. The constraint was not applied."
-        : UNSUPPORTED_LAYER,
-      "noxheim_derived",
-      "insufficient",
-    ),
-  );
+  const landCoverProfile = parseLandCoverProfile(criteria.landCoverProfile);
+  const slopeThreshold = resolveMaxSlopeDegrees({
+    maxSlopeDegrees: criteria.maxSlopeDegrees,
+    maxSlopePercent: criteria.maxSlopePercent,
+  });
+  const slopeMode: SlopeConstraintMode = criteria.slopeMode === "hard" ? "hard" : "preference";
+  const terrainMetrics: TerrainMetrics = candidate.terrain ?? {
+    queried: false,
+    meanSlopeDeg: null,
+    medianSlopeDeg: null,
+    p90SlopeDeg: null,
+    maxSlopeDeg: null,
+    pctBelowThreshold: null,
+    sourceName: null,
+  };
+
+  let landSuitabilityPushed = false;
+  if (slopeThreshold != null || terrainMetrics.queried) {
+    const classified = classifySlopeAgainstThreshold({
+      mode: slopeMode,
+      thresholdDeg: slopeThreshold ?? 5,
+      metrics: terrainMetrics,
+    });
+    if (classified.hardFail) {
+      excluded = true;
+      exclusionReason = exclusionReason ?? classified.explanation;
+      dimensions.push(
+        dimension("land_suitability", "excluded", classified.explanation, "noxheim_derived", "available"),
+      );
+      landSuitabilityPushed = true;
+    } else if (!terrainMetrics.queried) {
+      dimensions.push(
+        dimension("land_suitability", "unavailable", classified.explanation, "noxheim_derived", "insufficient"),
+      );
+      landSuitabilityPushed = true;
+      uncertainties.push("Terrain is configured but not evaluated from a supported ingest.");
+    } else {
+      dimensions.push(
+        dimension(
+          "land_suitability",
+          classified.favorable ? "strong" : "moderate",
+          classified.explanation,
+          "noxheim_derived",
+          "available",
+        ),
+      );
+      landSuitabilityPushed = true;
+      if (classified.favorable) {
+        positives.push("Favorable terrain against configured screening criterion.");
+      }
+    }
+  }
+
+  const landCover = candidate.landCover;
+  if (landCover?.queried) {
+    const preferredShare = landCoverShareForRule(landCover.composition, landCoverProfile, "preferred");
+    const score = landCoverPreferenceScore(landCover.composition, landCoverProfile);
+    const parts = Object.entries(landCover.composition)
+      .filter(([, share]) => share >= 1)
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 5)
+      .map(([group, share]) => `${group} ${share.toFixed(0)}%`);
+    const explanation = `Land cover against the organisation screening profile: ${parts.join("; ") || "composition recorded"}. Preferred share ${preferredShare.toFixed(0)}%. This is not a universal land-quality finding.`;
+    if (!landSuitabilityPushed) {
+      dimensions.push(
+        dimension(
+          "land_suitability",
+          score >= 0.1 ? "strong" : "moderate",
+          explanation,
+          "official",
+          "available",
+        ),
+      );
+      landSuitabilityPushed = true;
+    } else {
+      positives.push(explanation);
+    }
+  } else if (Object.values(landCoverProfile).some((rule) => rule === "excluded" || rule === "preferred")) {
+    uncertainties.push(
+      "Land-cover rules are configured, but a supported land-cover dataset is not available for this search.",
+    );
+  }
+
+  if (!landSuitabilityPushed) {
+    dimensions.push(
+      dimension("land_suitability", "unavailable", UNSUPPORTED_LAYER, "noxheim_derived", "insufficient"),
+    );
+  }
 
   const protQueried = Boolean(protectedOverlap?.queried);
   const natQueried = Boolean(naturaOverlap?.queried);
@@ -386,6 +525,10 @@ export function evaluateOpportunityScreening(input: {
     }
   }
 
+  if (candidate.exclusionBreakdown) {
+    positives.push(formatExclusionBreakdown(candidate.exclusionBreakdown));
+  }
+
   dimensions.push(
     dimension(
       "planning",
@@ -397,18 +540,49 @@ export function evaluateOpportunityScreening(input: {
   );
   risks.push("Municipal planning review required.");
 
-  dimensions.push(
-    dimension(
-      "access",
-      criteria.minDistanceResidentialM != null || criteria.maxDistanceKm != null
-        ? "unavailable"
-        : "unavailable",
-      criteria.maxDistanceKm != null || criteria.minDistanceResidentialM != null
-        ? "Access and residential-distance rules are configured, but supported transport/settlement layers are not integrated. The constraints were not applied."
-        : UNSUPPORTED_LAYER,
-      "noxheim_derived",
-      "insufficient",
-    ),
+  const road = candidate.road;
+  const roadMode = criteria.roadMode === "hard" ? "hard" : "preference";
+  const maxRoadM = criteria.maxRoadDistanceM ?? (criteria.maxDistanceKm != null ? criteria.maxDistanceKm * 1000 : null);
+  if (road?.queried && road.nearestDistanceM != null) {
+    const within = maxRoadM == null || road.nearestDistanceM <= maxRoadM;
+    if (roadMode === "hard" && maxRoadM != null && !within) {
+      excluded = true;
+      exclusionReason =
+        exclusionReason ??
+        `Nearest supported road is ${Math.round(road.nearestDistanceM)} m, beyond the configured ${Math.round(maxRoadM)} m hard threshold.`;
+      dimensions.push(
+        dimension("access", "excluded", exclusionReason, "official", "available"),
+      );
+    } else {
+      dimensions.push(
+        dimension(
+          "access",
+          within ? "strong" : "moderate",
+          `Favorable proximity to supported road infrastructure: nearest ${road.nearestClass ?? "supported road"} is ${Math.round(road.nearestDistanceM)} m. This does not mean heavy transport can access the site.`,
+          "official",
+          "available",
+        ),
+      );
+      if (within) positives.push("Favorable proximity to supported road infrastructure.");
+    }
+  } else {
+    const configuredAccess =
+      maxRoadM != null || criteria.minDistanceResidentialM != null || criteria.maxDistanceKm != null;
+    dimensions.push(
+      dimension(
+        "access",
+        "unavailable",
+        configuredAccess
+          ? "Access and residential-distance rules are configured, but a supporting official layer is not available for this search. The constraints were not applied."
+          : "Residential proximity is blocked pending data rights. Road access is evaluated only after a licensed official ingest.",
+        "noxheim_derived",
+        "insufficient",
+      ),
+    );
+  }
+
+  uncertainties.push(
+    "Residential proximity is unsupported pending legally reusable building data. It is not treated as a pass.",
   );
 
   if (criteria.electricityArea) {
@@ -422,10 +596,18 @@ export function evaluateOpportunityScreening(input: {
   const environmentalUnevaluated =
     (criteria.excludeProtected && !protectedOverlap?.queried) ||
     (criteria.excludeNatura && !naturaOverlap?.queried);
+  const coreAvailable =
+    Number(protQueried || natQueried) +
+    Number(terrainMetrics.queried) +
+    Number(Boolean(landCover?.queried)) +
+    Number(Boolean(road?.queried && road.nearestDistanceM != null)) +
+    Number(candidate.covering.queried);
   const dataConfidence = deriveOpportunityConfidence({
     availableDimensions: available.length,
     officialDimensions: officialAvailable,
     criticalUnevaluated: environmentalUnevaluated,
+    coreAvailable,
+    coreSupported: 5,
   });
 
   let recommendation: OpportunityRecommendationValue = "insufficient_evidence";
@@ -453,10 +635,12 @@ export function evaluateOpportunityScreening(input: {
   }
 
   const recommendationSummary = excluded
-    ? `Based on the configured screening criteria, this opportunity is excluded: ${exclusionReason}`
+    ? `Do not prioritise under the current screening profile: ${exclusionReason}`
     : recommendation === "insufficient_evidence"
-      ? "Based on currently available evidence and configured screening criteria, NOXHEIM cannot rank this opportunity confidently."
-      : "Based on currently available evidence and configured screening criteria, this opportunity is ranked for further investigation relative to alternatives. This is not a prediction of project success or connection.";
+      ? "Based on currently available evidence and configured screening criteria, NOXHEIM cannot rank this area confidently."
+      : recommendation === "prioritise"
+        ? "NOXHEIM recommends prioritising this area for further screening. Candidate ranking uses currently supported evidence and is not a build or connection finding."
+        : "This area ranks for further investigation relative to alternatives from currently supported evidence. This is not a prediction of project success or connection.";
 
   for (const item of [...positives, ...risks, ...uncertainties, recommendationSummary, ...dimensions.map((row) => row.explanation)]) {
     const forbidden = opportunityCopyContainsForbiddenTerm(item);

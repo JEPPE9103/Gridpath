@@ -70,7 +70,7 @@ export function OpportunitySearchResults({
     <>
       <PageHeader
         title={view.searchName}
-        subtitle={`${opportunityTechnologyLabel(view.technology)}${view.electricityArea ? ` · ${view.electricityArea} recorded as intent, not a spatial clip` : ""} · screening areas, not parcels`}
+        subtitle={`${opportunityTechnologyLabel(view.technology)}${view.electricityArea ? ` · ${view.electricityArea} recorded as intent, not a spatial clip` : ""} · contiguous candidate areas, not parcels`}
         actions={
           <>
             <Link href="/opportunities" className={buttonClassName("secondary")}>
@@ -93,16 +93,17 @@ export function OpportunitySearchResults({
           <Fact label="Areas evaluated" value={String(view.evaluatedCount)} />
           <Fact label="Excluded" value={String(view.excludedCount)} />
           <Fact
-            label="Cell size"
-            value={view.cellSizeM != null ? `${Math.round(view.cellSizeM)} m` : "Not stored"}
+            label="Ranking"
+            value={view.rankingVersion ?? "suitability-v2"}
           />
         </section>
 
         {delta ? <p className="text-sm text-muted">{delta}</p> : null}
+        {view.changeSummary ? <p className="text-sm text-muted">{view.changeSummary}</p> : null}
 
         <p className="text-sm text-muted">
           {view.status === "completed"
-            ? "Screening finished. Counts are actual evaluated cells, not a marketing figure."
+            ? "Screening finished. Counts are actual contiguous candidate areas after supported exclusions, not a marketing figure."
             : `Run status: ${view.status}.`}
           {view.durationMs != null ? ` Duration ${Math.round(view.durationMs / 1000)}s.` : ""}
         </p>
@@ -112,6 +113,10 @@ export function OpportunitySearchResults({
           candidates={view.candidates}
           selectedId={selectedId}
           onSelect={setSelectedId}
+          west={view.west}
+          south={view.south}
+          east={view.east}
+          north={view.north}
         />
 
         {view.warnings.length > 0 ? (
@@ -170,21 +175,56 @@ export function OpportunitySearchResults({
 
         {selected ? (
           <section className="rounded-md border border-line bg-surface p-4">
-            <h2 className="text-sm font-semibold">{selected.name}</h2>
+            <h2 className="text-sm font-semibold">
+              {selected.rank != null ? `#${selected.rank} ` : ""}
+              {selected.name}
+            </h2>
             <p className="mt-1 text-sm text-muted">{selected.recommendationSummary}</p>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <Fact label="Recommendation" value={opportunityRecommendationLabel(selected.recommendation)} />
               <Fact label="Data confidence" value={opportunityConfidenceLabel(selected.dataConfidence)} />
               <Fact
-                label="Usable area after configured exclusions"
-                value={selected.usableAreaHa != null ? `${selected.usableAreaHa.toFixed(1)} ha` : "Unknown"}
+                label="Largest contiguous usable area"
+                value={
+                  selected.contiguousAreaHa != null
+                    ? `${selected.contiguousAreaHa.toFixed(1)} ha`
+                    : selected.usableAreaHa != null
+                      ? `${selected.usableAreaHa.toFixed(1)} ha`
+                      : "Unknown"
+                }
               />
               <Fact
-                label="Gross cell area"
+                label="Gross screening area"
                 value={selected.grossAreaHa != null ? `${selected.grossAreaHa.toFixed(1)} ha` : "Unknown"}
               />
-              <Fact label="Strongest positive" value={selected.keyPositive ?? "None recorded"} />
-              <Fact label="Strongest risk" value={selected.keyRisk ?? "None recorded"} />
+              <Fact
+                label="Terrain"
+                value={
+                  selected.pctBelowSlope != null
+                    ? `${selected.pctBelowSlope.toFixed(1)}% ≤ configured slope${selected.p90SlopeDeg != null ? ` · P90 ${selected.p90SlopeDeg.toFixed(1)}°` : ""}`
+                    : "Insufficient evidence"
+                }
+              />
+              <Fact
+                label="Land cover"
+                value={
+                  Object.keys(selected.landCover).length > 0
+                    ? Object.entries(selected.landCover)
+                        .sort((left, right) => Number(right[1]) - Number(left[1]))
+                        .slice(0, 3)
+                        .map(([group, share]) => `${group} ${Number(share).toFixed(0)}%`)
+                        .join(" · ")
+                    : "Insufficient evidence"
+                }
+              />
+              <Fact
+                label="Road proximity"
+                value={
+                  selected.roadDistanceM != null
+                    ? `${Math.round(selected.roadDistanceM)} m${selected.roadClass ? ` (${selected.roadClass})` : ""}`
+                    : "Insufficient evidence"
+                }
+              />
               <Fact
                 label="Official grid geography"
                 value={
@@ -192,11 +232,21 @@ export function OpportunitySearchResults({
                   "No covering polygon at centroid"
                 }
               />
-              <Fact
-                label="Distance to supported infrastructure"
-                value="Evidence unavailable"
-              />
+              <Fact label="Strongest positive" value={selected.keyPositive ?? "None recorded"} />
+              <Fact label="Main uncertainty" value={selected.keyRisk ?? "See unsupported dimensions"} />
+              <Fact label="Residential context" value="Unsupported / blocked pending data rights" />
             </dl>
+            {selected.exclusionBreakdown ? (
+              <p className="mt-3 text-sm text-muted">
+                Initial {Number(selected.exclusionBreakdown.grossHa ?? 0).toFixed(1)} ha.
+                Protected/Natura removed{" "}
+                {(Number(selected.exclusionBreakdown.protectedHa ?? 0) + Number(selected.exclusionBreakdown.naturaHa ?? 0)).toFixed(1)} ha.
+                Terrain removed {Number(selected.exclusionBreakdown.terrainHa ?? 0).toFixed(1)} ha.
+                Land-cover exclusions removed {Number(selected.exclusionBreakdown.landCoverHa ?? 0).toFixed(1)} ha.
+                Remaining {Number(selected.exclusionBreakdown.remainingHa ?? selected.usableAreaHa ?? 0).toFixed(1)} ha.
+                Largest contiguous {Number(selected.exclusionBreakdown.largestContiguousHa ?? selected.contiguousAreaHa ?? 0).toFixed(1)} ha.
+              </p>
+            ) : null}
             {selected.exclusionReason ? (
               <p className="mt-3 text-sm">Failed: {selected.exclusionReason}</p>
             ) : null}
@@ -238,9 +288,23 @@ export function OpportunitySearchResults({
                     ["Recommendation", (item: OpportunityRunCandidate) => opportunityRecommendationLabel(item.recommendation)],
                     ["Confidence", (item: OpportunityRunCandidate) => opportunityConfidenceLabel(item.dataConfidence)],
                     [
-                      "Usable ha",
+                      "Contiguous ha",
                       (item: OpportunityRunCandidate) =>
-                        item.usableAreaHa != null ? item.usableAreaHa.toFixed(1) : "—",
+                        item.contiguousAreaHa != null
+                          ? item.contiguousAreaHa.toFixed(1)
+                          : item.usableAreaHa != null
+                            ? item.usableAreaHa.toFixed(1)
+                            : "—",
+                    ],
+                    [
+                      "Terrain P90",
+                      (item: OpportunityRunCandidate) =>
+                        item.p90SlopeDeg != null ? `${item.p90SlopeDeg.toFixed(1)}°` : "—",
+                    ],
+                    [
+                      "Road",
+                      (item: OpportunityRunCandidate) =>
+                        item.roadDistanceM != null ? `${Math.round(item.roadDistanceM)} m` : "—",
                     ],
                     ["Positive", (item: OpportunityRunCandidate) => item.keyPositive ?? "—"],
                     ["Risk", (item: OpportunityRunCandidate) => item.keyRisk ?? "—"],
@@ -309,11 +373,17 @@ function CandidateSection({
                 <p className="text-xs text-muted">
                   {opportunityRecommendationLabel(candidate.recommendation)} ·{" "}
                   {opportunityConfidenceLabel(candidate.dataConfidence)}
-                  {candidate.usableAreaHa != null ? ` · ${candidate.usableAreaHa.toFixed(1)} ha usable` : ""}
+                  {candidate.contiguousAreaHa != null
+                    ? ` · ${candidate.contiguousAreaHa.toFixed(1)} ha contiguous`
+                    : candidate.usableAreaHa != null
+                      ? ` · ${candidate.usableAreaHa.toFixed(1)} ha usable`
+                      : ""}
+                  {candidate.roadDistanceM != null ? ` · road ${Math.round(candidate.roadDistanceM)} m` : ""}
                 </p>
                 <p className="mt-1 text-xs text-muted">
-                  {candidate.keyPositive ?? "No positive official signal stored"} · Risk:{" "}
-                  {candidate.keyRisk ?? "See unsupported dimensions"}
+                  {candidate.exclusionReason
+                    ? candidate.exclusionReason
+                    : `${candidate.keyPositive ?? "No positive official signal stored"} · ${candidate.keyRisk ?? "See unsupported dimensions"}`}
                 </p>
               </button>
               <div className="flex flex-wrap gap-2">

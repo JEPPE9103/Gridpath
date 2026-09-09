@@ -4,6 +4,12 @@ import {
   type OpportunityTechnologyValue,
 } from "@/lib/opportunities/catalog";
 import {
+  isLandCoverRule,
+  parseLandCoverProfile,
+  type LandCoverProfile,
+} from "@/lib/opportunities/land-cover";
+import { isSlopeConstraintMode, type SlopeConstraintMode } from "@/lib/opportunities/terrain";
+import {
   parseElectricityArea,
   validateSearchBbox,
   type SearchBbox,
@@ -33,6 +39,20 @@ export type OpportunityFormInput = {
   excludeProtected: string;
   excludeNatura: string;
   maxSlopePercent: string;
+  maxSlopeDegrees: string;
+  slopeMode: string;
+  maxRoadDistanceM: string;
+  roadMode: string;
+  landCoverWater: string;
+  landCoverWetland: string;
+  landCoverForest: string;
+  landCoverAgriculture: string;
+  landCoverOpen: string;
+  landCoverDeveloped: string;
+  profileId: string;
+  saveProfileName: string;
+  investigationBudgetNote: string;
+  hurdleNote: string;
   minDistanceResidentialM: string;
   notes: string;
 };
@@ -59,6 +79,15 @@ export type ParsedOpportunityForm = {
   excludeProtected: boolean;
   excludeNatura: boolean;
   maxSlopePercent: number | null;
+  maxSlopeDegrees: number | null;
+  slopeMode: SlopeConstraintMode;
+  landCoverProfile: LandCoverProfile;
+  maxRoadDistanceM: number | null;
+  roadMode: SlopeConstraintMode;
+  profileId: string | null;
+  saveProfileName: string | null;
+  investigationBudgetNote: string | null;
+  hurdleNote: string | null;
   minDistanceResidentialM: number | null;
   notes: string | null;
 };
@@ -123,6 +152,20 @@ export function parseOpportunityForm(formData: FormData): {
     excludeProtected: formData.get("excludeProtected") === "on" ? "on" : "",
     excludeNatura: formData.get("excludeNatura") === "on" ? "on" : "",
     maxSlopePercent: readString(formData, "maxSlopePercent"),
+    maxSlopeDegrees: readString(formData, "maxSlopeDegrees"),
+    slopeMode: readString(formData, "slopeMode") || "preference",
+    maxRoadDistanceM: readString(formData, "maxRoadDistanceM"),
+    roadMode: readString(formData, "roadMode") || "preference",
+    landCoverWater: readString(formData, "landCoverWater") || "excluded",
+    landCoverWetland: readString(formData, "landCoverWetland") || "excluded",
+    landCoverForest: readString(formData, "landCoverForest") || "neutral",
+    landCoverAgriculture: readString(formData, "landCoverAgriculture") || "deprioritised",
+    landCoverOpen: readString(formData, "landCoverOpen") || "preferred",
+    landCoverDeveloped: readString(formData, "landCoverDeveloped") || "deprioritised",
+    profileId: readString(formData, "profileId"),
+    saveProfileName: readString(formData, "saveProfileName"),
+    investigationBudgetNote: readString(formData, "investigationBudgetNote"),
+    hurdleNote: readString(formData, "hurdleNote"),
     minDistanceResidentialM: readString(formData, "minDistanceResidentialM"),
     notes: readString(formData, "notes"),
   };
@@ -194,6 +237,23 @@ export function parseOpportunityForm(formData: FormData): {
     excludeProtected: values.excludeProtected === "on",
     excludeNatura: values.excludeNatura === "on",
     maxSlopePercent: parseOptionalNumber(values.maxSlopePercent, "maxSlopePercent", fieldErrors),
+    maxSlopeDegrees: parseOptionalNumber(values.maxSlopeDegrees, "maxSlopeDegrees", fieldErrors),
+    slopeMode: isSlopeConstraintMode(values.slopeMode) ? values.slopeMode : "preference",
+    landCoverProfile: parseLandCoverProfile({
+      water: isLandCoverRule(values.landCoverWater) ? values.landCoverWater : "excluded",
+      wetland: isLandCoverRule(values.landCoverWetland) ? values.landCoverWetland : "excluded",
+      forest: isLandCoverRule(values.landCoverForest) ? values.landCoverForest : "neutral",
+      agriculture: isLandCoverRule(values.landCoverAgriculture) ? values.landCoverAgriculture : "deprioritised",
+      open: isLandCoverRule(values.landCoverOpen) ? values.landCoverOpen : "preferred",
+      developed: isLandCoverRule(values.landCoverDeveloped) ? values.landCoverDeveloped : "deprioritised",
+      unclassified: "neutral",
+    }),
+    maxRoadDistanceM: parseOptionalNumber(values.maxRoadDistanceM, "maxRoadDistanceM", fieldErrors),
+    roadMode: isSlopeConstraintMode(values.roadMode) ? values.roadMode : "preference",
+    profileId: values.profileId || null,
+    saveProfileName: values.saveProfileName || null,
+    investigationBudgetNote: values.investigationBudgetNote || null,
+    hurdleNote: values.hurdleNote || null,
     minDistanceResidentialM: parseOptionalNumber(
       values.minDistanceResidentialM,
       "minDistanceResidentialM",

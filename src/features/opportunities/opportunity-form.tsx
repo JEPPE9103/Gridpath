@@ -3,6 +3,8 @@
 import { Button, buttonClassName } from "@/components/ui/button";
 import type { OpportunityMutationState } from "@/lib/opportunities/actions";
 import { OPPORTUNITY_TECHNOLOGY_VALUES, opportunityTechnologyLabel } from "@/lib/opportunities/catalog";
+import { LAND_COVER_GROUPS, LAND_COVER_RULES } from "@/lib/opportunities/land-cover";
+import { originLabel, type ScreeningProfileRecord } from "@/lib/opportunities/screening-profiles";
 import type { OpportunityFormInput } from "@/lib/opportunities/validation";
 import Link from "next/link";
 import { useActionState, useState, type ReactNode } from "react";
@@ -31,6 +33,20 @@ const EMPTY: OpportunityFormInput = {
   excludeProtected: "on",
   excludeNatura: "on",
   maxSlopePercent: "",
+  maxSlopeDegrees: "5",
+  slopeMode: "preference",
+  maxRoadDistanceM: "1000",
+  roadMode: "preference",
+  landCoverWater: "excluded",
+  landCoverWetland: "excluded",
+  landCoverForest: "neutral",
+  landCoverAgriculture: "deprioritised",
+  landCoverOpen: "preferred",
+  landCoverDeveloped: "deprioritised",
+  profileId: "",
+  saveProfileName: "",
+  investigationBudgetNote: "",
+  hurdleNote: "",
   minDistanceResidentialM: "",
   notes: "",
 };
@@ -38,10 +54,21 @@ const EMPTY: OpportunityFormInput = {
 const inputClass =
   "mt-1 h-9 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink";
 
+const LAND_COVER_FIELDS: Array<{ key: keyof OpportunityFormInput; group: (typeof LAND_COVER_GROUPS)[number] }> = [
+  { key: "landCoverWater", group: "water" },
+  { key: "landCoverWetland", group: "wetland" },
+  { key: "landCoverForest", group: "forest" },
+  { key: "landCoverAgriculture", group: "agriculture" },
+  { key: "landCoverOpen", group: "open" },
+  { key: "landCoverDeveloped", group: "developed" },
+];
+
 export function OpportunityForm({
   action,
+  profiles = [],
 }: {
   action: (state: OpportunityMutationState, formData: FormData) => Promise<OpportunityMutationState>;
+  profiles?: ScreeningProfileRecord[];
 }) {
   const [state, formAction, pending] = useActionState(action, INITIAL);
   const values = { ...EMPTY, ...state.values };
@@ -57,10 +84,38 @@ export function OpportunityForm({
       ) : null}
 
       <section className="rounded-md border border-line bg-surface p-5">
+        <h2 className="text-sm font-semibold">Screening profile</h2>
+        <p className="mt-1 text-sm text-muted">
+          Reuse an organisation profile or start from the NOXHEIM default. Defaults are suggestions, not
+          engineering rules. Saved profiles are organisation-scoped.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field label="Saved profile" hint={`${originLabel("noxheim_default")} values are pre-filled below until you change them.`}>
+            <select name="profileId" defaultValue={values.profileId} className={inputClass}>
+              <option value="">NOXHEIM DEFAULT — Sweden BESS Standard</option>
+              {profiles.map((profile) => (
+                <option key={profile.id ?? profile.name} value={profile.id ?? ""}>
+                  {profile.name} ({originLabel(profile.origin)})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Save this search as a profile">
+            <input
+              name="saveProfileName"
+              defaultValue={values.saveProfileName}
+              placeholder="Sweden BESS Standard"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </section>
+
+      <section className="rounded-md border border-line bg-surface p-5">
         <h2 className="text-sm font-semibold">Search type</h2>
         <p className="mt-1 text-sm text-muted">
-          Geographic screening returns ranked candidate areas from official layers. A single known
-          coordinate is still supported. Results are not land parcels.
+          Geographic screening returns ranked contiguous candidate areas from supported official layers.
+          A single known coordinate is still supported. Results are not land parcels.
         </p>
         <div className="mt-3 flex flex-col gap-2 text-sm">
           <label className="flex items-center gap-2">
@@ -150,7 +205,12 @@ export function OpportunityForm({
             <Field label="North" error={errors.north}>
               <input name="north" defaultValue={values.north} className={inputClass} inputMode="decimal" />
             </Field>
-            <Field label="Minimum usable area (ha)" error={errors.minSiteAreaHa} className="sm:col-span-2">
+            <Field
+              label="Minimum contiguous usable area (ha)"
+              error={errors.minSiteAreaHa}
+              hint="Decision uses the largest contiguous remaining area, not the sum of fragments."
+              className="sm:col-span-2"
+            >
               <input name="minSiteAreaHa" defaultValue={values.minSiteAreaHa} className={inputClass} inputMode="decimal" />
             </Field>
           </div>
@@ -176,28 +236,14 @@ export function OpportunityForm({
       )}
 
       <section className="rounded-md border border-line bg-surface p-5">
-        <h2 className="text-sm font-semibold">Constraints</h2>
+        <h2 className="text-sm font-semibold">Environmental, terrain and land cover</h2>
         <p className="mt-1 text-sm text-muted">
           Protected-area and Natura 2000 exclusions apply when Naturvårdsverket layers have been
-          ingested. Slope, roads, residential distance and infrastructure proximity are not
-          integrated. Configuring them records intent; they do not silently pass a candidate.
-          Proximity to electricity infrastructure does not indicate available connection capacity.
+          ingested. Slope uses Copernicus DEM GLO-90 summaries when ingested (DSM, not a DTM). Land
+          cover uses NMD 2018 against this profile — NOXHEIM does not universally rank classes as good
+          or bad. {originLabel("noxheim_default")} slope is 5° preference.
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Max distance to infrastructure (km)" error={errors.maxDistanceKm}>
-            <input name="maxDistanceKm" defaultValue={values.maxDistanceKm} className={inputClass} inputMode="decimal" />
-          </Field>
-          <Field label="Maximum slope (%)" error={errors.maxSlopePercent}>
-            <input name="maxSlopePercent" defaultValue={values.maxSlopePercent} className={inputClass} inputMode="decimal" />
-          </Field>
-          <Field label="Minimum distance from residential (m)" error={errors.minDistanceResidentialM} className="sm:col-span-2">
-            <input
-              name="minDistanceResidentialM"
-              defaultValue={values.minDistanceResidentialM}
-              className={inputClass}
-              inputMode="decimal"
-            />
-          </Field>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="excludeProtected" defaultChecked={values.excludeProtected === "on"} />
             Exclude protected areas when a supported layer exists
@@ -206,6 +252,80 @@ export function OpportunityForm({
             <input type="checkbox" name="excludeNatura" defaultChecked={values.excludeNatura === "on"} />
             Exclude Natura 2000 when a supported layer exists
           </label>
+          <Field label="Slope mode">
+            <select name="slopeMode" defaultValue={values.slopeMode} className={inputClass}>
+              <option value="preference">Preference</option>
+              <option value="hard">Hard exclusion</option>
+            </select>
+          </Field>
+          <Field label="Maximum slope (degrees)" error={errors.maxSlopeDegrees} hint="Prefer degrees. Legacy percent is still accepted if set.">
+            <input name="maxSlopeDegrees" defaultValue={values.maxSlopeDegrees} className={inputClass} inputMode="decimal" />
+          </Field>
+          <Field label="Legacy maximum slope (%)" error={errors.maxSlopePercent}>
+            <input name="maxSlopePercent" defaultValue={values.maxSlopePercent} className={inputClass} inputMode="decimal" />
+          </Field>
+          {LAND_COVER_FIELDS.map((item) => (
+            <Field key={item.key} label={`Land cover: ${item.group}`}>
+              <select name={item.key} defaultValue={String(values[item.key] ?? "")} className={inputClass}>
+                {LAND_COVER_RULES.map((rule) => (
+                  <option key={rule} value={rule}>
+                    {rule}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-md border border-line bg-surface p-5">
+        <h2 className="text-sm font-semibold">Access and development assumptions</h2>
+        <p className="mt-1 text-sm text-muted">
+          Road proximity uses Trafikverket RoadLink when ingested. It does not mean heavy transport can
+          access the site. Residential proximity is blocked pending data rights. Investigation budget
+          and hurdle notes are customer assumptions, not NOXHEIM economics.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field label="Road distance mode">
+            <select name="roadMode" defaultValue={values.roadMode} className={inputClass}>
+              <option value="preference">Preference</option>
+              <option value="hard">Hard exclusion</option>
+            </select>
+          </Field>
+          <Field label="Maximum distance to supported road (m)" error={errors.maxRoadDistanceM}>
+            <input name="maxRoadDistanceM" defaultValue={values.maxRoadDistanceM} className={inputClass} inputMode="decimal" />
+          </Field>
+          <Field label="Max preliminary investigation distance (km)" error={errors.maxDistanceKm}>
+            <input name="maxDistanceKm" defaultValue={values.maxDistanceKm} className={inputClass} inputMode="decimal" />
+          </Field>
+          <Field
+            label="Minimum distance from residential (m)"
+            error={errors.minDistanceResidentialM}
+            hint="Stored as intent. Not evaluated."
+          >
+            <input
+              name="minDistanceResidentialM"
+              defaultValue={values.minDistanceResidentialM}
+              className={inputClass}
+              inputMode="decimal"
+            />
+          </Field>
+          <Field label="Site investigation budget / notes" className="sm:col-span-2">
+            <textarea
+              name="investigationBudgetNote"
+              defaultValue={values.investigationBudgetNote}
+              rows={2}
+              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 text-sm"
+            />
+          </Field>
+          <Field label="Internal hurdle notes" className="sm:col-span-2">
+            <textarea
+              name="hurdleNote"
+              defaultValue={values.hurdleNote}
+              rows={2}
+              className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 text-sm"
+            />
+          </Field>
           <Field label="Notes" className="sm:col-span-2">
             <textarea name="notes" defaultValue={values.notes} rows={3} className="mt-1 w-full rounded-md border border-line bg-canvas px-3 py-2 text-sm" />
           </Field>
@@ -219,7 +339,7 @@ export function OpportunityForm({
               ? "Running geographic screening…"
               : "Screening…"
             : searchMode === "geography"
-              ? "Find opportunities"
+              ? "Find candidate areas"
               : "Save opportunity"}
         </Button>
         <Link href="/opportunities" className={buttonClassName("secondary")}>

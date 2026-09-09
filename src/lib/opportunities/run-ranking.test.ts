@@ -58,7 +58,7 @@ describe("screening cell ranking", () => {
     );
     const byId = new Map(ranked.map((item) => [item.id, item]));
     assert.equal(byId.get("a")?.excluded, true);
-    assert.match(byId.get("a")?.exclusionReason ?? "", /usable assessed area/i);
+    assert.match(byId.get("a")?.exclusionReason ?? "", /contiguous screened area/i);
     assert.equal(byId.get("b")?.excluded, true);
     assert.match(byId.get("b")?.exclusionReason ?? "", /Natura 2000/i);
     assert.equal(byId.get("c")?.excluded, false);

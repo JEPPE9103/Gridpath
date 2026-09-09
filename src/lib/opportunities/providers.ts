@@ -44,29 +44,40 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
       "Official WFS N2000, CC0. Evidence appears only after successful ingest. Direct overlap with a configured exclusion is a hard fail, not a legal impossibility finding.",
   },
   {
+    key: "copernicus-dem-glo90",
+    name: "Copernicus DEM GLO-90 derived slope",
+    geography: "SE",
+    status: "supported",
+    dimensions: ["land_suitability"],
+    notes:
+      "AWS public COG DSM, Copernicus WorldDEM-30 licence (free with attribution). 90 m DSM includes vegetation and buildings — not a DTM and not Lantmäteriet Grid 50+. Slope is Noxheim Derived. Evidence appears only after successful ingest.",
+  },
+  {
+    key: "nv-nmd-2018",
+    name: "Naturvårdsverket NMD 2018 basskikt",
+    geography: "SE",
+    status: "supported",
+    dimensions: ["land_suitability"],
+    notes:
+      "CC0 10 m land-cover raster, ingested as 1 km majority-class polygons. Classes are evaluated against the organisation screening profile, not a universal good/bad ranking. Evidence appears only after successful ingest.",
+  },
+  {
+    key: "trafikverket-inspire-roadlink",
+    name: "Trafikverket INSPIRE RoadLink (NVDB)",
+    geography: "SE",
+    status: "supported",
+    dimensions: ["access"],
+    notes:
+      "Dataset licence CC0. HTTPS WFS can be unstable; ingest records failure rather than substituting OSM (ODbL). Distance is not a heavy-transport access finding.",
+  },
+  {
     key: "lantmateriet",
     name: "Lantmäteriet",
     geography: "SE",
     status: "unsupported",
     dimensions: ["land_suitability", "access"],
-    notes: "Not integrated. Parcel and terrain products are not ingested in this release.",
-  },
-  {
-    key: "slope",
-    name: "Terrain slope",
-    geography: "generic",
-    status: "unsupported",
-    dimensions: ["land_suitability"],
     notes:
-      "Not integrated. Lantmäteriet Grid 50+ is CC0 but requires Geotorget access and a nationwide raster pipeline. Configured maximum slope is stored but not evaluated.",
-  },
-  {
-    key: "land-cover",
-    name: "Swedish land cover",
-    geography: "SE",
-    status: "unsupported",
-    dimensions: ["land_suitability"],
-    notes: "Not integrated. Land-cover class is not inferred.",
+      "Grid 50+ DTM is CC0 but Geotorget OAuth is not configured. Building/residential products are blocked pending access and GDPR review.",
   },
   {
     key: "grid-infrastructure",
@@ -87,20 +98,13 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
       "No official reusable bidding-zone geometry is integrated. SE1–SE4 may be stored as intent only.",
   },
   {
-    key: "transport-roads",
-    name: "Transport / road access",
-    geography: "generic",
-    status: "unsupported",
-    dimensions: ["access"],
-    notes: "Not integrated.",
-  },
-  {
     key: "residential-distance",
     name: "Residential distance",
-    geography: "generic",
+    geography: "SE",
     status: "unsupported",
     dimensions: ["access"],
-    notes: "Not integrated. Configured minimum distance is stored but not evaluated.",
+    notes:
+      "Licence blocked / GDPR. Lantmäteriet buildings require Geotorget access. Not scraped. Dimension stays insufficient evidence.",
   },
 ];
 

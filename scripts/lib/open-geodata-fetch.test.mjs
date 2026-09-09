@@ -10,7 +10,16 @@ describe("open geodata fetch allowlist", () => {
       ),
       true,
     );
-    assert.equal(isAllowedOpenGeodataUrl("https://ei.se/file.zip"), false);
+    assert.equal(
+      isAllowedOpenGeodataUrl(
+        "https://copernicus-dem-90m.s3.amazonaws.com/Copernicus_DSM_COG_30_N59_00_E015_00_DEM/file.tif",
+      ),
+      true,
+    );
+    assert.equal(
+      isAllowedOpenGeodataUrl("https://geo-inspire.trafikverket.se/MapService/wfs.axd/TN_RoadTransportNetwork"),
+      true,
+    );
     assert.equal(isAllowedOpenGeodataUrl("http://geodata.naturvardsverket.se/wfs"), false);
   });
 

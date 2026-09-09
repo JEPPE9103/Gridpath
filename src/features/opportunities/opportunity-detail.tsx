@@ -98,6 +98,29 @@ export function OpportunityDetailPage({
         </section>
 
         <section className="rounded-md border border-line bg-surface p-5">
+          <h2 className="text-base font-semibold">Origin</h2>
+          <p className="mt-2 text-sm">
+            {item.originatingRunId && item.originatingSearchId ? (
+              <>
+                Development Opportunity from a Site Suitability screening run.{" "}
+                <Link
+                  className="underline"
+                  href={`/opportunities/searches/${item.originatingSearchId}/runs/${item.originatingRunId}`}
+                >
+                  Open originating candidate area
+                </Link>
+                {item.contiguousAreaHa != null
+                  ? ` · snapshot contiguous usable area ${item.contiguousAreaHa.toFixed(1)} ha.`
+                  : "."}{" "}
+                Later dataset refreshes do not rewrite this snapshot.
+              </>
+            ) : (
+              "Not saved from a geographic candidate area. Screening history is still stored on assessments and events."
+            )}
+          </p>
+        </section>
+
+        <section className="rounded-md border border-line bg-surface p-5">
           <h2 className="text-base font-semibold">Assessment</h2>
           <ul className="mt-4 divide-y divide-line">
             {assessments.map((row) => (

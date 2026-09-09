@@ -59,7 +59,7 @@ describe("spatial screening geography", () => {
     assert.equal(parseElectricityArea("SE5"), null);
     const warning = electricityAreaSpatialWarning("SE3");
     assert.match(warning ?? "", /not used as a spatial filter/i);
-    assert.match(SCREENING_METHODOLOGY, /not cadastral parcels/i);
+    assert.match(SCREENING_METHODOLOGY, /not cadastral parcels|not the original analysis square/i);
   });
 
   it("describes rerun count changes without inventing reasons", () => {
@@ -69,6 +69,11 @@ describe("spatial screening geography", () => {
     );
     assert.match(text ?? "", /Previous run: 14/);
     assert.match(text ?? "", /Current run: 12/);
+  });
+
+  it("documents contiguous dissolve rather than ranked analysis squares", () => {
+    assert.match(SCREENING_METHODOLOGY, /Candidate Area/i);
+    assert.match(SCREENING_METHODOLOGY, /ST_UnaryUnion|shared-boundary dissolve|4-connected/i);
   });
 
   it("uses a spherical approximation only for the bbox cap, not suitability", () => {

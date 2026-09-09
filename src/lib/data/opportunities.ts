@@ -35,6 +35,9 @@ export type OpportunityListItem = {
   lastUpdated: string;
   promotedProjectId: string | null;
   promotedProjectSlug: string | null;
+  originatingRunId: string | null;
+  originatingSearchId: string | null;
+  contiguousAreaHa: number | null;
 };
 
 export type OpportunityFunnel = {
@@ -95,7 +98,13 @@ const EMPTY_FUNNEL: OpportunityFunnel = {
 
 function mapRow(
   row: OpportunityRow,
-  extras?: { ownerName?: string | null; promotedProjectSlug?: string | null },
+  extras?: {
+    ownerName?: string | null;
+    promotedProjectSlug?: string | null;
+    originatingRunId?: string | null;
+    originatingSearchId?: string | null;
+    contiguousAreaHa?: number | null;
+  },
 ): OpportunityListItem {
   return {
     id: row.id,
@@ -119,6 +128,9 @@ function mapRow(
     lastUpdated: row.updated_at,
     promotedProjectId: row.promoted_project_id,
     promotedProjectSlug: extras?.promotedProjectSlug ?? null,
+    originatingRunId: extras?.originatingRunId ?? null,
+    originatingSearchId: extras?.originatingSearchId ?? null,
+    contiguousAreaHa: extras?.contiguousAreaHa ?? null,
   };
 }
 
@@ -284,7 +296,7 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
   const { data, error } = await supabase
     .from("development_opportunities")
     .select(
-      "id, slug, name, opportunity_type, status, country, region, municipality, target_mw, target_mwh, recommendation, recommendation_summary, key_positive, key_risk, data_confidence, latitude, longitude, updated_at, promoted_project_id, owner_id, notes, rejection_reason, rejection_note",
+      "id, slug, name, opportunity_type, status, country, region, municipality, target_mw, target_mwh, recommendation, recommendation_summary, key_positive, key_risk, data_confidence, latitude, longitude, updated_at, promoted_project_id, owner_id, notes, rejection_reason, rejection_note, originating_run_id, screening_search_id, contiguous_area_ha",
     )
     .eq("organization_id", organization.id)
     .eq("slug", slug)
@@ -331,6 +343,9 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
     item: mapRow(row, {
       ownerName: ownerResult.data?.full_name?.trim() || null,
       promotedProjectSlug: promotedResult.data?.slug ?? null,
+      originatingRunId: (row as { originating_run_id?: string | null }).originating_run_id ?? null,
+      originatingSearchId: (row as { screening_search_id?: string | null }).screening_search_id ?? null,
+      contiguousAreaHa: toNumber((row as { contiguous_area_ha?: number | string | null }).contiguous_area_ha),
     }),
     notes: row.notes ?? null,
     rejectionReason: row.rejection_reason ?? null,

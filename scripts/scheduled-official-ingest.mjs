@@ -53,6 +53,8 @@ console.log(
       "nv-protected-areas",
       "nv-natura-2000",
     ],
+    physicalLayers:
+      "Copernicus DEM / NMD / Trafikverket RoadLink are operator-triggered (volume). Use cloud:ingest-copernicus-slope, cloud:ingest-nmd-land-cover, cloud:ingest-trafikverket-roads.",
   }),
 );
 
