@@ -21,6 +21,7 @@ describe("NMD land-cover mapping", () => {
     assert.equal(nmdClassToGroup(71), "wetland");
     assert.equal(nmdClassToGroup(81), "agriculture");
     assert.equal(nmdClassToGroup(41), "forest");
+    assert.equal(nmdClassToGroup(41, "nmd_2023_v0"), "open");
     assert.equal(nmdClassToGroup(84), "developed");
     assert.equal(nmdClassToGroup(999), "unclassified");
   });

@@ -49,6 +49,8 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
       rejectionNote={result.rejectionNote}
       assessments={result.assessments}
       events={result.events}
+      reassessmentNotices={result.reassessmentNotices}
+      assessmentVersions={result.assessmentVersions}
       canWrite={canCreateOrEditOpportunities(organization?.role)}
     />
   );

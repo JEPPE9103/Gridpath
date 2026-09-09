@@ -38,8 +38,9 @@ export type ScreeningProfileRecord = {
   criteria: ScreeningProfileCriteria;
 };
 
-export const RANKING_VERSION = "suitability-v2";
-export const METHODOLOGY_VERSION = "site-suitability-v1";
+export const RANKING_VERSION = "suitability-v3";
+export const METHODOLOGY_VERSION = "precision-screening-v1";
+export const RANKING_VERSION_V2 = "suitability-v2";
 
 export function defaultScreeningProfile(
   technology: OpportunityTechnologyValue = "battery_storage",

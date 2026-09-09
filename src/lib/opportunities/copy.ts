@@ -15,6 +15,8 @@ const FORBIDDEN_TERMS = [
   "guaranteed site",
   "grid connection likely",
   "permitting will succeed",
+  "noxheim capacity estimate",
+  "high probability of connection",
 ] as const;
 
 export function opportunityCopyContainsForbiddenTerm(text: string): string | null {

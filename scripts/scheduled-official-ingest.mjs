@@ -52,9 +52,12 @@ console.log(
       "ei-network-area-concessions",
       "nv-protected-areas",
       "nv-natura-2000",
+      "scb-administrative-areas",
+      "trafikverket-inspire-roadlink",
+      "nv-nmd-2023",
     ],
     physicalLayers:
-      "Copernicus DEM / NMD / Trafikverket RoadLink are operator-triggered (volume). Use cloud:ingest-copernicus-slope, cloud:ingest-nmd-land-cover, cloud:ingest-trafikverket-roads.",
+      "NMD 2023 requires NOXHEIM_NMD2023_TIF or --tif (nationwide zip is 1.3 GB, never in git). Copernicus remains operator bbox ingest. Lantmäteriet 1 m DTM is on-demand when Geotorget is configured.",
   }),
 );
 
@@ -69,11 +72,25 @@ function runCloudIngest(scriptName) {
   }
 }
 
+function runOptionalIngest(scriptName) {
+  const result = spawnSync(process.execPath, [path.join(repoRoot, "scripts", scriptName)], {
+    cwd: repoRoot,
+    env: process.env,
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    console.error(JSON.stringify({ event: "ingest.scheduled.optional_failed", scriptName, status: result.status }));
+  }
+}
+
 try {
   runCloudIngest("cloud-ingest-ei-nup.mjs");
   runCloudIngest("cloud-ingest-ei-network-areas.mjs");
   runCloudIngest("cloud-ingest-naturvardsverket-protected.mjs");
   runCloudIngest("cloud-ingest-naturvardsverket-natura.mjs");
+  runOptionalIngest("cloud-ingest-scb-administrative-areas.mjs");
+  runOptionalIngest("cloud-ingest-trafikverket-roads.mjs");
+  runOptionalIngest("cloud-ingest-nmd-2023.mjs");
   console.log(JSON.stringify({ event: "ingest.scheduled.complete", trigger }));
 } catch (error) {
   console.error(

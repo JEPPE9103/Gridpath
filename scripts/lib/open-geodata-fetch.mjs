@@ -20,6 +20,7 @@ const ALLOWED_HOSTS = new Set([
   "copernicus-dem-90m.s3.amazonaws.com",
   "copernicus-dem-30m.s3.amazonaws.com",
   "geo-inspire.trafikverket.se",
+  "geodata.scb.se",
 ]);
 
 export function isAllowedOpenGeodataUrl(url) {

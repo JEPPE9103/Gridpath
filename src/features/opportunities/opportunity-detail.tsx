@@ -9,6 +9,7 @@ import {
   promoteOpportunityAction,
   rejectOpportunityAction,
   reopenOpportunityAction,
+  rerunOpportunitySearchAction,
   updateOpportunityStatusAction,
 } from "@/lib/opportunities/actions";
 import {
@@ -38,6 +39,8 @@ export function OpportunityDetailPage({
   rejectionNote,
   assessments,
   events,
+  reassessmentNotices = [],
+  assessmentVersions = [],
   canWrite,
 }: {
   item: OpportunityListItem;
@@ -53,6 +56,15 @@ export function OpportunityDetailPage({
     assessedAt: string;
   }>;
   events: Array<{ id: string; title: string; detail: string | null; source: string; occurredAt: string }>;
+  reassessmentNotices?: Array<{ id: string; providerSlug: string; notice: string; status: string; createdAt: string }>;
+  assessmentVersions?: Array<{
+    id: string;
+    versionNumber: number;
+    rankingVersion: string | null;
+    methodologyVersion: string | null;
+    changeSummary: string | null;
+    createdAt: string;
+  }>;
   canWrite: boolean;
 }) {
   const location = [item.municipality, item.region, item.country].filter(Boolean).join(", ");
@@ -119,6 +131,48 @@ export function OpportunityDetailPage({
             )}
           </p>
         </section>
+
+        {reassessmentNotices.length > 0 ? (
+          <section className="rounded-md border border-line bg-surface p-5">
+            <h2 className="text-base font-semibold">Reassessment available</h2>
+            <p className="mt-2 text-sm text-muted">
+              A newer official source version is available. Previous snapshots are kept. NOXHEIM does
+              not rewrite this opportunity automatically.
+            </p>
+            <ul className="mt-3 space-y-2 text-sm">
+              {reassessmentNotices.map((notice) => (
+                <li key={notice.id}>{notice.notice}</li>
+              ))}
+            </ul>
+            {canWrite && item.originatingSearchId ? (
+              <form action={rerunOpportunitySearchAction} className="mt-4">
+                <input type="hidden" name="searchId" value={item.originatingSearchId} />
+                <Button type="submit" variant="secondary">
+                  Re-run originating search
+                </Button>
+              </form>
+            ) : null}
+          </section>
+        ) : null}
+
+        {assessmentVersions.length > 0 ? (
+          <section className="rounded-md border border-line bg-surface p-5">
+            <h2 className="text-base font-semibold">Assessment versions</h2>
+            <p className="mt-2 text-sm text-muted">
+              Each save or re-run that writes a snapshot is kept. Later source refreshes do not overwrite
+              earlier versions.
+            </p>
+            <ol className="mt-3 space-y-2 text-sm">
+              {assessmentVersions.map((version) => (
+                <li key={version.id}>
+                  Assessment v{version.versionNumber}
+                  {version.rankingVersion ? ` · ${version.rankingVersion}` : ""}
+                  {version.changeSummary ? ` — ${version.changeSummary}` : ""}
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
 
         <section className="rounded-md border border-line bg-surface p-5">
           <h2 className="text-base font-semibold">Assessment</h2>

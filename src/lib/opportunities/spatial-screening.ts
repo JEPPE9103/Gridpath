@@ -28,11 +28,13 @@ export const SCREENING_METHODOLOGY = [
   "Official exclusion polygons (protected areas, Natura 2000, and configured hard terrain/land-cover summaries when ingested) are subtracted with ST_Difference.",
   `${CONTIGUITY_RULE} Geometry is repaired with ST_MakeValid / ST_CollectionExtract; slivers below 0.5 ha are dropped.`,
   "The user-facing object is a Candidate Area: the contiguous remaining usable polygon, not the original analysis square and not a cadastral parcel.",
+  "Screening is two-stage: DISCOVERY SCREENING (coarse, ~1 km summaries) then DETAILED SITE SCREENING on at most five Candidate Areas.",
   "Screening decisions use largest contiguous usable area, not the sum of disconnected leftovers.",
   "Hard exclusions use official protected-area and Natura 2000 polygons when ingested. Remaining overlap at or above 1% of a fragment fails the configured exclusion.",
-  "Grid context uses official Ei covering geography at the candidate centroid. Covering is not a connection point and is not available capacity.",
-  "Terrain slope is Noxheim-derived from Copernicus DEM GLO-90 (DSM, 90 m) when ingested — not Lantmäteriet Grid 50+.",
-  "Land cover uses Naturvårdsverket NMD 2018 basskikt (CC0) when ingested, evaluated against the organisation profile.",
+  "LOCAL/DISTRIBUTION CONTEXT uses official Ei covering geography at the candidate centroid. TRANSMISSION CONTEXT is official SvK county indication when a structured source exists. PROJECT-SPECIFIC CONNECTION is unknown unless customer or case-specific official evidence exists.",
+  "Covering geography is not a connection point and is not available capacity. County-level official transmission indications are not site capacity.",
+  "Discovery terrain is Copernicus DEM GLO-90 (DSM, 90 m) when ingested. Detailed terrain prefers Lantmäteriet 1 m DTM on-demand when Geotorget is configured.",
+  "Current land cover is Naturvårdsverket NMD 2023 basskikt v0.3. Discovery may use 1 km majority class. Detailed screening uses class composition inside the Candidate Area. NMD 2018 is legacy fallback only.",
   "Road proximity uses Trafikverket INSPIRE RoadLink when that ingest succeeds. Residential proximity is blocked pending data rights.",
 ].join(" ");
 
@@ -155,9 +157,10 @@ export function describeRunDelta(previous: RunCountSnapshot | null, current: Run
 export const UNSUPPORTED_SCREENING_DIMENSIONS = [
   "Residential proximity (blocked pending Lantmäteriet / GDPR-safe building data rights)",
   "Electricity infrastructure proximity (substations, lines) — blocked pending a commercially reusable source",
-  "Available connection capacity",
+  "Available connection capacity (NOXHEIM does not estimate it)",
+  "Official SvK 2026 county transmission map (no production-safe structured source; not scraped)",
   "Municipal planning status",
   "Land ownership / legal access",
-  "Official electricity-area (SE1–SE4) geometry",
-  "Lantmäteriet Grid 50+ DTM (CC0 but Geotorget OAuth is not configured)",
+  "Official electricity-area (SE1–SE4) geometry (no production-safe reusable GIS ingest)",
+  "Lantmäteriet 1 m DTM until Geotorget credentials are configured (Copernicus GLO-90 remains discovery fallback)",
 ] as const;

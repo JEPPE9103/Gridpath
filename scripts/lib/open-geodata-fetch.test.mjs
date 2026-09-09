@@ -17,7 +17,7 @@ describe("open geodata fetch allowlist", () => {
       true,
     );
     assert.equal(
-      isAllowedOpenGeodataUrl("https://geo-inspire.trafikverket.se/MapService/wfs.axd/TN_RoadTransportNetwork"),
+      isAllowedOpenGeodataUrl("https://geodata.scb.se/geoserver/stat/ows?service=WFS"),
       true,
     );
     assert.equal(isAllowedOpenGeodataUrl("http://geodata.naturvardsverket.se/wfs"), false);

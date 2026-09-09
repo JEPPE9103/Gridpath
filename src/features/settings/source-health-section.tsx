@@ -16,11 +16,13 @@ export function SourceHealthSection({
       <h2 className="text-base font-semibold">Data sources</h2>
       <p className="mt-2 text-sm leading-6 text-muted">
         Noxheim periodically refreshes supported official sources (Ei covering geography,
-        Naturvårdsverket protected-area / Natura 2000 / NMD, Copernicus DEM slope summaries, and
-        Trafikverket RoadLink when ingest is configured). A healthy source with unchanged published
-        content is expected. Failed or never-ingested providers reduce screening data confidence.
-        This is not real-time grid monitoring, and it does not mean available connection capacity.
-        Residential building data remains licence-blocked.
+        Naturvårdsverket protected-area / Natura 2000 / NMD 2023, Copernicus DEM slope summaries,
+        Trafikverket RoadLink, and SCB administrative geography) when ingest is configured.
+        Lantmäteriet 1 m DTM is on-demand when Geotorget credentials exist; otherwise Copernicus remains
+        the coarse fallback. Svenska kraftnät county capacity is blocked pending a structured source.
+        Failed or never-ingested providers reduce screening data confidence. This is not real-time grid
+        monitoring, and it does not mean available connection capacity. Residential building data remains
+        licence-blocked.
       </p>
       {sources.length === 0 ? (
         <div className="mt-4">
@@ -83,6 +85,18 @@ export function SourceHealthSection({
                 ) : null}
               </dl>
               <p className="mt-3 text-xs leading-5 text-muted">{source.changeLabel}</p>
+              {source.slug === "lantmateriet-dtm-1m" && source.health === "never_ingested" ? (
+                <p className="mt-2 text-xs leading-5 text-muted">
+                  Lantmäteriet detailed terrain provider not configured. Copernicus GLO-90 remains the
+                  coarse discovery fallback.
+                </p>
+              ) : null}
+              {source.slug === "svk-indicative-transmission-2026" ? (
+                <p className="mt-2 text-xs leading-5 text-muted">
+                  Official Indicative Transmission Context is blocked until a production-safe structured
+                  source exists. NOXHEIM does not estimate project-level grid capacity.
+                </p>
+              ) : null}
               {source.lastAttemptFailed ? (
                 <p className="mt-2 text-xs text-muted">
                   The last refresh failed. Previous successful official data is kept.{" "}

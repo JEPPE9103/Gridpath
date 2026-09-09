@@ -9,6 +9,17 @@ import {
   RANKING_VERSION,
 } from "@/lib/opportunities/screening-profiles";
 import {
+  deriveStrategicFlags,
+  explainRankChange,
+  type EvidenceResolution,
+  type StrategicFlag,
+} from "@/lib/opportunities/precision";
+import {
+  emptyOfficialTransmissionContext,
+  strategicTransmissionScore,
+  type OfficialTransmissionContext,
+} from "@/lib/opportunities/transmission-context";
+import {
   evaluateOpportunityScreening,
   type OpportunityCandidate,
   type ScreeningCriteria,
@@ -18,7 +29,7 @@ import type { ExclusionBreakdown } from "@/lib/opportunities/contiguous-geometry
 import type { TerrainMetrics } from "@/lib/opportunities/terrain";
 
 export const RANKING_WEIGHTS_V2 = {
-  version: RANKING_VERSION,
+  version: "suitability-v2",
   contiguousUsableArea: 0.35,
   environmental: 0.15,
   terrain: 0.15,
@@ -26,6 +37,24 @@ export const RANKING_WEIGHTS_V2 = {
   road: 0.1,
   gridContext: 0.1,
   dataCompleteness: 0.05,
+} as const;
+
+/**
+ * Ranking V3 — relative investigation priority, not scientific precision.
+ * Hard constraints are a filter, not a weight.
+ * Detailed evidence for a dimension replaces coarse evidence for that dimension.
+ * Official county transmission context is strategic only and cannot outrank site evidence.
+ */
+export const RANKING_WEIGHTS_V3 = {
+  version: RANKING_VERSION,
+  physicalContiguousArea: 0.3,
+  physicalTerrain: 0.12,
+  physicalLandCover: 0.1,
+  environmental: 0.14,
+  access: 0.1,
+  gridContext: 0.12,
+  dataCompleteness: 0.08,
+  strategicContext: 0.04,
 } as const;
 
 export type ScreeningCellRow = {
@@ -56,6 +85,16 @@ export type ScreeningCellRow = {
   road_class?: string | null;
   road_queried?: boolean | null;
   exclusion_breakdown?: ExclusionBreakdown | null;
+  screening_stage?: string | null;
+  refinement_status?: string | null;
+  discovery_rank?: number | string | null;
+  detailed_rank?: number | string | null;
+  terrain_resolution?: string | null;
+  land_cover_resolution?: string | null;
+  terrain_provider_key?: string | null;
+  land_cover_provider_key?: string | null;
+  transmission?: OfficialTransmissionContext | null;
+  discovery_contiguous_area_ha?: number | string | null;
 };
 
 function num(value: number | string | null | undefined): number | null {
@@ -77,9 +116,15 @@ export function screeningCellToCandidate(
         p90SlopeDeg: num(row.p90_slope_deg),
         maxSlopeDeg: null,
         pctBelowThreshold: num(row.pct_below_slope),
-        sourceName: "Copernicus DEM GLO-90",
+        sourceName:
+          row.terrain_provider_key === "lantmateriet-dtm-1m"
+            ? "Lantmäteriet Markhöjdmodell 1 m"
+            : "Copernicus DEM GLO-90",
+        providerKey: row.terrain_provider_key ?? "copernicus-dem-glo90",
+        resolution: (row.terrain_resolution as EvidenceResolution | undefined) ?? "coarse",
       }
     : undefined;
+  const landCoverKey = row.land_cover_provider_key ?? "nv-nmd-2018";
   return {
     name: row.name,
     country: criteria.country,
@@ -119,7 +164,10 @@ export function screeningCellToCandidate(
       ? {
           queried: true,
           composition: row.land_cover ?? emptyLandCoverComposition(),
-          sourceName: "Naturvårdsverket NMD 2018",
+          sourceName:
+            landCoverKey === "nv-nmd-2023"
+              ? "Naturvårdsverket NMD 2023 v0.3"
+              : "Naturvårdsverket NMD 2018 (legacy fallback)",
         }
       : undefined,
     road: row.road_queried
@@ -137,6 +185,8 @@ export function screeningCellToCandidate(
 export type RankedCellAssessment = {
   id: string;
   rank: number | null;
+  discoveryRank: number | null;
+  detailedRank: number | null;
   recommendation: OpportunityRecommendationValue;
   recommendationSummary: string;
   dataConfidence: ScreeningResult["dataConfidence"];
@@ -146,6 +196,8 @@ export type RankedCellAssessment = {
   keyRisk: string | null;
   screening: ScreeningResult;
   relativeScore: number;
+  strategicFlags: StrategicFlag[];
+  rankChangeExplanation: string | null;
 };
 
 type AssessedArea = {
@@ -208,6 +260,29 @@ function completenessScore(screening: ScreeningResult): number {
   return Math.min(1, available / screening.dimensions.length);
 }
 
+export function suitabilityScoreV3(
+  row: ScreeningCellRow,
+  screening: ScreeningResult,
+  criteria: ScreeningCriteria,
+  maxContiguousHa: number,
+): number {
+  if (screening.excluded) return 0;
+  const contiguous = num(row.contiguous_area_ha) ?? num(row.usable_area_ha) ?? 0;
+  const area = maxContiguousHa > 0 ? contiguous / maxContiguousHa : 0;
+  const weights = RANKING_WEIGHTS_V3;
+  const transmission = row.transmission ?? emptyOfficialTransmissionContext();
+  return (
+    weights.physicalContiguousArea * area +
+    weights.physicalTerrain * terrainScore(row) +
+    weights.physicalLandCover * landCoverScore(row, criteria) +
+    weights.environmental * environmentalScore(row, screening) +
+    weights.access * roadScore(row, criteria) +
+    weights.gridContext * coveringScore(row) +
+    weights.dataCompleteness * completenessScore(screening) +
+    weights.strategicContext * strategicTransmissionScore(transmission)
+  );
+}
+
 export function suitabilityScoreV2(
   row: ScreeningCellRow,
   screening: ScreeningResult,
@@ -268,9 +343,9 @@ export function explainWhyARanksAboveB(left: AssessedArea, right: AssessedArea):
     reasons.push("stronger official covering geography at the centroid");
   }
   if (reasons.length === 0) {
-    reasons.push("higher relative investigation priority from the versioned suitability-v2 weights");
+    reasons.push("higher relative investigation priority from the versioned suitability-v3 weights");
   }
-  return `${left.row.name} ranks above ${right.row.name} based on currently supported evidence: ${reasons.join("; ")}. This is not a prediction of permitting or connection.`;
+  return `${left.row.name} ranks above ${right.row.name} based on currently supported evidence: ${reasons.join("; ")}. This is not a prediction of permitting or connection. County-level official transmission indications are not site capacity.`;
 }
 
 export function rankScreeningCells(
@@ -292,7 +367,7 @@ export function rankScreeningCells(
   });
   const maxContiguous = Math.max(0, ...assessed.filter((item) => !item.screening.excluded).map((item) => item.contiguousHa));
   for (const item of assessed) {
-    item.relativeScore = suitabilityScoreV2(item.row, item.screening, criteria, maxContiguous);
+    item.relativeScore = suitabilityScoreV3(item.row, item.screening, criteria, maxContiguous);
   }
 
   const passing = assessed
@@ -317,9 +392,28 @@ export function rankScreeningCells(
       !item.screening.excluded && index === 0 && passing.length > 0
         ? `Priority #1 for further investigation. ${why ?? item.screening.recommendationSummary}`
         : item.screening.recommendationSummary;
+    const rank = item.screening.excluded ? null : passing.findIndex((row) => row.id === item.id) + 1;
+    const discoveryRank = num(item.row.discovery_rank);
+    const isDetailed = item.row.refinement_status === "refined";
+    const flags = deriveStrategicFlags({
+      contiguousHa: item.contiguousHa,
+      minAreaHa: criteria.minSiteAreaHa,
+      terrainFavorable: (num(item.row.pct_below_slope) ?? 0) >= 80,
+      environmentalConflict:
+        (num(item.row.protected_overlap_pct) ?? 0) >= 1 || (num(item.row.natura_overlap_pct) ?? 0) >= 1,
+      roadDistanceM: num(item.row.road_distance_m),
+      maxRoadDistanceM: criteria.maxRoadDistanceM ?? null,
+      localCovered: Boolean(item.row.local_covering_name),
+      nupCovered: Boolean(item.row.nup_covering_name),
+      transmissionAvailable: item.row.transmission?.available === true,
+      highApplicationVolume: (item.row.transmission?.appliedMw ?? 0) >= 500,
+      criticalGap: item.screening.dataConfidence === "unknown" || item.screening.dataConfidence === "low",
+    });
     return {
       id: item.id,
-      rank: item.screening.excluded ? null : passing.findIndex((row) => row.id === item.id) + 1,
+      rank,
+      discoveryRank: discoveryRank ?? (isDetailed ? discoveryRank : rank),
+      detailedRank: isDetailed ? rank : num(item.row.detailed_rank),
       recommendation: item.screening.recommendation,
       recommendationSummary: summary,
       dataConfidence: item.screening.dataConfidence,
@@ -335,6 +429,14 @@ export function rankScreeningCells(
           : item.screening.uncertainties,
       },
       relativeScore: item.relativeScore,
+      strategicFlags: flags,
+      rankChangeExplanation: explainRankChange({
+        name: item.row.name,
+        discoveryRank: discoveryRank ?? rank,
+        detailedRank: isDetailed ? rank : null,
+        discoveryContiguousHa: num(item.row.discovery_contiguous_area_ha),
+        refinedContiguousHa: isDetailed ? item.contiguousHa : null,
+      }),
     };
   });
 }

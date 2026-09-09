@@ -73,8 +73,14 @@ Recommendations: `prioritise`, `investigate`, `secondary`, `low_priority`, `insu
 | `change_impacts` | `external_change_id`, `organization_id`, `project_id`, `match_type`, `impact_level`, `review_status` (`unreviewed` \| `confirmed` \| `dismissed`), `reviewed_by`, `reviewed_at`, `review_note` — org must match project org (trigger); review is org/project scoped and does not mutate `external_changes` |
 
 Official Ei source slugs: `ei-network-area-concessions`, `ei-network-development-plans`.
-Naturvårdsverket slugs: `nv-protected-areas`, `nv-natura-2000`, `nv-nmd-2018`.
+Naturvårdsverket slugs: `nv-protected-areas`, `nv-natura-2000`, `nv-nmd-2023`, `nv-nmd-2018` (legacy).
 Copernicus slug: `copernicus-dem-glo90`. Trafikverket slug: `trafikverket-inspire-roadlink`.
+SCB slug: `scb-administrative-areas`. Lantmäteriet DTM slug: `lantmateriet-dtm-1m` (AUTH_REQUIRED until Geotorget).
+SvK slug: `svk-indicative-transmission-2026` (blocked; no structured source).
+
+`official_precision_summaries` holds 100 m land-cover / detailed terrain tiles for refinement only.
+`opportunity_run_candidates` now includes `screening_stage`, `refinement_status`, discovery vs detailed ranks, and evidence-resolution labels.
+`opportunity_assessment_versions` stores assessment history; `opportunity_reassessment_notices` flags saved opportunities when an official source version changes.
 
 NUP numeric values are forecast transfer-capacity **need**, never available capacity / headroom / connection capacity.
 
@@ -83,7 +89,7 @@ NUP numeric values are forecast transfer-capacity **need**, never available capa
 - `public.create_workspace(company_name, company_slug, user_full_name, user_job_title)` — onboarding (`src/lib/auth/actions.ts`)
 - `public.create_project_with_primary_site(...)` / `public.update_project_with_primary_site(...)` — portfolio CRUD (optional `description`, `region`, `voltage_level`)
 - `public.create_development_opportunity(...)` / `public.promote_opportunity_to_project(p_opportunity_id)` / `public.allocate_opportunity_slug(...)`
-- `public.execute_opportunity_screening_run(p_search_id)` / `public.apply_opportunity_run_assessments(p_run_id, p_rows)` / `public.save_opportunity_from_run_candidate(p_candidate_id)` / `public.get_opportunity_run_geojson(p_run_id)` — org-scoped contiguous candidate areas; covering is not capacity
+- `public.execute_opportunity_screening_run(p_search_id)` / `public.apply_opportunity_run_assessments(p_run_id, p_rows)` / `public.refine_opportunity_run_candidates(p_run_id, p_candidate_ids)` / `public.save_opportunity_from_run_candidate(p_candidate_id)` / `public.get_opportunity_run_geojson(p_run_id)` — org-scoped contiguous candidate areas; covering is not capacity; refine is max 5 candidates
 - `public.get_official_covering_summary_for_point(p_latitude, p_longitude)` — covering Ei local-network + NUP names at a point; not capacity
 - `public.archive_project(p_project_id)` / `public.restore_project(p_project_id)`
 - `public.get_organization_project_aggregates(p_organization_id, p_include_archived)`

@@ -239,9 +239,10 @@ export function OpportunityForm({
         <h2 className="text-sm font-semibold">Environmental, terrain and land cover</h2>
         <p className="mt-1 text-sm text-muted">
           Protected-area and Natura 2000 exclusions apply when Naturvårdsverket layers have been
-          ingested. Slope uses Copernicus DEM GLO-90 summaries when ingested (DSM, not a DTM). Land
-          cover uses NMD 2018 against this profile — NOXHEIM does not universally rank classes as good
-          or bad. {originLabel("noxheim_default")} slope is 5° preference.
+          ingested. Discovery slope uses Copernicus DEM GLO-90 summaries when ingested (DSM, not a DTM);
+          detailed screening prefers Lantmäteriet 1 m DTM when Geotorget is configured. Land cover uses
+          NMD 2023 (NMD 2018 legacy fallback only) against this profile — NOXHEIM does not universally
+          rank classes as good or bad. {originLabel("noxheim_default")} slope is 5° preference.
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="flex items-center gap-2 text-sm">

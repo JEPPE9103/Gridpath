@@ -269,6 +269,15 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
     evidence: Record<string, unknown>;
   }>;
   events: Array<{ id: string; title: string; detail: string | null; source: string; occurredAt: string }>;
+  reassessmentNotices: Array<{ id: string; providerSlug: string; notice: string; status: string; createdAt: string }>;
+  assessmentVersions: Array<{
+    id: string;
+    versionNumber: number;
+    rankingVersion: string | null;
+    methodologyVersion: string | null;
+    changeSummary: string | null;
+    createdAt: string;
+  }>;
   error: string | null;
   kind: "ok" | "not_found" | "error" | "no_organization";
 }> => {
@@ -287,6 +296,21 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
       evidence: Record<string, unknown>;
     }>,
     events: [] as Array<{ id: string; title: string; detail: string | null; source: string; occurredAt: string }>,
+    reassessmentNotices: [] as Array<{
+      id: string;
+      providerSlug: string;
+      notice: string;
+      status: string;
+      createdAt: string;
+    }>,
+    assessmentVersions: [] as Array<{
+      id: string;
+      versionNumber: number;
+      rankingVersion: string | null;
+      methodologyVersion: string | null;
+      changeSummary: string | null;
+      createdAt: string;
+    }>,
   };
   const organization = await getCurrentOrganization();
   if (!organization) {
@@ -313,7 +337,7 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
     rejection_reason?: string | null;
     rejection_note?: string | null;
   };
-  const [assessments, events, ownerResult, promotedResult] = await Promise.all([
+  const [assessments, events, ownerResult, promotedResult, notices, versions] = await Promise.all([
     supabase
       .from("opportunity_assessments")
       .select("dimension, result, explanation, source_kind, completeness, assessed_at, evidence")
@@ -338,6 +362,19 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
           .eq("organization_id", organization.id)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    supabase
+      .from("opportunity_reassessment_notices")
+      .select("id, provider_slug, notice, status, created_at")
+      .eq("organization_id", organization.id)
+      .eq("opportunity_id", row.id)
+      .eq("status", "open")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("opportunity_assessment_versions")
+      .select("id, version_number, ranking_version, methodology_version, change_summary, assessed_at")
+      .eq("organization_id", organization.id)
+      .eq("opportunity_id", row.id)
+      .order("version_number", { ascending: false }),
   ]);
   return {
     item: mapRow(row, {
@@ -365,6 +402,21 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
       detail: item.detail,
       source: item.source,
       occurredAt: item.occurred_at,
+    })),
+    reassessmentNotices: (notices.data ?? []).map((item) => ({
+      id: item.id,
+      providerSlug: item.provider_slug,
+      notice: item.notice,
+      status: item.status,
+      createdAt: item.created_at,
+    })),
+    assessmentVersions: (versions.data ?? []).map((item) => ({
+      id: item.id,
+      versionNumber: item.version_number,
+      rankingVersion: item.ranking_version,
+      methodologyVersion: item.methodology_version,
+      changeSummary: item.change_summary,
+      createdAt: item.assessed_at,
     })),
     error: null,
     kind: "ok",

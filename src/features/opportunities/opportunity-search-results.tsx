@@ -4,7 +4,7 @@ import { Button, buttonClassName } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { ScreeningResultsMap } from "@/features/opportunities/screening-results-map";
 import type { OpportunityRunCandidate, OpportunitySearchRunView } from "@/lib/data/opportunity-runs";
-import { rerunOpportunitySearchAction, saveRunCandidateAction } from "@/lib/opportunities/actions";
+import { rerunOpportunitySearchAction, refineOpportunityCandidatesAction, saveRunCandidateAction } from "@/lib/opportunities/actions";
 import {
   opportunityConfidenceLabel,
   opportunityRecommendationLabel,
@@ -12,6 +12,14 @@ import {
 } from "@/lib/opportunities/catalog";
 import { canCompareOpportunities, compareRecommendation } from "@/lib/opportunities/compare";
 import { describeRunDelta, UNSUPPORTED_SCREENING_DIMENSIONS } from "@/lib/opportunities/spatial-screening";
+import {
+  landCoverEvidenceLabel,
+  refinementStatusLabel,
+  terrainEvidenceLabel,
+  type EvidenceResolution,
+  type RefinementStatus,
+} from "@/lib/opportunities/precision";
+import { officialTransmissionCopy, projectConnectionCopy, transmissionContextFromRecord } from "@/lib/opportunities/transmission-context";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -64,6 +72,11 @@ export function OpportunitySearchResults({
     },
   );
 
+  const eligible = view.candidates.filter(
+    (item) => !item.excluded && (item.refinementStatus === "eligible_for_refinement" || item.refinementStatus === "refinement_failed"),
+  );
+  const topFive = eligible.filter((item) => item.rank != null && item.rank <= 5).map((item) => item.id);
+  const selectedEligible = selected && eligible.some((item) => item.id === selected.id);
   const compareItems = view.candidates.filter((item) => compareIds.includes(item.id));
 
   return (
@@ -93,8 +106,8 @@ export function OpportunitySearchResults({
           <Fact label="Areas evaluated" value={String(view.evaluatedCount)} />
           <Fact label="Excluded" value={String(view.excludedCount)} />
           <Fact
-            label="Ranking"
-            value={view.rankingVersion ?? "suitability-v2"}
+            label="Screening stage"
+            value={view.screeningStage === "detailed" ? "Detailed site screening" : "Discovery screening"}
           />
         </section>
 
@@ -103,10 +116,39 @@ export function OpportunitySearchResults({
 
         <p className="text-sm text-muted">
           {view.status === "completed"
-            ? "Screening finished. Counts are actual contiguous candidate areas after supported exclusions, not a marketing figure."
+            ? "Discovery screening finished. Candidate Areas are contiguous remaining geometry after supported exclusions — not land parcels and not 1 km cells as final sites."
             : `Run status: ${view.status}.`}
           {view.durationMs != null ? ` Duration ${Math.round(view.durationMs / 1000)}s.` : ""}
+          {` Ranking ${view.rankingVersion ?? "suitability-v3"}.`}
         </p>
+
+        {canWrite && (selectedEligible || topFive.length > 0) ? (
+          <section className="flex flex-wrap gap-2">
+            {selectedEligible && selected ? (
+              <form action={refineOpportunityCandidatesAction}>
+                <input type="hidden" name="runId" value={view.runId} />
+                <input type="hidden" name="searchId" value={view.searchId} />
+                <input type="hidden" name="candidateIds" value={selected.id} />
+                <Button type="submit" variant="secondary">
+                  Refine candidate
+                </Button>
+              </form>
+            ) : null}
+            {topFive.length > 0 ? (
+              <form action={refineOpportunityCandidatesAction}>
+                <input type="hidden" name="runId" value={view.runId} />
+                <input type="hidden" name="searchId" value={view.searchId} />
+                <input type="hidden" name="candidateIds" value={topFive.join(",")} />
+                <Button type="submit" variant="secondary">
+                  Refine top {topFive.length}
+                </Button>
+              </form>
+            ) : null}
+            <p className="self-center text-xs text-muted">
+              Detailed screening runs only on selected Candidate Areas (max 5). Discovery uses coarse evidence.
+            </p>
+          </section>
+        ) : null}
 
         <ScreeningResultsMap
           geojson={view.geojson}
@@ -180,6 +222,15 @@ export function OpportunitySearchResults({
               {selected.name}
             </h2>
             <p className="mt-1 text-sm text-muted">{selected.recommendationSummary}</p>
+            {selected.rankChangeExplanation ? (
+              <p className="mt-2 text-sm">{selected.rankChangeExplanation}</p>
+            ) : null}
+            {selected.discoveryRank != null && selected.detailedRank != null ? (
+              <p className="mt-1 text-xs text-muted">
+                Discovery rank #{selected.discoveryRank}
+                {selected.detailedRank != selected.discoveryRank ? ` · Detailed rank #${selected.detailedRank}` : ""}
+              </p>
+            ) : null}
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <Fact label="Recommendation" value={opportunityRecommendationLabel(selected.recommendation)} />
               <Fact label="Data confidence" value={opportunityConfidenceLabel(selected.dataConfidence)} />
@@ -206,15 +257,36 @@ export function OpportunitySearchResults({
                 }
               />
               <Fact
+                label="Screening evidence"
+                value={
+                  selected.refinementStatus
+                    ? refinementStatusLabel(selected.refinementStatus as RefinementStatus)
+                    : "Discovery screening"
+                }
+              />
+              <Fact
+                label="Terrain evidence"
+                value={terrainEvidenceLabel({
+                  resolution: (selected.terrainResolution as EvidenceResolution | null) ?? "unavailable",
+                  providerKey: selected.terrainProviderKey,
+                })}
+              />
+              <Fact
                 label="Land cover"
                 value={
                   Object.keys(selected.landCover).length > 0
-                    ? Object.entries(selected.landCover)
+                    ? `${landCoverEvidenceLabel({
+                        resolution: (selected.landCoverResolution as EvidenceResolution | null) ?? "coarse",
+                        providerKey: selected.landCoverProviderKey,
+                      })} · ${Object.entries(selected.landCover)
                         .sort((left, right) => Number(right[1]) - Number(left[1]))
                         .slice(0, 3)
                         .map(([group, share]) => `${group} ${Number(share).toFixed(0)}%`)
-                        .join(" · ")
-                    : "Insufficient evidence"
+                        .join(" · ")}`
+                    : landCoverEvidenceLabel({
+                        resolution: "unavailable",
+                        providerKey: selected.landCoverProviderKey,
+                      })
                 }
               />
               <Fact
@@ -226,26 +298,77 @@ export function OpportunitySearchResults({
                 }
               />
               <Fact
-                label="Official grid geography"
+                label="Local / distribution context"
                 value={
                   [selected.localCoveringName, selected.nupCoveringName].filter(Boolean).join(" · ") ||
                   "No covering polygon at centroid"
                 }
               />
+              <Fact
+                label="Transmission context"
+                value={officialTransmissionCopy(
+                  transmissionContextFromRecord(selected.transmissionContext, selected.countyName),
+                )}
+              />
+              <Fact label="Project-specific connection" value={projectConnectionCopy()} />
               <Fact label="Strongest positive" value={selected.keyPositive ?? "None recorded"} />
               <Fact label="Main uncertainty" value={selected.keyRisk ?? "See unsupported dimensions"} />
               <Fact label="Residential context" value="Unsupported / blocked pending data rights" />
             </dl>
             {selected.exclusionBreakdown ? (
-              <p className="mt-3 text-sm text-muted">
-                Initial {Number(selected.exclusionBreakdown.grossHa ?? 0).toFixed(1)} ha.
-                Protected/Natura removed{" "}
-                {(Number(selected.exclusionBreakdown.protectedHa ?? 0) + Number(selected.exclusionBreakdown.naturaHa ?? 0)).toFixed(1)} ha.
-                Terrain removed {Number(selected.exclusionBreakdown.terrainHa ?? 0).toFixed(1)} ha.
-                Land-cover exclusions removed {Number(selected.exclusionBreakdown.landCoverHa ?? 0).toFixed(1)} ha.
-                Remaining {Number(selected.exclusionBreakdown.remainingHa ?? selected.usableAreaHa ?? 0).toFixed(1)} ha.
-                Largest contiguous {Number(selected.exclusionBreakdown.largestContiguousHa ?? selected.contiguousAreaHa ?? 0).toFixed(1)} ha.
-              </p>
+              <div className="mt-4 rounded-md border border-line bg-canvas p-3 text-sm">
+                <p className="font-medium">Before refinement</p>
+                <p className="mt-1 text-muted">
+                  Gross candidate: {Number(selected.exclusionBreakdown.grossHa ?? selected.grossAreaHa ?? 0).toFixed(1)} ha
+                </p>
+                <p className="mt-3 font-medium">Detailed exclusions</p>
+                <ul className="mt-1 space-y-1 text-muted">
+                  <li>Protected: −{Number(selected.exclusionBreakdown.protectedHa ?? 0).toFixed(1)} ha</li>
+                  <li>Natura: −{Number(selected.exclusionBreakdown.naturaHa ?? 0).toFixed(1)} ha</li>
+                  <li>
+                    Terrain: −
+                    {Number(
+                      selected.exclusionBreakdown.refinementTerrainHa ??
+                        selected.exclusionBreakdown.terrainHa ??
+                        0,
+                    ).toFixed(1)}{" "}
+                    ha
+                  </li>
+                  <li>
+                    Land cover: −
+                    {Number(
+                      selected.exclusionBreakdown.refinementLandCoverHa ??
+                        selected.exclusionBreakdown.landCoverHa ??
+                        0,
+                    ).toFixed(1)}{" "}
+                    ha
+                  </li>
+                </ul>
+                <p className="mt-3 font-medium">Result</p>
+                <p className="mt-1 text-muted">
+                  Remaining:{" "}
+                  {Number(
+                    selected.exclusionBreakdown.refinementRemainingHa ??
+                      selected.exclusionBreakdown.remainingHa ??
+                      selected.usableAreaHa ??
+                      0,
+                  ).toFixed(1)}{" "}
+                  ha
+                </p>
+                <p className="text-muted">
+                  Largest contiguous area:{" "}
+                  {Number(
+                    selected.exclusionBreakdown.refinementLargestContiguousHa ??
+                      selected.exclusionBreakdown.largestContiguousHa ??
+                      selected.contiguousAreaHa ??
+                      0,
+                  ).toFixed(1)}{" "}
+                  ha
+                  {selected.discoveryContiguousAreaHa != null
+                    ? ` (discovery ${selected.discoveryContiguousAreaHa.toFixed(1)} ha)`
+                    : ""}
+                </p>
+              </div>
             ) : null}
             {selected.exclusionReason ? (
               <p className="mt-3 text-sm">Failed: {selected.exclusionReason}</p>
@@ -287,6 +410,16 @@ export function OpportunitySearchResults({
                   {[
                     ["Recommendation", (item: OpportunityRunCandidate) => opportunityRecommendationLabel(item.recommendation)],
                     ["Confidence", (item: OpportunityRunCandidate) => opportunityConfidenceLabel(item.dataConfidence)],
+                    [
+                      "Discovery rank",
+                      (item: OpportunityRunCandidate) =>
+                        item.discoveryRank != null ? `#${item.discoveryRank}` : "—",
+                    ],
+                    [
+                      "Detailed rank",
+                      (item: OpportunityRunCandidate) =>
+                        item.detailedRank != null ? `#${item.detailedRank}` : "Discovery only",
+                    ],
                     [
                       "Contiguous ha",
                       (item: OpportunityRunCandidate) =>

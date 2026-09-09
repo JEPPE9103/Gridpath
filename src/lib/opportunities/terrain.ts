@@ -29,7 +29,10 @@ export type TerrainMetrics = {
   p90SlopeDeg: number | null;
   maxSlopeDeg: number | null;
   pctBelowThreshold: number | null;
+  pctAboveThreshold?: number | null;
   sourceName: string | null;
+  providerKey?: string | null;
+  resolution?: "coarse" | "detailed" | "fallback" | "unavailable";
 };
 
 export function classifySlopeAgainstThreshold(input: {
@@ -110,6 +113,7 @@ export function summariseSlopeSample(values: number[], thresholdDeg: number) {
       p90SlopeDeg: null,
       maxSlopeDeg: null,
       pctBelowThreshold: null,
+      pctAboveThreshold: null,
     };
   }
   const mean = finite.reduce((sum, value) => sum + value, 0) / finite.length;
@@ -120,6 +124,7 @@ export function summariseSlopeSample(values: number[], thresholdDeg: number) {
     p90SlopeDeg: percentile(finite, 0.9),
     maxSlopeDeg: finite[finite.length - 1],
     pctBelowThreshold: (below / finite.length) * 100,
+    pctAboveThreshold: ((finite.length - below) / finite.length) * 100,
   };
 }
 

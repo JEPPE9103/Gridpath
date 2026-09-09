@@ -72,8 +72,8 @@ describe("spatial screening geography", () => {
   });
 
   it("documents contiguous dissolve rather than ranked analysis squares", () => {
-    assert.match(SCREENING_METHODOLOGY, /Candidate Area/i);
-    assert.match(SCREENING_METHODOLOGY, /ST_UnaryUnion|shared-boundary dissolve|4-connected/i);
+    assert.match(SCREENING_METHODOLOGY, /DISCOVERY SCREENING|DETAILED SITE SCREENING/i);
+    assert.match(SCREENING_METHODOLOGY, /NMD 2023/);
   });
 
   it("uses a spherical approximation only for the bbox cap, not suitability", () => {

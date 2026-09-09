@@ -19,7 +19,7 @@ export default async function Page() {
     <>
       <PageHeader
         title="New opportunity search"
-        subtitle="Define a bounded Swedish search and a reusable screening profile. NOXHEIM returns ranked contiguous candidate areas from supported official environmental, terrain, land and infrastructure evidence."
+        subtitle="Define a bounded Swedish search and a reusable screening profile. Discovery screening identifies Candidate Areas from coarse official evidence. Promising areas can then be refined with higher-resolution land cover and terrain before they are saved as Opportunities."
       />
       <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         {canWrite ? (

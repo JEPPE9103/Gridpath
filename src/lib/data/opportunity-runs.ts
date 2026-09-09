@@ -43,7 +43,26 @@ export type OpportunityRunCandidate = {
     landCoverHa?: number;
     remainingHa?: number;
     largestContiguousHa?: number;
+    refinementGrossHa?: number;
+    refinementLandCoverHa?: number;
+    refinementTerrainHa?: number;
+    refinementRemainingHa?: number;
+    refinementLargestContiguousHa?: number;
   } | null;
+  screeningStage: string | null;
+  refinementStatus: string | null;
+  discoveryRank: number | null;
+  detailedRank: number | null;
+  terrainResolution: string | null;
+  landCoverResolution: string | null;
+  terrainProviderKey: string | null;
+  landCoverProviderKey: string | null;
+  strategicFlags: string[];
+  rankChangeExplanation: string | null;
+  countyName: string | null;
+  municipalityName: string | null;
+  transmissionContext: Record<string, unknown> | null;
+  discoveryContiguousAreaHa: number | null;
 };
 
 export type OpportunitySearchRunView = {
@@ -64,6 +83,7 @@ export type OpportunitySearchRunView = {
   providerAvailability: Record<string, boolean>;
   rankingVersion: string | null;
   methodologyVersion: string | null;
+  screeningStage: string | null;
   changeSummary: string | null;
   previousRun: { id: string; returnedCount: number; evaluatedCount: number } | null;
   west: number | null;
@@ -89,7 +109,7 @@ export const getOpportunitySearchRun = cache(
     const { data: run, error } = await supabase
       .from("opportunity_search_runs")
       .select(
-        "id, search_id, status, methodology, cell_size_m, evaluated_count, excluded_count, returned_count, duration_ms, warnings, provider_availability, previous_run_id, west, south, east, north, ranking_version, methodology_version, change_summary",
+        "id, search_id, status, methodology, cell_size_m, evaluated_count, excluded_count, returned_count, duration_ms, warnings, provider_availability, previous_run_id, west, south, east, north, ranking_version, methodology_version, change_summary, screening_stage",
       )
       .eq("id", runId)
       .eq("search_id", searchId)
@@ -116,7 +136,7 @@ export const getOpportunitySearchRun = cache(
     const { data: candidates } = await supabase
       .from("opportunity_run_candidates")
       .select(
-        "id, name, rank, recommendation, recommendation_summary, data_confidence, excluded, exclusion_reason, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, local_covering_name, nup_covering_name, key_positive, key_risk, saved_opportunity_id, mean_slope_deg, p90_slope_deg, pct_below_slope, land_cover, road_distance_m, road_class, exclusion_breakdown",
+        "id, name, rank, recommendation, recommendation_summary, data_confidence, excluded, exclusion_reason, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, local_covering_name, nup_covering_name, key_positive, key_risk, saved_opportunity_id, mean_slope_deg, p90_slope_deg, pct_below_slope, land_cover, road_distance_m, road_class, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, strategic_flags, rank_change_explanation, county_name, municipality_name, transmission_context, discovery_contiguous_area_ha",
       )
       .eq("run_id", runId)
       .eq("organization_id", organization.id)
@@ -149,6 +169,7 @@ export const getOpportunitySearchRun = cache(
           : {},
       rankingVersion: run.ranking_version ?? null,
       methodologyVersion: run.methodology_version ?? null,
+      screeningStage: run.screening_stage ?? "discovery",
       changeSummary: run.change_summary ?? null,
       previousRun: previous
         ? {
@@ -197,6 +218,25 @@ export const getOpportunitySearchRun = cache(
           row.exclusion_breakdown && typeof row.exclusion_breakdown === "object"
             ? (row.exclusion_breakdown as OpportunityRunCandidate["exclusionBreakdown"])
             : null,
+        screeningStage: row.screening_stage ?? null,
+        refinementStatus: row.refinement_status ?? null,
+        discoveryRank: toNumber(row.discovery_rank),
+        detailedRank: toNumber(row.detailed_rank),
+        terrainResolution: row.terrain_resolution ?? null,
+        landCoverResolution: row.land_cover_resolution ?? null,
+        terrainProviderKey: row.terrain_provider_key ?? null,
+        landCoverProviderKey: row.land_cover_provider_key ?? null,
+        strategicFlags: Array.isArray(row.strategic_flags)
+          ? (row.strategic_flags as unknown[]).filter((item): item is string => typeof item === "string")
+          : [],
+        rankChangeExplanation: row.rank_change_explanation ?? null,
+        countyName: row.county_name ?? null,
+        municipalityName: row.municipality_name ?? null,
+        transmissionContext:
+          row.transmission_context && typeof row.transmission_context === "object"
+            ? (row.transmission_context as Record<string, unknown>)
+            : null,
+        discoveryContiguousAreaHa: toNumber(row.discovery_contiguous_area_ha),
       })),
       geojson: geojson ?? { type: "FeatureCollection", features: [] },
     };

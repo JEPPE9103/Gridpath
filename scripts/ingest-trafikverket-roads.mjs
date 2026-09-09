@@ -88,11 +88,26 @@ on conflict (slug) do update set name = excluded.name, active = true;
   ingestionRunId = begun.run_id;
   const features = [];
   let startIndex = 0;
+  let transientFailures = 0;
   while (startIndex < 20_000) {
-    const text = await fetchOpenGeodataText(buildUrl(bbox, startIndex), { timeoutMs: 90_000 });
-    if (text.includes("ExceptionReport") || text.includes("ows:Exception")) {
-      throw new Error(`Trafikverket WFS ExceptionReport: ${text.slice(0, 240)}`);
+    let text;
+    try {
+      text = await fetchOpenGeodataText(buildUrl(bbox, startIndex), { timeoutMs: 90_000 });
+    } catch (error) {
+      transientFailures += 1;
+      if (transientFailures > 4) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1500 * transientFailures));
+      continue;
     }
+    if (text.includes("ExceptionReport") || text.includes("ows:Exception")) {
+      transientFailures += 1;
+      if (transientFailures > 4) {
+        throw new Error(`Trafikverket WFS ExceptionReport: ${text.slice(0, 240)}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500 * transientFailures));
+      continue;
+    }
+    transientFailures = 0;
     const collection = parseGeoJsonFeatureCollection(text);
     if (!collection.features.length) break;
     features.push(...collection.features);
