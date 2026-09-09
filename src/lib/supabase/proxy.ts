@@ -178,7 +178,7 @@ export async function updateSession(request: NextRequest) {
       supabaseResponse,
       NextResponse.redirect(nextUrl),
     );
-    if (user && !isRecovery && decision.pathname === "/portfolio") {
+    if (user && !isRecovery && isWorkspacePath(decision.pathname)) {
       await syncActiveOrganizationCookieOnResponse(
         request,
         redirectResponse,

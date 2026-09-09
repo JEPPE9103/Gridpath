@@ -119,6 +119,13 @@ export function computeReadiness(items: ChecklistItem[]): ApplicationReadiness {
   };
 }
 
+export function formatOutlookLabel(outlook: Outlook): string {
+  if (outlook === "Needs Attention") {
+    return "Caution";
+  }
+  return outlook;
+}
+
 export function isAttentionOutlook(outlook: Outlook): boolean {
   return outlook === "At Risk" || outlook === "Weak" || outlook === "Needs Attention";
 }

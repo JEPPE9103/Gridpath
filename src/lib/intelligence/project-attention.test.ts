@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { canWriteWorkflow } from "@/lib/projects/authorization";
 import {
+  attentionBandLabel,
   attentionCopyContainsForbiddenTerm,
+  attentionLevelLabel,
   deriveDaysInCurrentStage,
   deriveProjectAttention,
   deriveProjectNextAction,
@@ -364,5 +366,14 @@ describe("deriveProjectNextAction", () => {
       TODAY,
     );
     assert.equal(overdue.kind, "overdue_requirement");
+  });
+});
+
+describe("attention labels", () => {
+  it("does not use Needs attention for workflow bands or levels", () => {
+    assert.equal(attentionBandLabel("action"), "Action required");
+    assert.equal(attentionBandLabel("attention"), "Watch");
+    assert.equal(attentionLevelLabel("needs_attention"), "Action required");
+    assert.equal(attentionLevelLabel("watch"), "Watch");
   });
 });

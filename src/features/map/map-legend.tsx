@@ -11,7 +11,7 @@ export function MapLegend() {
         <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Customer data</p>
         <LegendSwatch shape="dot" color="#176C4A" label="Project · Favourable" />
         <LegendSwatch shape="dot" color="#B54708" label="Project · Possible" />
-        <LegendSwatch shape="dot" color="#B42318" label="Project · At Risk / Weak" />
+        <LegendSwatch shape="dot" color="#B42318" label="Project · Caution / At Risk / Weak" />
         <LegendSwatch shape="dot" color="#8B9098" label="Project · Unknown" />
         <p className="pt-1 text-[10px] uppercase tracking-[0.12em] text-muted">Official source</p>
         <LegendSwatch shape="patch" color={LOCAL_NETWORK_FILL} label="Local network area · Ei" />

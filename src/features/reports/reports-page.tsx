@@ -89,7 +89,7 @@ function LoadedReportsPage({ report }: { report: PortfolioReportViewModel }) {
           <Stat label="Portfolio MW" value={formatMWTotal(summary.portfolioMW)} />
           <Stat label="Active connection cases" value={summary.activeConnectionCases} />
           <Stat
-            label="Projects needing workflow attention"
+            label="Action required"
             value={summary.needsAttention}
           />
           <Stat label="Open alerts" value={summary.openAlerts} />

@@ -22,7 +22,6 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   }
 
   const { organization, memberships } = context;
-  const criticalAlertCount = alertCenter.criticalCount;
   const workspaceOptions = memberships.map((row) => ({
     id: row.organizationId,
     name: row.organizationName,
@@ -33,7 +32,6 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   return (
     <AppShell
       user={user}
-      criticalAlertCount={criticalAlertCount}
       alertCenter={alertCenter}
       isDemoWorkspace={isSalesDemoOrganizationSlug(organization.slug)}
       activeOrganization={{

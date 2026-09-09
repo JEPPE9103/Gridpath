@@ -1,7 +1,7 @@
 "use server";
 
 import { authCallbackUrl } from "@/lib/auth/redirect";
-import { getPostAuthPath } from "@/lib/auth/paths";
+import { getPostAuthPath, POST_AUTH_HOME } from "@/lib/auth/paths";
 import {
   clearPasswordRecoveryCookie,
 } from "@/lib/auth/recovery-cookie";
@@ -239,7 +239,7 @@ export async function createWorkspaceAction(
 
   await writeActiveOrganizationCookie(String(organizationId));
   revalidatePath("/", "layout");
-  redirect("/portfolio");
+  redirect(POST_AUTH_HOME);
 }
 
 export async function updateProfileAction(

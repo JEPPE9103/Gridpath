@@ -3,39 +3,30 @@
 import { BellButton } from "@/components/layout/app-shell";
 import { CountBadge, OutlookBadge } from "@/components/ui/badges";
 import { EmptyState } from "@/components/ui/empty-state";
-import { KpiCard } from "@/components/ui/kpi-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { dismissOrganizationAlert } from "@/lib/alerts/actions";
 import { cn } from "@/lib/cn";
 import {
   OVERVIEW_PIPELINE_STAGES,
+  type OverviewAlertItem,
+  type OverviewProject,
   type PortfolioOverview,
 } from "@/lib/data/overview-types";
-import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { PortfolioAttentionSection } from "@/features/overview/portfolio-attention-section";
 import { OfficialChangesSignal } from "@/features/changes/official-changes-signal";
+import { formatMWTotal, formatRelative } from "@/lib/format";
 import {
-  formatCapacityShort,
-  formatMWTotal,
-  formatRelative,
-} from "@/lib/format";
-import { type Alert, type Technology } from "@/types";
-import {
-  Activity,
   AlertTriangle,
-  ArrowRight,
   CheckCircle2,
-  Hexagon,
   Info,
   X,
-  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 const SEVERITY_STYLES: Record<
-  Alert["severity"],
+  OverviewAlertItem["severity"],
   { wrap: string; icon: string; Icon: typeof AlertTriangle }
 > = {
   critical: {
@@ -60,20 +51,17 @@ const SEVERITY_STYLES: Record<
   },
 };
 
+const MAX_ALERT_ROWS = 3;
+
 export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
   const router = useRouter();
   const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [techFilter, setTechFilter] = useState<Technology | "All">("All");
 
   const { kpis, alerts, projects, recentProjects, portfolioAttention } = overview;
   const criticalCount = alerts.filter((alert) => alert.severity === "critical").length;
   const now = useMemo(() => new Date(), []);
-
-  const technologies = useMemo(
-    () => ["All", ...new Set(projects.map((project) => project.technology))] as const,
-    [projects],
-  );
+  const visibleAlerts = alerts.slice(0, MAX_ALERT_ROWS);
 
   function onDismiss(alertId: string) {
     setPendingAlertId(alertId);
@@ -92,22 +80,17 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
         title="Overview"
         subtitle={
           overview.kind === "ok"
-            ? `${overview.organizationName} · ${kpis.activeSites} sites · ${formatMWTotal(kpis.totalMW)} total`
-            : "Workspace overview"
+            ? `${overview.organizationName} · ${kpis.activeSites} sites · ${formatMWTotal(kpis.totalMW)}`
+            : "What to do next in this workspace"
         }
-        actions={
-          <>
-            <BellButton />
-            <ClientHeaderDate />
-          </>
-        }
+        actions={<BellButton />}
       />
 
-      <div className="space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+      <div className="space-y-8 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
         {overview.kind === "no_organization" ? (
           <EmptyState
             title="No workspace yet"
-            description="This account is not a member of an organisation. Create or join a workspace to see portfolio overview."
+            description="This account is not a member of an organisation. Create or join a workspace to see what to do next."
           />
         ) : overview.kind === "error" ? (
           <EmptyState
@@ -116,43 +99,23 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
           />
         ) : (
           <>
-            <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <KpiCard
-                label="Active Sites"
-                value={kpis.activeSites}
-                hint={`${formatMWTotal(kpis.totalMW)} total`}
-                icon={Hexagon}
+            <section className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-4">
+              <Fact
+                label="Action required"
+                value={String(portfolioAttention.actionRequiredCount)}
+                tone={portfolioAttention.actionRequiredCount > 0 ? "critical" : undefined}
               />
-              <KpiCard
-                label="Connection Enquiries"
-                value={kpis.connectionEnquiries}
-                hint="Awaiting response"
-                icon={Zap}
+              <Fact
+                label="Watch"
+                value={String(portfolioAttention.upcomingCount)}
+                tone={portfolioAttention.upcomingCount > 0 ? "warning" : undefined}
               />
-              <KpiCard
-                label="Grid Studies Open"
-                value={kpis.gridStudiesOpen}
-                hint="In progress"
-                icon={Activity}
+              <Fact
+                label="To review"
+                value={String(overview.officialChanges.unreviewed)}
+                href="/changes"
               />
-              <button
-                type="button"
-                onClick={() =>
-                  document.getElementById("portfolio-attention")?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  })
-                }
-                className="text-left"
-              >
-                <KpiCard
-                  label="Workflow attention"
-                  value={kpis.needsAttention}
-                  hint="Projects with action-required workflow items — not the open-alert count"
-                  icon={AlertTriangle}
-                  tone="critical"
-                />
-              </button>
+              <Fact label="Open alerts" value={String(alerts.length)} href="/alerts" />
             </section>
 
             <PortfolioAttentionSection
@@ -162,213 +125,183 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
               sourceDelayed={overview.officialSourceDelayed}
             />
 
-            <OfficialChangesSignal
-              counts={overview.officialChanges}
-              href="/changes"
-              sourceDelayed={overview.officialSourceDelayed}
-            />
+            <div className="grid gap-4 lg:grid-cols-2">
+              <OfficialChangesSignal
+                counts={overview.officialChanges}
+                href="/changes"
+                sourceDelayed={overview.officialSourceDelayed}
+              />
 
-            <section className="rounded-md border border-line bg-surface">
-              <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3 sm:px-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-base font-semibold">Active Alerts</h2>
-                  <CountBadge tone="critical">{criticalCount} critical</CountBadge>
-                  <CountBadge>{alerts.length} total</CountBadge>
+              <section className="rounded-md border border-line bg-surface">
+                <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
+                  <h2 className="text-base font-semibold">Open alerts</h2>
+                  {criticalCount > 0 ? (
+                    <CountBadge tone="critical">{criticalCount} critical</CountBadge>
+                  ) : null}
+                  <Link href="/alerts" className="ml-auto text-sm font-medium text-teal hover:underline">
+                    View all
+                  </Link>
                 </div>
-                <Link href="/alerts" className="ml-auto text-sm font-medium text-teal hover:underline">
-                  View all alerts
-                </Link>
-              </div>
-
-              {alerts.length === 0 ? (
-                <div className="p-5">
-                  <EmptyState
-                    title="No active alerts"
-                    description="Open alerts for this workspace will appear here."
-                  />
-                </div>
-              ) : (
-                <ul>
-                  {alerts.map((alert) => {
-                    const style = SEVERITY_STYLES[alert.severity];
-                    const Icon = style.Icon;
-                    return (
-                      <li
-                        key={alert.id}
-                        className={cn(
-                          "flex items-start gap-3 border-b border-line border-l-4 px-5 py-3.5 last:border-b-0",
-                          style.wrap,
-                        )}
-                      >
-                        <Icon size={16} className={cn("mt-0.5 shrink-0", style.icon)} />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-ink">{alert.title}</p>
-                          {alert.summary ? (
-                            <p className="mt-0.5 text-sm text-ink/80">{alert.summary}</p>
-                          ) : null}
-                          {alert.detail ? (
-                            <p className="mt-1 text-xs leading-5 text-muted">{alert.detail}</p>
-                          ) : null}
-                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-                            {alert.gridOperator ? <span>{alert.gridOperator}</span> : null}
-                            {alert.projectSlug && alert.projectName ? (
-                              <Link
-                                href={`/projects/${alert.projectSlug}`}
-                                className="rounded-full bg-surface px-2 py-0.5 font-medium text-ink hover:bg-white"
-                              >
-                                {alert.projectName}
-                              </Link>
-                            ) : null}
-                            <span>{formatRelative(alert.detectedAt, now)}</span>
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Link
-                            href={alert.href}
-                            className="inline-flex items-center gap-1 text-sm font-medium text-teal hover:underline"
-                          >
-                            {alert.ctaLabel} <ArrowRight size={14} />
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => onDismiss(alert.id)}
-                            disabled={isPending && pendingAlertId === alert.id}
-                            className="rounded-md p-1 text-muted hover:bg-white hover:text-ink disabled:opacity-50"
-                            aria-label="Dismiss alert"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-
-            <section className="rounded-md border border-line bg-surface">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
-                <h2 className="text-base font-semibold">
-                  Development Pipeline{" "}
-                  <span className="font-normal text-muted">
-                    ({projects.length} projects across {OVERVIEW_PIPELINE_STAGES.length} stages)
-                  </span>
-                </h2>
-                <label className="flex items-center gap-2 text-sm text-muted">
-                  Filter
-                  <select
-                    value={techFilter}
-                    onChange={(event) => setTechFilter(event.target.value as Technology | "All")}
-                    className="rounded-md border border-line bg-surface px-2 py-1 text-sm text-ink"
-                  >
-                    {technologies.map((tech) => (
-                      <option key={tech} value={tech}>
-                        {tech}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className="overflow-x-auto px-5 py-4">
-                {projects.length === 0 ? (
-                  <EmptyState
-                    title="No projects yet"
-                    description="Projects in this organisation will appear on the pipeline."
-                  />
+                {alerts.length === 0 ? (
+                  <p className="px-5 py-6 text-sm text-muted">No open alerts.</p>
                 ) : (
-                  <div className="flex min-w-[1100px] gap-3">
-                    {OVERVIEW_PIPELINE_STAGES.map((stage, index) => {
-                      const cards = projects.filter(
-                        (project) =>
-                          project.stage === stage &&
-                          (techFilter === "All" || project.technology === techFilter),
-                      );
+                  <ul>
+                    {visibleAlerts.map((alert) => {
+                      const style = SEVERITY_STYLES[alert.severity];
+                      const Icon = style.Icon;
                       return (
-                        <div key={stage} className="flex min-w-[150px] flex-1 flex-col">
-                          <div className="mb-2 flex items-center justify-between text-xs font-medium text-muted">
-                            <span>
-                              {stage} ({cards.length})
-                            </span>
-                            {index < OVERVIEW_PIPELINE_STAGES.length - 1 ? (
-                              <ArrowRight size={12} className="text-line" />
+                        <li
+                          key={alert.id}
+                          className={cn(
+                            "flex items-start gap-3 border-b border-line border-l-4 px-5 py-3 last:border-b-0",
+                            style.wrap,
+                          )}
+                        >
+                          <Icon size={16} className={cn("mt-0.5 shrink-0", style.icon)} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-ink">{alert.title}</p>
+                            {alert.summary ? (
+                              <p className="mt-0.5 text-sm text-muted">{alert.summary}</p>
                             ) : null}
+                            <p className="mt-1 text-xs text-muted">
+                              {alert.projectName ? `${alert.projectName} · ` : ""}
+                              {formatRelative(alert.detectedAt, now)}
+                            </p>
                           </div>
-                          <div className="space-y-2">
-                            {cards.map((project) => (
-                              <Link
-                                key={project.id}
-                                href={`/projects/${project.id}`}
-                                className="block rounded-md border border-line bg-canvas px-3 py-2 hover:border-teal"
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="text-sm font-medium leading-5">{project.name}</p>
-                                  <OutlookBadge outlook={project.outlook} />
-                                </div>
-                                <p className="mt-1 font-mono text-[11px] text-muted">
-                                  {formatCapacityShort(project)}
-                                </p>
-                              </Link>
-                            ))}
+                          <div className="flex shrink-0 items-center gap-1">
+                            <Link
+                              href={alert.href}
+                              className="text-sm font-medium text-teal hover:underline"
+                            >
+                              {alert.ctaLabel}
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => onDismiss(alert.id)}
+                              disabled={isPending && pendingAlertId === alert.id}
+                              className="rounded-md p-1 text-muted hover:bg-white hover:text-ink disabled:opacity-50"
+                              aria-label="Dismiss alert"
+                            >
+                              <X size={14} />
+                            </button>
                           </div>
-                        </div>
+                        </li>
                       );
                     })}
-                  </div>
+                  </ul>
                 )}
-              </div>
-            </section>
+              </section>
+            </div>
 
-            <section className="rounded-md border border-line bg-surface">
-              <div className="border-b border-line px-5 py-3">
-                <h2 className="text-base font-semibold">Recent project activity</h2>
+            <PipelineStrip projects={projects} />
+
+            <section>
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-base font-semibold">Recently updated</h2>
+                <Link href="/portfolio" className="text-sm font-medium text-teal hover:underline">
+                  Portfolio
+                </Link>
               </div>
               {recentProjects.length === 0 ? (
-                <div className="p-5">
-                  <EmptyState
-                    title="No recent project activity"
-                    description="Updated projects in this organisation will appear here."
-                  />
-                </div>
+                <p className="mt-3 text-sm text-muted">Updated projects will appear here.</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-left text-sm">
-                    <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
-                      <tr>
-                        <th className="px-5 py-2 font-medium">Project</th>
-                        <th className="px-5 py-2 font-medium">Stage</th>
-                        <th className="px-5 py-2 font-medium">Outlook</th>
-                        <th className="px-5 py-2 font-medium">Last update</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recentProjects.map((project) => (
-                        <tr key={project.id} className="border-b border-line last:border-0">
-                          <td className="px-5 py-2.5">
-                            <Link
-                              href={`/projects/${project.id}`}
-                              className="font-medium hover:text-teal"
-                            >
-                              {project.name}
-                            </Link>
-                            <p className="text-xs text-muted">{project.location}</p>
-                          </td>
-                          <td className="px-5 py-2.5">{project.stage}</td>
-                          <td className="px-5 py-2.5">
-                            <OutlookBadge outlook={project.outlook} />
-                          </td>
-                          <td className="px-5 py-2.5 text-muted">
+                <ul className="mt-3 divide-y divide-line overflow-hidden rounded-md border border-line bg-surface">
+                  {recentProjects.slice(0, 5).map((project) => (
+                    <li key={project.id}>
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 hover:bg-canvas"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-ink">{project.name}</p>
+                          <p className="text-xs text-muted">
+                            {project.stage} · {project.location}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <OutlookBadge outlook={project.outlook} />
+                          <span className="text-xs text-muted">
                             {formatRelative(project.lastUpdated, now)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </span>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               )}
             </section>
           </>
         )}
       </div>
     </>
+  );
+}
+
+function Fact({
+  label,
+  value,
+  href,
+  tone,
+}: {
+  label: string;
+  value: string;
+  href?: string;
+  tone?: "critical" | "warning";
+}) {
+  const content = (
+    <>
+      <p className="text-[11px] uppercase tracking-wide text-muted">{label}</p>
+      <p
+        className={cn(
+          "mt-1 text-2xl font-semibold tabular-nums text-ink",
+          tone === "critical" && value !== "0" && "text-critical",
+          tone === "warning" && value !== "0" && "text-warning",
+        )}
+      >
+        {value}
+      </p>
+    </>
+  );
+
+  const className = "bg-surface px-4 py-3.5";
+  if (href) {
+    return (
+      <Link href={href} className={`${className} hover:bg-canvas`}>
+        {content}
+      </Link>
+    );
+  }
+  return <div className={className}>{content}</div>;
+}
+
+function PipelineStrip({ projects }: { projects: OverviewProject[] }) {
+  if (projects.length === 0) {
+    return null;
+  }
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-base font-semibold">Pipeline</h2>
+        <Link href="/portfolio" className="text-sm font-medium text-teal hover:underline">
+          Open Portfolio
+        </Link>
+      </div>
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+        {OVERVIEW_PIPELINE_STAGES.map((stage) => {
+          const count = projects.filter((project) => project.stage === stage).length;
+          return (
+            <Link
+              key={stage}
+              href={`/portfolio?stage=${encodeURIComponent(stage)}`}
+              className="min-w-[7.5rem] shrink-0 rounded-md border border-line bg-surface px-3 py-2.5 hover:border-teal"
+            >
+              <p className="text-[11px] uppercase tracking-wide text-muted">{stage}</p>
+              <p className="mt-1 text-lg font-semibold tabular-nums">{count}</p>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }

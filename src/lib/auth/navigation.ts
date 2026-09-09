@@ -1,3 +1,4 @@
+import { POST_AUTH_HOME } from "@/lib/auth/paths";
 import {
   isAuthCallbackPath,
   isAuthEntryPath,
@@ -46,7 +47,7 @@ export function resolveAuthNavigation(input: {
   }
 
   if (hasUser && (isAuthEntryPath(pathname) || isForgotPasswordPath(pathname))) {
-    return { type: "redirect", pathname: hasOrganization ? "/portfolio" : "/onboarding" };
+    return { type: "redirect", pathname: hasOrganization ? POST_AUTH_HOME : "/onboarding" };
   }
 
   if (hasUser && isWorkspacePath(pathname) && !hasOrganization) {
@@ -54,7 +55,7 @@ export function resolveAuthNavigation(input: {
   }
 
   if (hasUser && isOnboardingPath(pathname) && hasOrganization) {
-    return { type: "redirect", pathname: "/portfolio" };
+    return { type: "redirect", pathname: POST_AUTH_HOME };
   }
 
   return { type: "allow" };

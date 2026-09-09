@@ -65,7 +65,7 @@ describe("resolveAuthNavigation", () => {
         hasOrganization: true,
         isRecovery: false,
       }),
-      { type: "redirect", pathname: "/portfolio" },
+      { type: "redirect", pathname: "/overview" },
     );
     assert.deepEqual(
       resolveAuthNavigation({

@@ -667,7 +667,7 @@ export function deriveProjectAttention(
 export function attentionLevelLabel(level: ProjectAttentionLevel): string {
   switch (level) {
     case "needs_attention":
-      return "Needs Attention";
+      return "Action required";
     case "watch":
       return "Watch";
     case "on_track":
@@ -682,7 +682,7 @@ export function attentionBandLabel(band: AttentionBand): string {
     case "action":
       return "Action required";
     case "attention":
-      return "Needs attention";
+      return "Watch";
     case "review":
       return "Review";
     case "clear":

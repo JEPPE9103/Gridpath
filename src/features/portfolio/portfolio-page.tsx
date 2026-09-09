@@ -6,7 +6,7 @@ import { Button, buttonClassName } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
-import { formatCapacity, formatDate, formatMWTotal } from "@/lib/format";
+import { formatCapacity, formatDate, formatMWTotal, formatOutlookLabel } from "@/lib/format";
 import type { ListProjectsResult, PortfolioSortKey } from "@/lib/data/projects";
 import { PORTFOLIO_PAGE_SIZE } from "@/lib/data/paged-select";
 import type { ArchiveView } from "@/lib/projects/archive-scope";
@@ -172,6 +172,10 @@ export function PortfolioPage({
             value={result.outlook}
             onChange={(value) => update({ outlook: value === "All" ? "" : value, page: "1" })}
             options={["All", ...OUTLOOKS]}
+            labels={{
+              All: "All",
+              ...Object.fromEntries(OUTLOOKS.map((outlook) => [outlook, formatOutlookLabel(outlook)])),
+            }}
             label="Team outlook"
           />
           <Select
@@ -181,7 +185,7 @@ export function PortfolioPage({
             labels={{
               all: "All",
               action: "Action required",
-              needs_attention: "Needs attention",
+              needs_attention: "Action or watch",
               official_changes: "Official changes",
             }}
             label="Attention"
@@ -373,7 +377,7 @@ function AttentionDot({ band }: { band?: "action" | "attention" | "review" | "cl
     band === "action"
       ? "Action required"
       : band === "attention"
-        ? "Needs attention"
+        ? "Watch"
         : band === "review"
           ? "Review"
           : "No immediate action";

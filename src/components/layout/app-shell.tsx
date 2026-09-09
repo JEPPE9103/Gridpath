@@ -47,14 +47,12 @@ const FALLBACK_WORKSPACE: WorkspaceOption = {
 function ShellFrame({
   children,
   user,
-  criticalAlertCount,
   isDemoWorkspace,
   activeOrganization,
   organizations,
 }: {
   children: ReactNode;
   user: CurrentUserProfile | null;
-  criticalAlertCount: number;
   isDemoWorkspace: boolean;
   activeOrganization?: WorkspaceOption;
   organizations?: WorkspaceOption[];
@@ -124,7 +122,6 @@ function ShellFrame({
           collapsed={sidebarCollapsed}
           overlay={mobileOpen}
           user={user}
-          criticalAlertCount={criticalAlertCount}
           isDemoWorkspace={isDemoWorkspace}
           activeOrganization={resolvedOrganization}
           organizations={resolvedOrganizations}
@@ -158,7 +155,6 @@ function ShellFrame({
 export function AppShell({
   children,
   user = null,
-  criticalAlertCount = 0,
   alertCenter = {
     openCount: 0,
     criticalCount: 0,
@@ -171,7 +167,6 @@ export function AppShell({
 }: {
   children: ReactNode;
   user?: CurrentUserProfile | null;
-  criticalAlertCount?: number;
   alertCenter?: AlertCenterSnapshot;
   isDemoWorkspace?: boolean;
   activeOrganization?: WorkspaceOption;
@@ -183,7 +178,6 @@ export function AppShell({
         <AlertCenterProvider snapshot={alertCenter}>
           <ShellFrame
             user={user}
-            criticalAlertCount={criticalAlertCount}
             isDemoWorkspace={isDemoWorkspace}
             activeOrganization={activeOrganization}
             organizations={organizations}

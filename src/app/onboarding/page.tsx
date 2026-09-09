@@ -18,7 +18,7 @@ export default async function OnboardingPage() {
 
   const organization = await getCurrentOrganization();
   if (organization) {
-    redirect("/portfolio");
+    redirect("/overview");
   }
 
   return <OnboardingForm />;

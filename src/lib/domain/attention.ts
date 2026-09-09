@@ -4,8 +4,8 @@
  * Authoritative implementation: `deriveProjectAttention` in
  * `src/lib/intelligence/project-attention.ts`.
  *
- * Overview KPI "Workflow attention", Portfolio Attention, project Development Brief,
- * Connection Application next action, and Reports "projects needing workflow attention"
+ * Overview "Do next", Portfolio Attention, project Development Brief,
+ * Connection Application next action, and Reports "Action required"
  * all use that function. Open alerts are a separate count. It is rule-based workflow
  * hygiene, not grid feasibility, connection probability, or a numeric risk score.
  *

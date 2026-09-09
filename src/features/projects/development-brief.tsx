@@ -27,7 +27,7 @@ const LEVEL_STYLES: Record<
   needs_attention: {
     badge: "border-warning/30 bg-warning-bg text-warning",
     border: "border-l-warning",
-    label: "Needs Attention",
+    label: "Action required",
   },
   watch: {
     badge: "border-info/30 bg-info-bg text-info",

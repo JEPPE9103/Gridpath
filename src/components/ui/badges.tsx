@@ -1,6 +1,6 @@
 import { cn } from "@/lib/cn";
 import type { ReactNode } from "react";
-import { outlookTone } from "@/lib/format";
+import { formatOutlookLabel, outlookTone } from "@/lib/format";
 import type {
   ChecklistStatus,
   Confidence,
@@ -26,7 +26,7 @@ export function OutlookBadge({ outlook }: { outlook: Outlook }) {
         tone === "neutral" && "bg-canvas text-muted",
       )}
     >
-      {outlook}
+      {formatOutlookLabel(outlook)}
     </span>
   );
 }

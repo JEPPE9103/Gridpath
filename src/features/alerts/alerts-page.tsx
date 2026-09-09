@@ -15,7 +15,19 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 const STATUS_FILTERS = ["open", "resolved", "dismissed", "all"] as const;
+const STATUS_FILTER_LABELS: Record<(typeof STATUS_FILTERS)[number], string> = {
+  open: "Open",
+  resolved: "Resolved",
+  dismissed: "Dismissed",
+  all: "All",
+};
 const SEVERITY_FILTERS = ["All", "critical", "warning", "info"] as const;
+const SEVERITY_FILTER_LABELS: Record<(typeof SEVERITY_FILTERS)[number], string> = {
+  All: "All",
+  critical: "Critical",
+  warning: "Warning",
+  info: "Info",
+};
 
 export function AlertsPage({
   alerts,
@@ -38,7 +50,7 @@ export function AlertsPage({
   if (kind === "no_organization") {
     return (
       <>
-        <PageHeader title="Alerts" subtitle="Workspace notifications that need attention." />
+        <PageHeader title="Alerts" subtitle="Workspace notifications. This is not the workflow Action required count." />
         <div className="px-4 py-8">
           <EmptyState title="No workspace yet" description="Join a workspace to see alerts." />
         </div>
@@ -49,7 +61,7 @@ export function AlertsPage({
   if (kind === "error") {
     return (
       <>
-        <PageHeader title="Alerts" subtitle="Workspace notifications that need attention." />
+        <PageHeader title="Alerts" subtitle="Workspace notifications. This is not the workflow Action required count." />
         <div className="px-4 py-8">
           <EmptyState title="Could not load alerts" description="Try again in a moment." />
         </div>
@@ -80,7 +92,7 @@ export function AlertsPage({
     <>
       <PageHeader
         title="Alerts"
-        subtitle="Open items that need review. The count is open alerts, not unread messages."
+        subtitle="Open notifications for this workspace. This is not the workflow Action required count."
         actions={
           <>
             <BellButton />
@@ -97,7 +109,7 @@ export function AlertsPage({
               variant={statusFilter === status ? "primary" : "secondary"}
               onClick={() => setStatusFilter(status)}
             >
-              {status}
+              {STATUS_FILTER_LABELS[status]}
             </Button>
           ))}
         </div>
@@ -111,7 +123,7 @@ export function AlertsPage({
             >
               {SEVERITY_FILTERS.map((item) => (
                 <option key={item} value={item}>
-                  {item}
+                  {SEVERITY_FILTER_LABELS[item]}
                 </option>
               ))}
             </select>

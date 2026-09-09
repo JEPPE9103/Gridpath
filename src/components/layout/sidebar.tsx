@@ -1,6 +1,5 @@
 "use client";
 
-import { CountBadge } from "@/components/ui/badges";
 import { DemoWorkspaceChip } from "@/components/layout/demo-workspace-banner";
 import {
   WorkspaceSwitcher,
@@ -41,7 +40,6 @@ export function Sidebar({
   onNavigate,
   overlay = false,
   user,
-  criticalAlertCount = 0,
   isDemoWorkspace = false,
   activeOrganization,
   organizations = [],
@@ -51,7 +49,6 @@ export function Sidebar({
   onNavigate?: () => void;
   overlay?: boolean;
   user: CurrentUserProfile | null;
-  criticalAlertCount?: number;
   isDemoWorkspace?: boolean;
   activeOrganization: WorkspaceOption;
   organizations?: WorkspaceOption[];
@@ -132,12 +129,7 @@ export function Sidebar({
                 className={cn(active ? "text-teal" : "text-current")}
               />
               {collapsed ? null : (
-                <>
-                  <span className={cn("flex-1", active && "text-white")}>{item.label}</span>
-                  {item.href === "/overview" && criticalAlertCount > 0 ? (
-                    <CountBadge tone="critical">{criticalAlertCount}</CountBadge>
-                  ) : null}
-                </>
+                <span className={cn("flex-1", active && "text-white")}>{item.label}</span>
               )}
             </Link>
           );

@@ -1,7 +1,9 @@
 "use client";
 
 import { EmptyState } from "@/components/ui/empty-state";
+import { buttonClassName } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { attentionBandLabel } from "@/lib/intelligence";
 import type { PortfolioAttentionItem, PortfolioAttentionResult } from "@/lib/intelligence/types";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -22,90 +24,62 @@ export function PortfolioAttentionSection({
   const nowItems = attention.prioritized
     .filter((item) => item.band === "action" || item.band === "attention")
     .slice(0, MAX_ATTENTION_ROWS);
-  const hasImmediate = nowItems.length > 0 || attention.actionRequiredCount > 0 || officialChangesToReview > 0;
+  const hasImmediate =
+    nowItems.length > 0 || attention.actionRequiredCount > 0 || officialChangesToReview > 0;
 
   return (
-    <section
-      id="portfolio-attention"
-      className="rounded-md border border-line bg-surface"
-      aria-labelledby="portfolio-attention-heading"
-    >
-      <div className="border-b border-line px-4 py-3 sm:px-5">
-        <h2 id="portfolio-attention-heading" className="text-base font-semibold">
-          Portfolio attention
-        </h2>
-        <p className="mt-1 text-sm text-muted">
-          Which recorded workflow items need action, why, and what to do next. This is not a grid
-          feasibility score.
-        </p>
-        {activeCount === 0 ? null : (
-          <dl className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <CountCell label="Active projects" value={String(activeCount)} />
-            <CountCell label="Action required" value={String(attention.actionRequiredCount)} tone="action" />
-            <CountCell label="Upcoming" value={String(attention.upcomingCount)} tone="attention" />
-            <CountCell
-              label="Official changes to review"
-              value={String(officialChangesToReview)}
-              tone={officialChangesToReview > 0 ? "attention" : undefined}
-            />
-          </dl>
-        )}
+    <section id="portfolio-attention" aria-labelledby="portfolio-attention-heading">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 id="portfolio-attention-heading" className="text-lg font-semibold tracking-tight">
+            Do next
+          </h2>
+          <p className="mt-1 max-w-xl text-sm text-muted">
+            Recorded workflow items and official matches waiting for your team. Not a feasibility
+            score.
+          </p>
+        </div>
+        {activeCount > 0 ? (
+          <Link href="/portfolio?attention=needs_attention" className="text-sm font-medium text-teal hover:underline">
+            View all in Portfolio
+          </Link>
+        ) : null}
       </div>
 
       {activeCount === 0 ? (
-        <div className="p-5">
+        <div className="mt-5">
           <EmptyState
             title="No projects yet"
-            description="Add or import your first project to start building portfolio intelligence."
-          />
-        </div>
-      ) : !hasImmediate ? (
-        <div className="p-5">
-          <EmptyState
-            title="No immediate portfolio actions"
-            description={
-              sourceDelayed
-                ? "NOXHEIM has not identified overdue workflow items or unreviewed official changes across the active portfolio. Official source update is delayed, so this is not a confirmation that published sources are current."
-                : "NOXHEIM has not identified overdue workflow items or unreviewed official changes across the active portfolio."
+            description="Add or import a project to see what needs action."
+            action={
+              <div className="flex flex-wrap gap-2">
+                <Link href="/projects/new" className={buttonClassName()}>
+                  Add project
+                </Link>
+                <Link href="/portfolio/import" className={buttonClassName("secondary")}>
+                  Import
+                </Link>
+              </div>
             }
           />
         </div>
-      ) : (
-        <div className="px-4 py-4 sm:px-5">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Needs attention now</h3>
-          <ul className="mt-3 space-y-3">
-            {nowItems.map((item) => (
-              <AttentionRow key={item.id} item={item} />
-            ))}
-          </ul>
+      ) : !hasImmediate ? (
+        <div className="mt-5 rounded-md border border-line bg-surface px-5 py-8">
+          <p className="text-sm font-medium text-ink">Nothing needs action right now.</p>
+          <p className="mt-1 max-w-xl text-sm text-muted">
+            {sourceDelayed
+              ? "No overdue workflow items or unreviewed official changes. Official source update is delayed, so this is not a confirmation that published sources are current."
+              : "No overdue workflow items or unreviewed official changes across the active portfolio."}
+          </p>
         </div>
+      ) : (
+        <ul className="mt-5 divide-y divide-line overflow-hidden rounded-md border border-line bg-surface">
+          {nowItems.map((item) => (
+            <AttentionRow key={item.id} item={item} />
+          ))}
+        </ul>
       )}
     </section>
-  );
-}
-
-function CountCell({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "action" | "attention";
-}) {
-  return (
-    <div className="rounded-md border border-line bg-canvas px-3 py-2">
-      <dt className="text-[11px] uppercase tracking-wide text-muted">{label}</dt>
-      <dd
-        className={cn(
-          "mt-1 text-lg font-semibold text-ink",
-          tone === "action" && value !== "0" && "text-critical",
-          tone === "attention" && value !== "0" && "text-warning",
-        )}
-      >
-        {value}
-      </dd>
-    </div>
   );
 }
 
@@ -113,32 +87,33 @@ function AttentionRow({ item }: { item: PortfolioAttentionItem }) {
   const topSignals = item.signals.filter((signal) => signal.severity !== "review").slice(0, 2);
 
   return (
-    <li className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-line bg-canvas px-4 py-3">
-      <div className="min-w-0">
-        <p className="font-medium text-ink">{item.name}</p>
+    <li className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-semibold text-ink">{item.name}</p>
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[11px] font-medium",
+              item.band === "action" ? "bg-critical-bg text-critical" : "bg-warning-bg text-warning",
+            )}
+          >
+            {attentionBandLabel(item.band)}
+          </span>
+        </div>
         <p className="mt-1 text-sm text-muted">
           {item.stage}
-          {item.daysInCurrentStage == null ? "" : ` · ${item.daysInCurrentStage} days`}
+          {item.daysInCurrentStage == null ? "" : ` · ${item.daysInCurrentStage} days in stage`}
         </p>
         <ul className="mt-2 space-y-1">
           {topSignals.map((signal) => (
-            <li key={signal.type} className="flex items-start gap-2 text-sm">
-              <span
-                className={cn(
-                  "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                  signal.severity === "action" ? "bg-critical" : "bg-warning",
-                )}
-                aria-hidden="true"
-              />
-              <span>
-                <span className="font-medium text-ink">{signal.title}</span>
-                {signal.detail ? <span className="text-muted"> · {signal.detail}</span> : null}
-              </span>
+            <li key={signal.type} className="text-sm text-muted">
+              <span className="font-medium text-ink">{signal.title}</span>
+              {signal.detail ? ` · ${signal.detail}` : ""}
             </li>
           ))}
         </ul>
         <p className="mt-2 text-sm">
-          <span className="text-muted">Next action: </span>
+          <span className="text-muted">Next: </span>
           <span className="font-medium text-ink">{item.nextAction.title}</span>
         </p>
       </div>
@@ -146,7 +121,7 @@ function AttentionRow({ item }: { item: PortfolioAttentionItem }) {
         href={`/projects/${item.slug}`}
         className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-teal hover:underline"
       >
-        Open project <ArrowRight size={14} />
+        Open <ArrowRight size={14} />
       </Link>
     </li>
   );

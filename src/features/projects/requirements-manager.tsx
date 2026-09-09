@@ -284,7 +284,7 @@ function GroupedRequirementLists({
 }) {
   const groups = groupConnectionRequirements(project.requirements);
   const sections = [
-    { title: "Needs attention", items: groups.needsAttention },
+    { title: "Action required", items: groups.needsAttention },
     { title: "Upcoming", items: groups.upcoming },
     { title: "Complete", items: groups.complete },
     { title: "Optional", items: groups.optional },

@@ -16,6 +16,7 @@ import { MapSpatialSummary } from "@/features/map/map-spatial-summary";
 import { SwedenMap } from "@/features/map/sweden-map";
 import { markerColor } from "@/features/map/mini-map";
 import { cn } from "@/lib/cn";
+import { formatOutlookLabel } from "@/lib/format";
 import type { OfficialCoveringGeojson, OfficialMapAreaContext } from "@/lib/data/official-map";
 import type { MapProject, MapProjectsResult } from "@/lib/data/map-types";
 import type { SavedComparisonsResult } from "@/lib/data/portfolio-comparisons";
@@ -333,6 +334,10 @@ function LoadedMapPage({
             label="Team outlook"
             value={filters.outlook}
             options={["All", ...OUTLOOKS]}
+            labels={{
+              All: "All",
+              ...Object.fromEntries(OUTLOOKS.map((outlook) => [outlook, formatOutlookLabel(outlook)])),
+            }}
             onChange={(value) =>
               setFilters((current) => ({ ...current, outlook: value as Outlook | "All" }))
             }
@@ -710,11 +715,13 @@ function Select({
   onChange,
   options,
   label,
+  labels,
 }: {
   value: string;
   onChange: (value: string) => void;
   options: string[];
   label: string;
+  labels?: Record<string, string>;
 }) {
   return (
     <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
@@ -726,7 +733,7 @@ function Select({
       >
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {labels?.[option] ?? option}
           </option>
         ))}
       </select>
