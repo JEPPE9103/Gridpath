@@ -23,7 +23,7 @@ export function ValueSection() {
           often live somewhere else.
         </p>
         <p className="mt-4 max-w-2xl text-base leading-7 text-ink">
-          Noxheim connects the information to the projects it affects.
+          Noxheim connects that information to the projects in your portfolio.
         </p>
       </Reveal>
 

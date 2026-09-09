@@ -40,7 +40,7 @@ export function WhySection() {
               One development workspace
             </p>
             <p className="mt-2 text-sm leading-6 text-white/70">
-              Screen, manage and monitor across the portfolio.
+              Screen, manage and monitor — and see which projects need attention.
             </p>
           </article>
         </div>

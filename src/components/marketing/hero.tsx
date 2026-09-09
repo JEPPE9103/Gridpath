@@ -10,11 +10,11 @@ export function Hero() {
             Grid Development Intelligence
           </p>
           <h1 className="mt-4 max-w-xl text-[32px] font-semibold leading-[1.1] tracking-tight text-ink sm:text-[40px] md:text-[48px] lg:text-[52px]">
-            Know which projects deserve your development capital.
+            Know which projects need attention, why, and what to do next.
           </h1>
           <p className="mt-5 max-w-md text-[15px] leading-7 text-muted sm:text-base">
-            Screen, manage and monitor grid-connected development projects with official grid context
-            and your development workflow in one place.
+            A Grid Intelligence workspace for energy project developers. Official grid context,
+            connection workflow, and portfolio attention in one place.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <CtaLink href="/signup" className="w-full px-5 sm:w-auto">

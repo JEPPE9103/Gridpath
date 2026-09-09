@@ -21,6 +21,7 @@ export function ProductPreview() {
             Workspace
           </p>
           <div className="mt-2 space-y-1">
+            <MiniNav label="Overview" />
             <MiniNav label="Portfolio" />
             <MiniNav label="Map & Compare" active />
             <MiniNav label="Connections" />
@@ -32,7 +33,7 @@ export function ProductPreview() {
             <Metric label="Active sites" value={String(SAMPLE_PORTFOLIO_METRICS.sites)} />
             <Metric label="Portfolio" value={`${SAMPLE_PORTFOLIO_METRICS.megawatts} MW`} />
             <Metric
-              label="Requiring attention"
+              label="Action required"
               value={String(SAMPLE_PORTFOLIO_METRICS.requiringAttention)}
             />
           </div>

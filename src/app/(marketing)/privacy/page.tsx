@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy",
-  description: "How NOXHEIM treats information on this website.",
+  description: "How NOXHEIM treats information on this website and in the product workspace.",
 };
 
 export default function PrivacyPage() {
@@ -17,13 +17,14 @@ export default function PrivacyPage() {
           up. We do not sell contact details to third parties.
         </p>
         <p>
-          The product demo stores a small amount of workspace state in your browser (for example
-          dismissed alerts and checklist updates). That data stays local unless you later connect
-          the application to a backend.
+          When you create a workspace, project data, connection workflow, documents and team
+          activity are stored in your organisation&apos;s tenant. Official published grid information
+          is shared source context. Project-specific records stay scoped to your organisation.
         </p>
         <p>
-          Indicative grid intelligence shown in the product is for decision support only. Formal
-          grid operator assessment is always required.
+          Official grid context in the product is published source information and geographic match
+          for team review. It is not available grid capacity, connection probability or a substitute
+          for formal network-operator assessment.
         </p>
       </div>
     </MarketingSection>

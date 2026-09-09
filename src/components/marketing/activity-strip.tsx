@@ -17,7 +17,7 @@ const ITEMS = [
   },
   {
     kind: "SOURCE CHECKED",
-    detail: "No portfolio-impacting changes",
+    detail: "No official changes awaiting review",
   },
   {
     kind: "NUP CONTEXT AVAILABLE",

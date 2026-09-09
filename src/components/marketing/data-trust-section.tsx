@@ -20,7 +20,7 @@ const KINDS: Array<{
   },
   {
     title: "Noxheim derived",
-    copy: "Geographic matching, portfolio impact and workflow calculations created from the underlying data.",
+    copy: "Geographic matching and workflow calculations created from the underlying data.",
     source: "NOXHEIM Analysis",
   },
 ];

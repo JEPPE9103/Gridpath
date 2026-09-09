@@ -32,7 +32,7 @@ export function PortfolioMapSection() {
           <MetricCard label="Active sites" value={String(SAMPLE_PORTFOLIO_METRICS.sites)} />
           <MetricCard label="Portfolio" value={`${SAMPLE_PORTFOLIO_METRICS.megawatts} MW`} />
           <MetricCard
-            label="Requiring attention"
+            label="Action required"
             value={String(SAMPLE_PORTFOLIO_METRICS.requiringAttention)}
           />
         </div>

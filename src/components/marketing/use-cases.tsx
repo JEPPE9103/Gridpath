@@ -10,8 +10,8 @@ const CASES = [
     id: "bess",
     label: "BESS portfolio screening",
     title: "BESS portfolio screening",
-    copy: "Bring official grid-development context into every prospective battery project and compare where the team should focus next.",
-    outputs: ["10 active sites", "370 MW portfolio", "2 requiring attention"],
+    copy: "Bring official grid-development context into every prospective battery project and see which sites need attention next.",
+    outputs: ["10 active sites", "370 MW portfolio", "2 action required"],
   },
   {
     id: "connection",
@@ -24,8 +24,8 @@ const CASES = [
     id: "changes",
     label: "Portfolio change review",
     title: "Portfolio change review",
-    copy: "When published network information changes, understand which development projects may be affected.",
-    outputs: ["Source snapshot", "Geographic match", "2 portfolio projects affected"],
+    copy: "When a supported official publication changes, see which projects have a geographic match for your team to review. That match is not a technical impact verdict.",
+    outputs: ["Source snapshot", "Geographic match", "2 projects to review"],
   },
 ];
 

@@ -24,12 +24,15 @@ export function MonitorPillar() {
             Know when published information changes around your projects.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Noxheim stores official source snapshots, identifies relevant published changes and
-            connects them to the projects they may affect.
+            Noxheim stores official source snapshots, identifies published changes with a
+            geographic match, and lists them on those projects for your team to review. Review is
+            team relevance, not a technical impact verdict.
           </p>
           <p className="mt-4 max-w-md text-sm leading-6 text-muted">
-            During the design-partner phase, official sources are refreshed by Noxheim operations.
-            Source retrieval dates are shown in the product.
+            Overview shows which active projects need action, why, and the next recorded workflow
+            step. During the design-partner phase, official sources are refreshed by Noxheim
+            operations. Source retrieval dates are shown in the product. A delayed source update is
+            not the same as “no changes”.
           </p>
         </Reveal>
         <Reveal delay={80} fade>
@@ -53,11 +56,11 @@ export function MonitorPillar() {
                 <FlowCard
                   step="Change"
                   title="Published source update"
-                  detail="Geographic match identified"
+                  detail="Geographic match for team review"
                 />
                 <FlowArrow />
                 <FlowCard
-                  step="Affected project"
+                  step="Matched project"
                   title="2 portfolio projects"
                   detail="Sample workspace — not a live official event"
                 />
@@ -168,7 +171,7 @@ function ManagePillar() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <StageBadge stage={project.stage} />
-                    <StatusBadge status="In Progress" />
+                    <StatusBadge status="On Track" />
                   </div>
                 </div>
                 <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
@@ -194,7 +197,7 @@ function ManagePillar() {
                   <dl className="mt-2 space-y-1.5 text-[12px]">
                     <GiRow label="Stage" value={project.stage} />
                     <GiRow label="Reference" value="ELV-2026-0418" />
-                    <GiRow label="Status" value="In progress" />
+                    <GiRow label="Status" value="On Track" />
                   </dl>
                 </div>
               </div>
@@ -224,8 +227,8 @@ function ManagePillar() {
             Run the development workflow in one place.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Keep each project&apos;s connection process, requirements and development status beside
-            the intelligence that matters to it.
+            Keep each project&apos;s connection process, requirements, stage duration and next
+            action beside the official context that matches its location.
           </p>
           <dl className="mt-6 max-w-sm space-y-2 text-sm">
             <OutputRow label="Selected project" value={project.name} />

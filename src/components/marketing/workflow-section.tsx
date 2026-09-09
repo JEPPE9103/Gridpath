@@ -17,8 +17,8 @@ const STEPS = [
   {
     n: "03",
     title: "Monitor",
-    lead: "Connect external changes back to the portfolio",
-    copy: "Review relevant published information and understand which projects may require attention.",
+    lead: "Connect published changes back to the portfolio",
+    copy: "Review official publication changes with a geographic match and see which projects need attention.",
   },
 ];
 

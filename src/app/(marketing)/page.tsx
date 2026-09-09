@@ -14,7 +14,7 @@ import { WorkflowSection } from "@/components/marketing/workflow-section";
 import type { Metadata } from "next";
 
 const DESCRIPTION =
-  "Screen, manage and monitor grid-connected development projects with official grid context and your development workflow in one place.";
+  "See which grid-connected projects need attention, why, and what to do next — with official grid context and your connection workflow in one workspace.";
 
 export const metadata: Metadata = {
   title: {

@@ -10,8 +10,8 @@ export function FinalCtaSection() {
           Your grid data is fragmented. Your portfolio doesn&apos;t have to be.
         </h2>
         <p className="mt-5 max-w-xl text-base leading-7 text-muted">
-          Bring screening, connection workflow and relevant published changes into one development
-          workspace.
+          Bring screening, connection workflow, official change review and portfolio attention into
+          one development workspace.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <CtaLink href="/signup" className="w-full px-5 sm:w-auto">
