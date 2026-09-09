@@ -4,7 +4,7 @@ import { BellButton } from "@/components/layout/app-shell";
 import { StageBadge, StatusBadge } from "@/components/ui/badges";
 import { buttonClassName } from "@/components/ui/button";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/cn";
 import {
@@ -28,6 +28,7 @@ export function ConnectionsPage({ result }: { result: ConnectionCasesResult }) {
           <EmptyState
             title="No workspace yet"
             description="This account is not a member of an organisation. Create or join a workspace to see connection cases."
+            action={<EmptyWorkspaceAction />}
           />
         </div>
       </>
@@ -152,6 +153,7 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
           <EmptyState
             title="No connection cases yet"
             description="Start a connection process from a project to track operator interaction here."
+            action={<EmptyProjectsAction />}
           />
         ) : rows.length === 0 ? (
           <EmptyState

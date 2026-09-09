@@ -3,7 +3,7 @@
 import { BellButton } from "@/components/layout/alert-center";
 import { CountBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, EmptyWorkspaceAction } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { dismissOrganizationAlert } from "@/lib/alerts/actions";
 import { cn } from "@/lib/cn";
@@ -52,7 +52,7 @@ export function AlertsPage({
       <>
         <PageHeader title="Alerts" subtitle="Workspace notifications. This is not the workflow Action required count." />
         <div className="px-4 py-8">
-          <EmptyState title="No workspace yet" description="Join a workspace to see alerts." />
+          <EmptyState title="No workspace yet" description="Join a workspace to see alerts." action={<EmptyWorkspaceAction />} />
         </div>
       </>
     );

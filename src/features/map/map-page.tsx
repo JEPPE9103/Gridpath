@@ -6,7 +6,7 @@ import { SavedComparisonsList } from "@/features/compare/saved-comparisons-list"
 import { BellButton } from "@/components/layout/app-shell";
 import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { MapGridContextCard } from "@/features/map/map-grid-context";
 import { MapLayerControl } from "@/features/map/map-layer-control";
@@ -37,7 +37,6 @@ import {
   setCachedValue,
 } from "@/lib/map/official-geometry-cache";
 import { OVERVIEW_PIPELINE_STAGES, type OverviewPipelineStage } from "@/lib/data/overview-types";
-import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { useWorkspace } from "@/lib/workspace-state";
 import {
   OUTLOOKS,
@@ -87,6 +86,7 @@ export function MapPage({
           <EmptyState
             title="No workspace yet"
             description="This account is not a member of an organisation. Create or join a workspace to compare projects."
+            action={<EmptyWorkspaceAction />}
           />
         </div>
       </>
@@ -115,6 +115,7 @@ export function MapPage({
           <EmptyState
             title="No projects in this workspace"
             description="Add a project to the portfolio to place it on Map & Compare. Saved team comparisons still appear below."
+            action={<EmptyProjectsAction />}
           />
           {savedComparisons.kind === "ok" ? (
             <SavedComparisonsList
@@ -299,7 +300,6 @@ function LoadedMapPage({
               <Button variant="secondary">Saved comparisons</Button>
             </Link>
             <BellButton />
-            <ClientHeaderDate />
           </>
         }
       />

@@ -1,7 +1,6 @@
 "use client";
 
-import { EmptyState } from "@/components/ui/empty-state";
-import { buttonClassName } from "@/components/ui/button";
+import { EmptyState, EmptyProjectsAction } from "@/components/ui/empty-state";
 import { cn } from "@/lib/cn";
 import { attentionBandLabel } from "@/lib/intelligence";
 import type { PortfolioAttentionItem, PortfolioAttentionResult } from "@/lib/intelligence/types";
@@ -51,16 +50,7 @@ export function PortfolioAttentionSection({
           <EmptyState
             title="No projects yet"
             description="Add or import a project to see what needs action."
-            action={
-              <div className="flex flex-wrap gap-2">
-                <Link href="/projects/new" className={buttonClassName()}>
-                  Add project
-                </Link>
-                <Link href="/portfolio/import" className={buttonClassName("secondary")}>
-                  Import
-                </Link>
-              </div>
-            }
+            action={<EmptyProjectsAction />}
           />
         </div>
       ) : !hasImmediate ? (

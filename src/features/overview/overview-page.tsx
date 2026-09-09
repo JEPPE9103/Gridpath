@@ -2,7 +2,7 @@
 
 import { BellButton } from "@/components/layout/app-shell";
 import { CountBadge, OutlookBadge } from "@/components/ui/badges";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, EmptyWorkspaceAction } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { dismissOrganizationAlert } from "@/lib/alerts/actions";
 import { cn } from "@/lib/cn";
@@ -91,6 +91,7 @@ export function OverviewPage({ overview }: { overview: PortfolioOverview }) {
           <EmptyState
             title="No workspace yet"
             description="This account is not a member of an organisation. Create or join a workspace to see what to do next."
+            action={<EmptyWorkspaceAction />}
           />
         ) : overview.kind === "error" ? (
           <EmptyState

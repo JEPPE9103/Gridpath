@@ -1,4 +1,6 @@
+import { buttonClassName } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 export function EmptyState({
@@ -15,6 +17,27 @@ export function EmptyState({
       <h2 className="text-base font-semibold text-ink">{title}</h2>
       <p className="mt-1 max-w-lg text-sm text-muted">{description}</p>
       {action ? <div className="mt-4">{action}</div> : null}
+    </div>
+  );
+}
+
+export function EmptyWorkspaceAction() {
+  return (
+    <Link href="/onboarding" className={buttonClassName()}>
+      Create workspace
+    </Link>
+  );
+}
+
+export function EmptyProjectsAction() {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Link href="/projects/new" className={buttonClassName()}>
+        Add project
+      </Link>
+      <Link href="/portfolio/import" className={buttonClassName("secondary")}>
+        Import
+      </Link>
     </div>
   );
 }

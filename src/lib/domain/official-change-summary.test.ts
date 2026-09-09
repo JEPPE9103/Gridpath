@@ -94,10 +94,10 @@ describe("official change inbox helpers", () => {
     assert.equal(paginateItems(["a"], 9, 2).page, 1);
   });
 
-  it("keeps review write access off for Viewer and uses Needs review, not grid risk", () => {
+  it("keeps review write access off for Viewer and uses To review, not grid risk", () => {
     assert.equal(canReviewOfficialChangeImpacts("viewer"), false);
     assert.equal(canReviewOfficialChangeImpacts("member"), true);
-    assert.equal(reviewStatusLabel("unreviewed"), "Needs review");
+    assert.equal(reviewStatusLabel("unreviewed"), "To review");
     assert.equal(reviewStatusLabel("confirmed"), "Confirmed relevant");
     assert.equal(isOfficialSourceUpdateDelayed("healthy"), false);
     assert.equal(isOfficialSourceUpdateDelayed("failed"), true);

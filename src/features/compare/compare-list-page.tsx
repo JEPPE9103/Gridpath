@@ -1,7 +1,7 @@
 "use client";
 
 import { BellButton } from "@/components/layout/app-shell";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, EmptyWorkspaceAction } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { SavedComparisonsList } from "@/features/compare/saved-comparisons-list";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
@@ -17,6 +17,7 @@ export function CompareListPage({ result }: { result: SavedComparisonsResult }) 
           <EmptyState
             title="No workspace yet"
             description="Join a workspace to save and share comparisons."
+            action={<EmptyWorkspaceAction />}
           />
         </div>
       </>
@@ -62,6 +63,11 @@ export function CompareListPage({ result }: { result: SavedComparisonsResult }) 
           <EmptyState
             title="No saved comparisons"
             description="Select up to four projects on the map, then save a named comparison for the team."
+            action={
+              <Link href="/map" className="text-sm font-medium text-teal hover:underline">
+                Open Map & Compare
+              </Link>
+            }
           />
         ) : (
           <SavedComparisonsList comparisons={result.comparisons} canWrite={result.canWrite} />

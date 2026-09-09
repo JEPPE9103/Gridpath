@@ -11,7 +11,6 @@ import { Button, buttonClassName } from "@/components/ui/button";
 import { Disclaimer, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ConnectionWorkspace } from "@/features/connection-workspace/connection-workspace";
-import { ConnectionApplicationSummary } from "@/features/connection-workspace/connection-application-summary";
 import { OfficialGeographicContextSection } from "@/features/projects/official-geographic-context";
 import { OfficialNetworkDevelopmentPlanSection } from "@/features/projects/network-development-plan-section";
 import { OfficialDataFreshnessStrip } from "@/features/projects/official-data-freshness";
@@ -28,9 +27,7 @@ import {
   gridAuthorityLabel,
   gridSourceTypeLabel,
 } from "@/lib/domain/catalog-labels";
-import { ClientAbsoluteDate, ClientHeaderDate } from "@/components/ui/client-header-date";
 import { DevelopmentBrief } from "@/features/projects/development-brief";
-import { RequirementsManager } from "@/features/projects/requirements-manager";
 import type { GridOperatorOption } from "@/lib/data/grid-operators";
 import type { SourceHealthView } from "@/lib/data/source-health";
 import { isOfficialSourceUpdateDelayed } from "@/lib/domain/official-change-summary";
@@ -209,20 +206,15 @@ function LoadedProjectPage({
                   : "Add to compare"}
             </Button>
             <BellButton />
-            <ClientHeaderDate iso={project.lastUpdated} />
           </>
         }
       />
 
       <div className="border-b border-line bg-canvas px-4 pb-4 sm:px-6 lg:px-8">
-        <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4 xl:grid-cols-8">
+        <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
           <Meta label="Project operator" value={project.gridOperator || "—"} />
-          <Meta label="Connection stage" value={<StageBadge stage={project.stage} />} />
           <Meta label="Team outlook" value={<OutlookBadge outlook={project.outlook} />} />
-          <Meta label="Team confidence" value={`${project.confidence} confidence`} />
-          <Meta label="Import / export" value={formatImportExport(project)} />
-          <Meta label="Target COD" value={project.targetCOD || "—"} />
-          <Meta label="Last updated" value={<ClientAbsoluteDate iso={project.lastUpdated} />} />
+          <Meta label="Team confidence" value={project.confidence} />
           <Meta label="Case ID" value={project.connectionCase?.caseId ?? "Not opened"} mono />
         </dl>
       </div>
@@ -287,7 +279,6 @@ function OverviewTab({
   return (
     <div className="space-y-4">
       <DevelopmentBrief project={project} />
-      <ConnectionApplicationSummary project={project} />
       <OfficialChangesSignal
         counts={project.officialChanges}
         href={`/changes?project=${encodeURIComponent(project.id)}`}
@@ -295,7 +286,30 @@ function OverviewTab({
       />
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <RequirementsManager project={project} />
+        <div className="space-y-4">
+          <section className="rounded-md border border-line bg-surface p-5">
+            <h2 className="text-base font-semibold">Project description</h2>
+            {project.description ? (
+              <p className="mt-2 text-sm leading-6 text-ink/90">{project.description}</p>
+            ) : (
+              <p className="mt-2 text-sm text-muted">No project description recorded.</p>
+            )}
+            <Disclaimer className="mt-4" />
+          </section>
+          <section className="overflow-hidden rounded-md border border-line bg-surface">
+            <div className="border-b border-line px-5 py-3">
+              <h2 className="text-base font-semibold">Location</h2>
+              <p className="text-sm text-muted">
+                {[project.location, project.region].filter(Boolean).join(", ") || "Location not set"}
+              </p>
+            </div>
+            {project.hasCoordinates ? (
+              <MiniMap latitude={project.latitude} longitude={project.longitude} outlook={project.outlook} />
+            ) : (
+              <p className="px-5 py-8 text-sm text-muted">No site coordinates recorded for this project.</p>
+            )}
+          </section>
+        </div>
 
         <div className="space-y-4">
           {project.alerts.length > 0 ? (
@@ -329,28 +343,6 @@ function OverviewTab({
               </ul>
             </section>
           ) : null}
-          <section className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Project description</h2>
-            {project.description ? (
-              <p className="mt-2 text-sm leading-6 text-ink/90">{project.description}</p>
-            ) : (
-              <p className="mt-2 text-sm text-muted">No project description recorded.</p>
-            )}
-            <Disclaimer className="mt-4" />
-          </section>
-          <section className="overflow-hidden rounded-md border border-line bg-surface">
-            <div className="border-b border-line px-5 py-3">
-              <h2 className="text-base font-semibold">Location</h2>
-              <p className="text-sm text-muted">
-                {[project.location, project.region].filter(Boolean).join(", ") || "Location not set"}
-              </p>
-            </div>
-            {project.hasCoordinates ? (
-              <MiniMap latitude={project.latitude} longitude={project.longitude} outlook={project.outlook} />
-            ) : (
-              <p className="px-5 py-8 text-sm text-muted">No site coordinates recorded for this project.</p>
-            )}
-          </section>
           {project.canDelete ? (
             <section className="rounded-md border border-critical/30 bg-critical-bg/40 p-5">
               <h2 className="text-base font-semibold text-critical">Danger zone</h2>

@@ -2,7 +2,7 @@
 
 import { BellButton } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, EmptyWorkspaceAction } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast-provider";
 import { updateChangeImpactReview } from "@/lib/changes/actions";
@@ -28,7 +28,7 @@ import { useMemo, useState, useTransition, type ReactNode } from "react";
 
 const PAGE_SIZE = 25;
 const REVIEW_TABS: Array<{ id: ChangeReviewStatus | "all"; label: string }> = [
-  { id: "unreviewed", label: "Needs review" },
+  { id: "unreviewed", label: "To review" },
   { id: "confirmed", label: "Confirmed" },
   { id: "dismissed", label: "Dismissed" },
   { id: "all", label: "All" },
@@ -57,6 +57,7 @@ export function ChangesPage({
           <EmptyState
             title="No workspace yet"
             description="This account is not a member of an organisation. Join a workspace to review official publication matches."
+            action={<EmptyWorkspaceAction />}
           />
         </div>
       </>
@@ -218,8 +219,8 @@ function LoadedChangesPage({
         {paged.total === 0 ? (
           statusFilter === "unreviewed" && projectFilter === "All" && sourceFilter === "All" ? (
             <EmptyState
-              title="No official changes need review"
-              description="NOXHEIM compares supported official publications over time. When a supported Ei record changes and geographically matches one of your projects, it will appear here for review."
+            title="No official changes to review"
+            description="NOXHEIM compares supported official publications over time. When a supported Ei record changes and geographically matches one of your projects, it will appear here for review."
             />
           ) : (
             <EmptyState

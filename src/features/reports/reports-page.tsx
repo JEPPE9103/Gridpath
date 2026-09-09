@@ -3,7 +3,7 @@
 import { BellButton } from "@/components/layout/app-shell";
 import { OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, EmptyWorkspaceAction } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import type {
   PortfolioReportResult,
@@ -34,6 +34,7 @@ export function ReportsPage({ result }: { result: PortfolioReportResult }) {
           <EmptyState
             title="No workspace yet"
             description="This account is not a member of an organisation. Create or join a workspace to see portfolio reports."
+            action={<EmptyWorkspaceAction />}
           />
         </div>
       </>

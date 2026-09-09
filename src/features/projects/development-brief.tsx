@@ -16,7 +16,7 @@ import {
   type ProjectAttentionLevel,
 } from "@/lib/intelligence";
 import type { ProjectDetailViewModel } from "@/lib/data/project-detail-types";
-import { formatDate, formatImportExport } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
 
@@ -25,13 +25,13 @@ const LEVEL_STYLES: Record<
   { badge: string; border: string; label: string }
 > = {
   needs_attention: {
-    badge: "border-warning/30 bg-warning-bg text-warning",
-    border: "border-l-warning",
+    badge: "border-critical/30 bg-critical-bg text-critical",
+    border: "border-l-critical",
     label: "Action required",
   },
   watch: {
-    badge: "border-info/30 bg-info-bg text-info",
-    border: "border-l-info",
+    badge: "border-warning/30 bg-warning-bg text-warning",
+    border: "border-l-warning",
     label: "Watch",
   },
   on_track: {
@@ -104,15 +104,12 @@ export function DevelopmentBrief({ project }: { project: ProjectDetailViewModel 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-              Development Brief
+              Project attention
             </p>
             <h2 id="development-brief-heading" className="mt-1 text-lg font-semibold text-ink">
-              {project.name}
+              {brief.attention.nextAction.title}
             </h2>
-            <p className="mt-1 text-sm text-muted">
-              {formatImportExport(project)} · {project.technology}
-              {project.targetCOD ? ` · Target COD ${project.targetCOD}` : ""}
-            </p>
+            <p className="mt-1 text-sm leading-6 text-muted">{brief.summary.headline}</p>
           </div>
           <div className="text-right">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Status</p>
@@ -126,12 +123,10 @@ export function DevelopmentBrief({ project }: { project: ProjectDetailViewModel 
             </span>
           </div>
         </div>
-        <p className="mt-4 text-sm leading-6 text-ink">{brief.summary.headline}</p>
       </div>
 
       <div className="border-b border-line px-5 py-4">
-        <h3 className="text-sm font-semibold text-ink">Project attention</h3>
-        <p className="mt-1 text-sm text-muted">
+        <p className="text-sm text-muted">
           {stageName}
           {project.connectionCase
             ? ` · ${daysInCurrentStageLabel(brief.attention.daysInCurrentStage)}`
@@ -161,16 +156,14 @@ export function DevelopmentBrief({ project }: { project: ProjectDetailViewModel 
             ))}
           </ul>
         )}
-        <p className="mt-3 text-sm">
-          <span className="text-muted">Next action: </span>
-          {brief.attention.nextAction.href ? (
-            <Link href={brief.attention.nextAction.href} className="font-medium text-teal hover:underline">
-              {brief.attention.nextAction.title}
-            </Link>
-          ) : (
-            <span className="font-medium text-ink">{brief.attention.nextAction.title}</span>
-          )}
-        </p>
+        {brief.attention.nextAction.href ? (
+          <Link
+            href={brief.attention.nextAction.href}
+            className="mt-3 inline-flex text-sm font-medium text-teal hover:underline"
+          >
+            Open next action
+          </Link>
+        ) : null}
       </div>
 
       <div className="grid gap-px border-b border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
@@ -188,6 +181,12 @@ export function DevelopmentBrief({ project }: { project: ProjectDetailViewModel 
           ) : (
             <p className="text-sm text-muted">No connection case created yet.</p>
           )}
+          <Link
+            href={`/projects/${project.slug}?tab=connection`}
+            className="mt-3 inline-flex text-sm font-medium text-teal hover:underline"
+          >
+            Connection application
+          </Link>
         </BriefColumn>
 
         <BriefColumn title="Workflow" source="Noxheim derived">

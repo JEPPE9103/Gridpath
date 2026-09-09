@@ -3,7 +3,7 @@
 import { BellButton } from "@/components/layout/app-shell";
 import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button, buttonClassName } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, EmptyProjectsAction } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { formatCapacity, formatDate, formatMWTotal, formatOutlookLabel } from "@/lib/format";
@@ -226,11 +226,7 @@ export function PortfolioPage({
                 : "Add your first development project to start building your portfolio."
             }
             action={
-              canCreate && result.view === "active" ? (
-                <Link href="/projects/new" className={buttonClassName()}>
-                  Add project
-                </Link>
-              ) : undefined
+              canCreate && result.view === "active" ? <EmptyProjectsAction /> : undefined
             }
           />
         ) : result.projects.length === 0 ? (

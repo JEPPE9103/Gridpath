@@ -13,7 +13,6 @@ import type { GridOperatorOption } from "@/lib/data/grid-operators";
 import type { ProjectDetailViewModel, ProjectDocumentItem } from "@/lib/data/project-detail-types";
 import type { SourceHealthView } from "@/lib/data/source-health";
 import {
-  CONNECTION_READINESS_DISCLAIMER,
   CONNECTION_TRACKING_DISCLAIMER,
   classifyConnectionEvent,
   connectionCaseLifecycle,
@@ -29,7 +28,6 @@ import { daysInCurrentStageLabel, deriveDaysInCurrentStage } from "@/lib/intelli
 import { isOfficialSourceUpdateDelayed } from "@/lib/domain/official-change-summary";
 import { getDocumentDownloadUrl } from "@/lib/documents/actions";
 import { formatDate, formatImportExport, formatRelative } from "@/lib/format";
-import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { deleteConnectionCaseAction } from "@/lib/connection-cases/actions";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -88,7 +86,6 @@ function WorkspaceHeader({ project }: { project: ProjectDetailViewModel }) {
             View project
           </Link>
           <BellButton />
-          <ClientHeaderDate />
         </>
       }
     />
@@ -156,7 +153,9 @@ function LoadedConnectionWorkspace({
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
               Connection application
             </p>
-            <h2 className="mt-1 text-xl font-semibold">{project.name}</h2>
+            <h2 className="mt-1 text-xl font-semibold">
+              {standalone ? project.name : "Connection case"}
+            </h2>
             <p className="mt-1 text-sm text-muted">
               {connectionCase.gridOperatorName || project.gridOperator || "Operator not set"}
               {connectionCase.caseId ? ` · ${connectionCase.caseId}` : ""}
@@ -238,25 +237,17 @@ function LoadedConnectionWorkspace({
         {connectionCase.notes ? (
           <p className="mt-3 text-sm leading-6 text-muted">{connectionCase.notes}</p>
         ) : null}
-        {project.canDeleteConnectionCase ? <DeleteCaseButton project={project} caseId={connectionCase.id} /> : null}
-      </section>
-
-      <section className="rounded-md border border-line bg-surface p-5">
-        <h2 className="text-base font-semibold">Next action</h2>
-        <p className="mt-2 text-sm font-medium">
+        <p className="mt-4 text-sm">
+          <span className="text-muted">Next: </span>
           {nextAction.href ? (
-            <Link href={nextAction.href} className="text-teal hover:underline">
+            <Link href={nextAction.href} className="font-medium text-teal hover:underline">
               {nextAction.title}
             </Link>
           ) : (
-            nextAction.title
+            <span className="font-medium text-ink">{nextAction.title}</span>
           )}
         </p>
-        <p className="mt-1 text-sm text-muted">{nextAction.detail}</p>
-        <p className="mt-3 text-xs leading-5 text-muted">
-          Deterministic workflow guidance from recorded requirements and deadlines. Not a connection
-          recommendation.
-        </p>
+        {project.canDeleteConnectionCase ? <DeleteCaseButton project={project} caseId={connectionCase.id} /> : null}
       </section>
 
       <section className="rounded-md border border-line bg-surface p-5">
@@ -291,35 +282,6 @@ function LoadedConnectionWorkspace({
             );
           })}
         </ol>
-      </section>
-
-      <section className="rounded-md border border-line bg-surface p-5">
-        <h2 className="text-base font-semibold">Connection readiness</h2>
-        <p className="mt-2 font-mono text-3xl font-semibold">
-          {project.readinessPercent == null ? (
-            <span className="font-sans text-lg font-medium text-muted">Not available</span>
-          ) : (
-            <>
-              {project.readinessPercent}%
-              <span className="ml-2 font-sans text-sm font-medium text-muted">
-                {groups.completeRequiredCount} / {groups.requiredCount} required items complete
-              </span>
-            </>
-          )}
-        </p>
-        {groups.outstandingRequiredCount > 0 ? (
-          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm">
-            {groups.needsAttention.concat(groups.upcoming).map((item) => (
-              <li key={item.id} id={`requirement-${item.id}`} className="scroll-mt-24">
-                {item.label}
-                {item.dueLabel ? ` · ${item.dueLabel}` : ""}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-sm text-muted">No outstanding required items.</p>
-        )}
-        <p className="mt-3 text-xs leading-5 text-muted">{CONNECTION_READINESS_DISCLAIMER}</p>
       </section>
 
       <div id="connection-requirements">
@@ -370,45 +332,17 @@ function LoadedConnectionWorkspace({
       </section>
 
       <section className="rounded-md border border-line bg-surface p-5">
-        <h2 className="text-base font-semibold">Official grid context</h2>
-        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-          <Meta
-            label="Local network"
-            value={
-              localNetwork
-                ? [localNetwork.officialOperatorName, localNetwork.concessionId]
-                    .filter(Boolean)
-                    .join(" — ") || localNetwork.name
-                : "No local network area match"
-            }
-          />
-          <Meta
-            label="NUP"
-            value={
-              nup
-                ? [nup.officialOperatorName, nup.name].filter(Boolean).join(", ")
-                : "No NUP context match"
-            }
-          />
-        </dl>
-        <p className="mt-3 text-xs leading-5 text-muted">
-          Covering official geography, not a connection point or available capacity.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link href={`/projects/${project.slug}?tab=grid`} className={buttonClassName("secondary")}>
-            View Grid Intelligence
-          </Link>
-          <Link
-            href={`/map?project=${encodeURIComponent(project.slug)}`}
-            className={buttonClassName("secondary")}
-          >
-            View on Map
-          </Link>
-          <Link
-            href={`/changes?project=${encodeURIComponent(project.id)}`}
-            className={buttonClassName("secondary")}
-          >
-            Review official changes
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold">Official grid context</h2>
+            <p className="mt-1 text-sm text-muted">
+              {localNetwork?.officialOperatorName || localNetwork?.name || "No local-network match"}
+              {" · "}
+              {nup ? nup.name : "No NUP match"}
+            </p>
+          </div>
+          <Link href={`/projects/${project.slug}?tab=grid`} className="text-sm font-medium text-teal hover:underline">
+            Grid Intelligence
           </Link>
         </div>
       </section>
@@ -420,13 +354,23 @@ function LoadedConnectionWorkspace({
       />
 
       <section className="rounded-md border border-line bg-surface p-5">
-        <h2 className="text-base font-semibold">History</h2>
-        <p className="mt-1 text-sm text-muted">Customer-entered workflow activity for this project.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-semibold">History</h2>
+            <p className="mt-1 text-sm text-muted">Customer-entered workflow activity for this project.</p>
+          </div>
+          <Link
+            href={`/projects/${project.slug}?tab=activity`}
+            className="text-sm font-medium text-teal hover:underline"
+          >
+            All activity
+          </Link>
+        </div>
         {project.events.length === 0 ? (
           <p className="mt-3 text-sm text-muted">No connection activity recorded yet.</p>
         ) : (
           <ol className="mt-3 space-y-3">
-            {project.events.slice(0, 20).map((event) => {
+            {project.events.slice(0, 5).map((event) => {
               const kind = classifyConnectionEvent(event.title);
               return (
                 <li key={event.id} className="border-b border-line pb-3 last:border-0 last:pb-0">

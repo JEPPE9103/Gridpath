@@ -3,7 +3,7 @@
 import { DocumentTable } from "@/features/documents/document-table";
 import { DocumentUploadForm } from "@/features/documents/document-upload-form";
 import { BellButton } from "@/components/layout/app-shell";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   DOCUMENT_CATEGORY_FILTERS,
@@ -26,6 +26,7 @@ export function DocumentsPage({ result }: { result: DocumentsResult }) {
           <EmptyState
             title="No workspace yet"
             description="This account is not a member of an organisation. Create or join a workspace to see documents."
+            action={<EmptyWorkspaceAction />}
           />
         </div>
       </>
@@ -164,6 +165,7 @@ function LoadedDocumentsPage({
                 ? "Upload a PDF, Word, Excel, or image file to store it privately on a project."
                 : "No project documents have been uploaded in this workspace yet."
             }
+            action={projects.length === 0 ? <EmptyProjectsAction /> : undefined}
           />
         ) : rows.length === 0 ? (
           <EmptyState

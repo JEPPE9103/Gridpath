@@ -35,7 +35,7 @@ const MATCH_TYPE_LABELS: Record<ChangeMatchType, string> = {
 };
 
 const REVIEW_STATUS_LABELS: Record<ChangeReviewStatus, string> = {
-  unreviewed: "Needs review",
+  unreviewed: "To review",
   confirmed: "Confirmed relevant",
   dismissed: "Dismissed",
 };
