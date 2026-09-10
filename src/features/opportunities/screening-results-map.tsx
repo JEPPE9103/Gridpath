@@ -80,8 +80,9 @@ export function ScreeningResultsMap({
   const mapRef = useRef<MapLibreMap | null>(null);
   const onSelectRef = useRef(onSelect);
   const [showQualifying, setShowQualifying] = useState(true);
-  const [showExcluded, setShowExcluded] = useState(true);
+  const [showExcluded, setShowExcluded] = useState(false);
   const [showBoundary, setShowBoundary] = useState(true);
+  const [showZones, setShowZones] = useState(false);
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -115,9 +116,12 @@ export function ScreeningResultsMap({
         id: `${SOURCE}-fill`,
         type: "fill",
         source: SOURCE,
+        filter: ["==", ["get", "candidateKind"], "site"],
         paint: {
           "fill-color": [
             "case",
+            ["==", ["get", "candidateKind"], "zone"],
+            "#C5CCD6",
             ["==", ["get", "excluded"], true],
             "#D0D3D8",
             ["==", ["get", "recommendation"], "prioritise"],
@@ -128,13 +132,19 @@ export function ScreeningResultsMap({
             "#B54708",
             "#8B9098",
           ],
-          "fill-opacity": 0.38,
+          "fill-opacity": [
+            "case",
+            ["==", ["get", "candidateKind"], "zone"],
+            0.16,
+            0.45,
+          ],
         },
       });
       map.addLayer({
         id: `${SOURCE}-line`,
         type: "line",
         source: SOURCE,
+        filter: ["==", ["get", "candidateKind"], "site"],
         paint: { "line-color": "#1A1E24", "line-width": 0.8, "line-opacity": 0.7 },
       });
       map.addLayer({
@@ -177,23 +187,21 @@ export function ScreeningResultsMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map?.getLayer(`${SOURCE}-fill`)) return;
-    if (!showQualifying && !showExcluded) {
+    if (!showQualifying && !showExcluded && !showZones) {
       map.setFilter(`${SOURCE}-fill`, ["==", ["get", "id"], ""]);
       map.setFilter(`${SOURCE}-line`, ["==", ["get", "id"], ""]);
-    } else if (!showQualifying) {
-      map.setFilter(`${SOURCE}-fill`, ["==", ["get", "excluded"], true]);
-      map.setFilter(`${SOURCE}-line`, ["==", ["get", "excluded"], true]);
-    } else if (!showExcluded) {
-      map.setFilter(`${SOURCE}-fill`, ["!=", ["get", "excluded"], true]);
-      map.setFilter(`${SOURCE}-line`, ["!=", ["get", "excluded"], true]);
     } else {
-      map.setFilter(`${SOURCE}-fill`, null);
-      map.setFilter(`${SOURCE}-line`, null);
+      const clauses: unknown[] = ["any"];
+      if (showQualifying) clauses.push(["==", ["get", "candidateKind"], "site"]);
+      if (showExcluded) clauses.push(["==", ["get", "excluded"], true]);
+      if (showZones) clauses.push(["==", ["get", "candidateKind"], "zone"]);
+      map.setFilter(`${SOURCE}-fill`, clauses as never);
+      map.setFilter(`${SOURCE}-line`, clauses as never);
     }
     if (map.getLayer(`${BBOX_SOURCE}-line`)) {
       map.setLayoutProperty(`${BBOX_SOURCE}-line`, "visibility", showBoundary ? "visible" : "none");
     }
-  }, [showBoundary, showExcluded, showQualifying]);
+  }, [showBoundary, showExcluded, showQualifying, showZones]);
 
   useEffect(() => {
     const selected = candidates.find((item) => item.id === selectedId);
@@ -206,7 +214,11 @@ export function ScreeningResultsMap({
       <div className="flex flex-wrap gap-3 border-b border-line bg-surface px-3 py-2 text-xs">
         <label className="flex items-center gap-1">
           <input type="checkbox" checked={showQualifying} onChange={(event) => setShowQualifying(event.target.checked)} />
-          Candidate areas
+          Candidate sites
+        </label>
+        <label className="flex items-center gap-1">
+          <input type="checkbox" checked={showZones} onChange={(event) => setShowZones(event.target.checked)} />
+          Opportunity zones
         </label>
         <label className="flex items-center gap-1">
           <input type="checkbox" checked={showExcluded} onChange={(event) => setShowExcluded(event.target.checked)} />
@@ -219,8 +231,8 @@ export function ScreeningResultsMap({
       </div>
       <div ref={containerRef} className="h-80 w-full" />
       <p className="border-t border-line bg-surface px-3 py-2 text-xs text-muted">
-        Contiguous candidate areas after supported exclusions, not land parcels and not the original
-        analysis squares. Colour is investigation priority from supported evidence.
+        Candidate sites are the primary decision layer. Opportunity zones are the broader remaining
+        geography after exclusions — toggle them on to see regional context. Not land parcels.
         {selectedId
           ? ` Selected fill uses ${fillForRecommendation(
               candidates.find((item) => item.id === selectedId)?.recommendation ?? "",

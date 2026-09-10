@@ -10,9 +10,10 @@
  * Attribution preferred: “NMD2023 v0.3, Naturvårdsverket”
  * Raster: 10 m, EPSG:3006. Nationwide zip is ~1.3 GB — never commit it.
  *
- * Production path: operator-supplied GeoTIFF via --tif= or NOXHEIM_NMD2023_TIF.
- * Optional --download fetches the official zip (large). Optional --bbox=w,s,e,n
- * windows the raster in EPSG:4326.
+ * Production path: one-time national GeoTIFF outside Git via --tif=,
+ * NOXHEIM_NMD2023_TIF, NOXHEIM_GEODATA_CACHE, or ~/noxheim-geodata.
+ * Optional --download fetches the official zip once (large). Optional
+ * --bbox=w,s,e,n windows the raster. Never redownload 1.3+ GB per search.
  *
  * Usage:
  *   node scripts/ingest-nmd-2023-land-cover.mjs --tif=C:/data/NMD2023bas_v0_3.tif --bbox=14.9,59.1,15.4,59.4
@@ -69,6 +70,27 @@ function parseBbox(argv) {
 
 function parseTif(argv) {
   return argv.find((item) => item.startsWith("--tif="))?.slice("--tif=".length) || process.env.NOXHEIM_NMD2023_TIF || "";
+}
+
+function geodataCacheRoot() {
+  return process.env.NOXHEIM_GEODATA_CACHE || path.join(os.homedir(), "noxheim-geodata");
+}
+
+function resolveNmd2023Tif(argv) {
+  const explicit = parseTif(argv);
+  if (explicit && existsSync(explicit)) return explicit;
+  const cacheRoot = geodataCacheRoot();
+  const names = [
+    "NMD2023bas_v0_3.tif",
+    "NMD2023_basskikt_v0_3.tif",
+    "NMD2023bas_v03.tif",
+    path.join("NMD2023_basskikt_v0_3", "NMD2023bas_v0_3.tif"),
+  ];
+  for (const name of names) {
+    const candidate = path.join(cacheRoot, name);
+    if (existsSync(candidate)) return candidate;
+  }
+  return explicit;
 }
 
 function bboxTo3006(query, bbox) {
@@ -176,7 +198,7 @@ function summarise(samples, width, height, originX, originY, cellW, cellH, prefi
 const argv = process.argv.slice(2);
 const bbox = parseBbox(argv);
 const download = argv.includes("--download");
-let tifPath = parseTif(argv);
+let tifPath = resolveNmd2023Tif(argv);
 const ingestTarget = resolveIngestTarget();
 const query = (sql) => queryIngestSql(ingestTarget, sql);
 let ingestionRunId = null;
@@ -227,7 +249,7 @@ on conflict (slug) do update set name = excluded.name, active = true;
       impactsCreated: 0,
       errorCode: "tif_not_configured",
       errorMessage:
-        "NMD 2023 GeoTIFF not configured. Set --tif= or NOXHEIM_NMD2023_TIF (do not commit the raster).",
+        "NMD 2023 GeoTIFF not configured. Place the national raster once outside Git (NOXHEIM_NMD2023_TIF, or NOXHEIM_GEODATA_CACHE / ~/noxheim-geodata) and pass --bbox= for AOI extract. Do not redownload the 1.3+ GB archive per search. Optional --download fetches it once.",
       metadata: { probe_only: true },
     });
     console.log(JSON.stringify({ event: "ingest.nmd2023.skipped", reason: "tif_not_configured" }));

@@ -20,6 +20,9 @@ export type ScreeningProfileCriteria = {
   targetMw: number | null;
   targetMwh: number | null;
   minSiteAreaHa: number | null;
+  targetSiteAreaHa: number | null;
+  maxCandidateAreaHa: number | null;
+  maxReturnedCandidates: number | null;
   excludeProtected: boolean;
   excludeNatura: boolean;
   slopeMode: SlopeConstraintMode;
@@ -38,9 +41,10 @@ export type ScreeningProfileRecord = {
   criteria: ScreeningProfileCriteria;
 };
 
-export const RANKING_VERSION = "suitability-v3";
-export const METHODOLOGY_VERSION = "precision-screening-v1";
+export const RANKING_VERSION = "suitability-v4";
+export const METHODOLOGY_VERSION = "site-generation-v2";
 export const RANKING_VERSION_V2 = "suitability-v2";
+export const RANKING_VERSION_V3 = "suitability-v3";
 
 export function defaultScreeningProfile(
   technology: OpportunityTechnologyValue = "battery_storage",
@@ -54,6 +58,9 @@ export function defaultScreeningProfile(
       targetMw: null,
       targetMwh: null,
       minSiteAreaHa: 8,
+      targetSiteAreaHa: 15,
+      maxCandidateAreaHa: 30,
+      maxReturnedCandidates: 25,
       excludeProtected: true,
       excludeNatura: true,
       slopeMode: "preference",
@@ -101,6 +108,9 @@ export function parseScreeningProfileCriteria(raw: unknown): ScreeningProfileCri
     targetMw: numberOrNull(value.targetMw) ?? fallback.targetMw,
     targetMwh: numberOrNull(value.targetMwh) ?? fallback.targetMwh,
     minSiteAreaHa: numberOrNull(value.minSiteAreaHa) ?? fallback.minSiteAreaHa,
+    targetSiteAreaHa: numberOrNull(value.targetSiteAreaHa) ?? fallback.targetSiteAreaHa,
+    maxCandidateAreaHa: numberOrNull(value.maxCandidateAreaHa) ?? fallback.maxCandidateAreaHa,
+    maxReturnedCandidates: numberOrNull(value.maxReturnedCandidates) ?? fallback.maxReturnedCandidates,
     excludeProtected: value.excludeProtected !== false,
     excludeNatura: value.excludeNatura !== false,
     slopeMode: value.slopeMode === "hard" ? "hard" : "preference",

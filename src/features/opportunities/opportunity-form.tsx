@@ -29,6 +29,9 @@ const EMPTY: OpportunityFormInput = {
   targetMwh: "",
   siteAreaHa: "",
   minSiteAreaHa: "8",
+  targetSiteAreaHa: "15",
+  maxCandidateAreaHa: "30",
+  maxReturnedCandidates: "25",
   maxDistanceKm: "",
   excludeProtected: "on",
   excludeNatura: "on",
@@ -114,8 +117,8 @@ export function OpportunityForm({
       <section className="rounded-md border border-line bg-surface p-5">
         <h2 className="text-sm font-semibold">Search type</h2>
         <p className="mt-1 text-sm text-muted">
-          Geographic screening returns ranked contiguous candidate areas from supported official layers.
-          A single known coordinate is still supported. Results are not land parcels.
+          Geographic screening returns ranked Candidate Sites grown to your configured target
+          footprint inside broader Opportunity Zones. Results are not land parcels.
         </p>
         <div className="mt-3 flex flex-col gap-2 text-sm">
           <label className="flex items-center gap-2">
@@ -126,7 +129,7 @@ export function OpportunityForm({
               checked={searchMode === "geography"}
               onChange={() => setSearchMode("geography")}
             />
-            Find candidate areas in a bounded Swedish geography
+            Find candidate sites in a bounded Swedish geography
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -208,10 +211,31 @@ export function OpportunityForm({
             <Field
               label="Minimum contiguous usable area (ha)"
               error={errors.minSiteAreaHa}
-              hint="Decision uses the largest contiguous remaining area, not the sum of fragments."
-              className="sm:col-span-2"
+              hint="CUSTOMER CONFIGURED. Decision uses the largest contiguous remaining area inside the candidate site, not the sum of fragments. NOXHEIM default is 8 ha."
             >
               <input name="minSiteAreaHa" defaultValue={values.minSiteAreaHa} className={inputClass} inputMode="decimal" />
+            </Field>
+            <Field
+              label="Target site area (ha)"
+              error={errors.targetSiteAreaHa}
+              hint="CUSTOMER CONFIGURED investigation footprint. Extra hectares above this value do not automatically rank higher. NOXHEIM default is 15 ha."
+            >
+              <input name="targetSiteAreaHa" defaultValue={values.targetSiteAreaHa} className={inputClass} inputMode="decimal" />
+            </Field>
+            <Field
+              label="Maximum candidate site area (ha)"
+              error={errors.maxCandidateAreaHa}
+              hint="CUSTOMER CONFIGURED cap so a surviving region is not returned as one site. NOXHEIM default is 30 ha."
+            >
+              <input name="maxCandidateAreaHa" defaultValue={values.maxCandidateAreaHa} className={inputClass} inputMode="decimal" />
+            </Field>
+            <Field
+              label="Maximum sites returned"
+              error={errors.maxReturnedCandidates}
+              hint="Operational cap after overlap deduplication. NOXHEIM default is 25 (hard cap 100)."
+              className="sm:col-span-2"
+            >
+              <input name="maxReturnedCandidates" defaultValue={values.maxReturnedCandidates} className={inputClass} inputMode="decimal" />
             </Field>
           </div>
         </section>
@@ -340,7 +364,7 @@ export function OpportunityForm({
               ? "Running geographic screening…"
               : "Screening…"
             : searchMode === "geography"
-              ? "Find candidate areas"
+              ? "Find candidate sites"
               : "Save opportunity"}
         </Button>
         <Link href="/opportunities" className={buttonClassName("secondary")}>

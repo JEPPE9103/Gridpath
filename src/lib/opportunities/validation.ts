@@ -35,6 +35,9 @@ export type OpportunityFormInput = {
   targetMwh: string;
   siteAreaHa: string;
   minSiteAreaHa: string;
+  targetSiteAreaHa: string;
+  maxCandidateAreaHa: string;
+  maxReturnedCandidates: string;
   maxDistanceKm: string;
   excludeProtected: string;
   excludeNatura: string;
@@ -75,6 +78,9 @@ export type ParsedOpportunityForm = {
   targetMwh: number | null;
   siteAreaHa: number | null;
   minSiteAreaHa: number | null;
+  targetSiteAreaHa: number | null;
+  maxCandidateAreaHa: number | null;
+  maxReturnedCandidates: number | null;
   maxDistanceKm: number | null;
   excludeProtected: boolean;
   excludeNatura: boolean;
@@ -148,6 +154,9 @@ export function parseOpportunityForm(formData: FormData): {
     targetMwh: readString(formData, "targetMwh"),
     siteAreaHa: readString(formData, "siteAreaHa"),
     minSiteAreaHa: readString(formData, "minSiteAreaHa"),
+    targetSiteAreaHa: readString(formData, "targetSiteAreaHa"),
+    maxCandidateAreaHa: readString(formData, "maxCandidateAreaHa"),
+    maxReturnedCandidates: readString(formData, "maxReturnedCandidates"),
     maxDistanceKm: readString(formData, "maxDistanceKm"),
     excludeProtected: formData.get("excludeProtected") === "on" ? "on" : "",
     excludeNatura: formData.get("excludeNatura") === "on" ? "on" : "",
@@ -233,6 +242,13 @@ export function parseOpportunityForm(formData: FormData): {
     targetMwh: parseOptionalNumber(values.targetMwh, "targetMwh", fieldErrors),
     siteAreaHa: parseOptionalNumber(values.siteAreaHa, "siteAreaHa", fieldErrors),
     minSiteAreaHa: parseOptionalNumber(values.minSiteAreaHa, "minSiteAreaHa", fieldErrors),
+    targetSiteAreaHa: parseOptionalNumber(values.targetSiteAreaHa, "targetSiteAreaHa", fieldErrors),
+    maxCandidateAreaHa: parseOptionalNumber(values.maxCandidateAreaHa, "maxCandidateAreaHa", fieldErrors),
+    maxReturnedCandidates: parseOptionalNumber(
+      values.maxReturnedCandidates,
+      "maxReturnedCandidates",
+      fieldErrors,
+    ),
     maxDistanceKm: parseOptionalNumber(values.maxDistanceKm, "maxDistanceKm", fieldErrors),
     excludeProtected: values.excludeProtected === "on",
     excludeNatura: values.excludeNatura === "on",

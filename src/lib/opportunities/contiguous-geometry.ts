@@ -121,12 +121,13 @@ export function buildExclusionBreakdown(input: {
 }
 
 export function formatExclusionBreakdown(breakdown: ExclusionBreakdown): string {
+  const n = (value: number | null | undefined) => Number(value ?? 0).toFixed(1);
   return [
-    `Initial area: ${breakdown.grossHa.toFixed(1)} ha`,
-    `Protected/Natura removed: ${(breakdown.protectedHa + breakdown.naturaHa).toFixed(1)} ha`,
-    `Terrain removed: ${breakdown.terrainHa.toFixed(1)} ha`,
-    `Configured land-cover exclusions removed: ${breakdown.landCoverHa.toFixed(1)} ha`,
-    `Remaining: ${breakdown.remainingHa.toFixed(1)} ha`,
-    `Largest contiguous: ${breakdown.largestContiguousHa.toFixed(1)} ha`,
+    `Initial area: ${n(breakdown.grossHa)} ha`,
+    `Protected/Natura removed: ${n((breakdown.protectedHa ?? 0) + (breakdown.naturaHa ?? 0))} ha`,
+    `Terrain removed: ${n(breakdown.terrainHa)} ha`,
+    `Configured land-cover exclusions removed: ${n(breakdown.landCoverHa)} ha`,
+    `Remaining: ${n(breakdown.remainingHa)} ha`,
+    `Largest contiguous: ${n(breakdown.largestContiguousHa)} ha`,
   ].join(". ");
 }

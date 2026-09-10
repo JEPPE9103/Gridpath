@@ -9,6 +9,10 @@ import {
   RANKING_VERSION,
 } from "@/lib/opportunities/screening-profiles";
 import {
+  resolveSiteAreaProfile,
+  targetFitAssessment,
+} from "@/lib/opportunities/site-generation";
+import {
   deriveStrategicFlags,
   explainRankChange,
   type EvidenceResolution,
@@ -46,7 +50,7 @@ export const RANKING_WEIGHTS_V2 = {
  * Official county transmission context is strategic only and cannot outrank site evidence.
  */
 export const RANKING_WEIGHTS_V3 = {
-  version: RANKING_VERSION,
+  version: "suitability-v3",
   physicalContiguousArea: 0.3,
   physicalTerrain: 0.12,
   physicalLandCover: 0.1,
@@ -55,6 +59,18 @@ export const RANKING_WEIGHTS_V3 = {
   gridContext: 0.12,
   dataCompleteness: 0.08,
   strategicContext: 0.04,
+} as const;
+
+export const RANKING_WEIGHTS_V4 = {
+  version: RANKING_VERSION,
+  targetFit: 0.28,
+  geometryQuality: 0.1,
+  physicalTerrain: 0.12,
+  physicalLandCover: 0.12,
+  environmental: 0.14,
+  access: 0.08,
+  gridContext: 0.08,
+  dataCompleteness: 0.08,
 } as const;
 
 export type ScreeningCellRow = {
@@ -95,6 +111,10 @@ export type ScreeningCellRow = {
   land_cover_provider_key?: string | null;
   transmission?: OfficialTransmissionContext | null;
   discovery_contiguous_area_ha?: number | string | null;
+  compactness?: number | string | null;
+  geometry_quality?: string | null;
+  target_fit_score?: number | string | null;
+  candidate_kind?: string | null;
 };
 
 function num(value: number | string | null | undefined): number | null {
@@ -260,6 +280,36 @@ function completenessScore(screening: ScreeningResult): number {
   return Math.min(1, available / screening.dimensions.length);
 }
 
+export function suitabilityScoreV4(
+  row: ScreeningCellRow,
+  screening: ScreeningResult,
+  criteria: ScreeningCriteria,
+): number {
+  if (screening.excluded) return 0;
+  const profile = resolveSiteAreaProfile({
+    minSiteAreaHa: criteria.minSiteAreaHa,
+    targetSiteAreaHa: criteria.targetSiteAreaHa,
+    maxCandidateAreaHa: criteria.maxCandidateAreaHa,
+    maxReturnedCandidates: criteria.maxReturnedCandidates,
+  });
+  const usable = num(row.contiguous_area_ha) ?? num(row.usable_area_ha) ?? 0;
+  const fit = num(row.target_fit_score) ?? targetFitAssessment(usable, profile).score;
+  const compact = num(row.compactness);
+  const geometry =
+    row.geometry_quality === "review" ? 0.45 : compact == null ? 0.7 : Math.max(0, Math.min(1, compact / 0.9));
+  const weights = RANKING_WEIGHTS_V4;
+  return (
+    weights.targetFit * fit +
+    weights.geometryQuality * geometry +
+    weights.physicalTerrain * terrainScore(row) +
+    weights.physicalLandCover * landCoverScore(row, criteria) +
+    weights.environmental * environmentalScore(row, screening) +
+    weights.access * roadScore(row, criteria) +
+    weights.gridContext * coveringScore(row) +
+    weights.dataCompleteness * completenessScore(screening)
+  );
+}
+
 export function suitabilityScoreV3(
   row: ScreeningCellRow,
   screening: ScreeningResult,
@@ -306,12 +356,21 @@ export function suitabilityScoreV2(
 
 export function explainWhyARanksAboveB(left: AssessedArea, right: AssessedArea): string {
   const reasons: string[] = [];
+  const leftFit = num(left.row.target_fit_score);
+  const rightFit = num(right.row.target_fit_score);
+  if (leftFit != null && rightFit != null && Math.abs(leftFit - rightFit) >= 0.05) {
+    reasons.push(
+      leftFit > rightFit
+        ? "closer fit to the configured target site area"
+        : "weaker fit to the configured target site area",
+    );
+  }
   const areaDelta = left.contiguousHa - right.contiguousHa;
-  if (Math.abs(areaDelta) >= 0.1) {
+  if (Math.abs(areaDelta) >= 0.1 && Math.abs(areaDelta) < 80) {
     reasons.push(
       areaDelta > 0
-        ? `${left.row.name} has ${areaDelta.toFixed(1)} ha more contiguous usable area`
-        : `${right.row.name} has ${Math.abs(areaDelta).toFixed(1)} ha more contiguous usable area`,
+        ? `${left.row.name} has ${areaDelta.toFixed(1)} ha more contiguous usable area within the target band`
+        : `${right.row.name} has ${Math.abs(areaDelta).toFixed(1)} ha more contiguous usable area within the target band`,
     );
   }
   const leftEnv = left.screening.dimensions.find((item) => item.key === "environmental");
@@ -343,7 +402,7 @@ export function explainWhyARanksAboveB(left: AssessedArea, right: AssessedArea):
     reasons.push("stronger official covering geography at the centroid");
   }
   if (reasons.length === 0) {
-    reasons.push("higher relative investigation priority from the versioned suitability-v3 weights");
+    reasons.push("higher relative investigation priority from the versioned suitability-v4 target-fit weights");
   }
   return `${left.row.name} ranks above ${right.row.name} based on currently supported evidence: ${reasons.join("; ")}. This is not a prediction of permitting or connection. County-level official transmission indications are not site capacity.`;
 }
@@ -365,9 +424,8 @@ export function rankScreeningCells(
       relativeScore: 0,
     };
   });
-  const maxContiguous = Math.max(0, ...assessed.filter((item) => !item.screening.excluded).map((item) => item.contiguousHa));
   for (const item of assessed) {
-    item.relativeScore = suitabilityScoreV3(item.row, item.screening, criteria, maxContiguous);
+    item.relativeScore = suitabilityScoreV4(item.row, item.screening, criteria);
   }
 
   const passing = assessed

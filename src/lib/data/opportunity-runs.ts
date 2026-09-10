@@ -63,6 +63,20 @@ export type OpportunityRunCandidate = {
   municipalityName: string | null;
   transmissionContext: Record<string, unknown> | null;
   discoveryContiguousAreaHa: number | null;
+  candidateKind: string | null;
+  geometryQuality: string | null;
+  geometryQualityReason: string | null;
+  targetFitScore: number | null;
+  targetFitLabel: string | null;
+  compactness: number | null;
+  siteIndex: number | null;
+};
+
+export type OpportunityRunZone = {
+  id: string;
+  name: string;
+  zoneIndex: number;
+  usableAreaHa: number | null;
 };
 
 export type OpportunitySearchRunView = {
@@ -91,6 +105,7 @@ export type OpportunitySearchRunView = {
   east: number | null;
   north: number | null;
   candidates: OpportunityRunCandidate[];
+  zones: OpportunityRunZone[];
   geojson: unknown;
 };
 
@@ -136,11 +151,19 @@ export const getOpportunitySearchRun = cache(
     const { data: candidates } = await supabase
       .from("opportunity_run_candidates")
       .select(
-        "id, name, rank, recommendation, recommendation_summary, data_confidence, excluded, exclusion_reason, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, local_covering_name, nup_covering_name, key_positive, key_risk, saved_opportunity_id, mean_slope_deg, p90_slope_deg, pct_below_slope, land_cover, road_distance_m, road_class, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, strategic_flags, rank_change_explanation, county_name, municipality_name, transmission_context, discovery_contiguous_area_ha",
+        "id, name, rank, recommendation, recommendation_summary, data_confidence, excluded, exclusion_reason, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, local_covering_name, nup_covering_name, key_positive, key_risk, saved_opportunity_id, mean_slope_deg, p90_slope_deg, pct_below_slope, land_cover, road_distance_m, road_class, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, strategic_flags, rank_change_explanation, county_name, municipality_name, transmission_context, discovery_contiguous_area_ha, candidate_kind, geometry_quality, geometry_quality_reason, target_fit_score, target_fit_label, compactness, site_index",
       )
       .eq("run_id", runId)
       .eq("organization_id", organization.id)
+      .eq("candidate_kind", "site")
       .order("rank", { ascending: true });
+
+    const { data: zoneRows } = await supabase
+      .from("opportunity_run_zones")
+      .select("id, name, zone_index, usable_area_ha")
+      .eq("run_id", runId)
+      .eq("organization_id", organization.id)
+      .order("zone_index", { ascending: true });
 
     const { data: geojson } = await supabase.rpc("get_opportunity_run_geojson", { p_run_id: runId });
 
@@ -237,6 +260,19 @@ export const getOpportunitySearchRun = cache(
             ? (row.transmission_context as Record<string, unknown>)
             : null,
         discoveryContiguousAreaHa: toNumber(row.discovery_contiguous_area_ha),
+        candidateKind: row.candidate_kind ?? "site",
+        geometryQuality: row.geometry_quality ?? null,
+        geometryQualityReason: row.geometry_quality_reason ?? null,
+        targetFitScore: toNumber(row.target_fit_score),
+        targetFitLabel: row.target_fit_label ?? null,
+        compactness: toNumber(row.compactness),
+        siteIndex: toNumber(row.site_index),
+      })),
+      zones: (zoneRows ?? []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        zoneIndex: row.zone_index ?? 0,
+        usableAreaHa: toNumber(row.usable_area_ha),
       })),
       geojson: geojson ?? { type: "FeatureCollection", features: [] },
     };

@@ -6,8 +6,10 @@
  * Licence: CC0 (NVDB/INSPIRE dataset)
  * WFS: https://geo-inspire.trafikverket.se/MapService/wfs.axd/TN_RoadTransportNetwork
  *
- * The WFS has been observed to return backend errors. Ingest records failure
- * honestly. OpenStreetMap is not used (ODbL share-alike).
+ * The WFS has returned HTTP 400 / ExceptionReport in live proof and is not
+ * retried per search. Official Trafikverket geodata is published through
+ * Lastkajen; set TRAFIKVERKET_ROADLINK_GPKG when an operator GeoPackage is
+ * available. Until then road context stays insufficient evidence.
  *
  * Usage: node scripts/ingest-trafikverket-roads.mjs --bbox=14.9,59.1,15.4,59.4
  */
@@ -129,13 +131,13 @@ on conflict (slug) do update set name = excluded.name, active = true;
       text = await fetchOpenGeodataText(buildUrl(bbox, startIndex, axis), { timeoutMs: 90_000 });
     } catch (error) {
       transientFailures += 1;
-      if (transientFailures > 4) throw error;
+      if (transientFailures > 1) throw error;
       await new Promise((resolve) => setTimeout(resolve, 1500 * transientFailures));
       continue;
     }
     if (text.includes("ExceptionReport") || text.includes("ows:Exception")) {
       transientFailures += 1;
-      if (transientFailures > 4) {
+      if (transientFailures > 1) {
         throw new Error(`Trafikverket WFS ExceptionReport: ${text.slice(0, 240)}`);
       }
       await new Promise((resolve) => setTimeout(resolve, 1500 * transientFailures));
@@ -234,7 +236,9 @@ set snapshot_id = excluded.snapshot_id, geom = excluded.geom, road_class = exclu
         externalChangesCreated: null,
         impactsCreated: null,
         errorCode: classifyIngestError(error),
-        errorMessage: error instanceof Error ? error.message : "failed",
+        errorMessage:
+          (error instanceof Error ? error.message : "failed") +
+          " Trafikverket open geodata is published via Lastkajen. Create an operator account, download the RoadLink GeoPackage, and set TRAFIKVERKET_ROADLINK_GPKG. Until then road context stays insufficient evidence and does not block site generation.",
         metadata: { dataset: SLUG, bbox },
       });
     } catch {

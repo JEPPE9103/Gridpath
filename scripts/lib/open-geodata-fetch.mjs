@@ -35,16 +35,16 @@ export function isAllowedOpenGeodataUrl(url) {
 }
 
 export async function fetchOpenGeodataText(url, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
-  const response = await fetchOpenGeodata(url, { timeoutMs, accept: "application/json, application/geo+json, text/plain, text/xml, application/xml" });
-  return await response.text();
+  const response = await fetchOpenGeodata(url, { timeoutMs, accept: "application/json, application/geo+json, text/plain, text/xml, application/xml", consume: "text" });
+  return response;
 }
 
 export async function fetchOpenGeodataBytes(url, { timeoutMs = 180_000 } = {}) {
-  const response = await fetchOpenGeodata(url, { timeoutMs, accept: "application/octet-stream, image/tiff, application/zip, */*" });
-  return new Uint8Array(await response.arrayBuffer());
+  const response = await fetchOpenGeodata(url, { timeoutMs, accept: "application/octet-stream, image/tiff, application/zip, */*", consume: "bytes" });
+  return response;
 }
 
-async function fetchOpenGeodata(url, { timeoutMs, accept }) {
+async function fetchOpenGeodata(url, { timeoutMs, accept, consume }) {
   if (!isAllowedOpenGeodataUrl(url)) {
     throw new Error("Refusing to fetch a host that is not on the open-geodata allowlist.");
   }
@@ -63,7 +63,10 @@ async function fetchOpenGeodata(url, { timeoutMs, accept }) {
     if (!response.ok) {
       throw new Error(`Open geodata fetch HTTP ${response.status} for ${new URL(url).hostname}`);
     }
-    return response;
+    if (consume === "bytes") {
+      return new Uint8Array(await response.arrayBuffer());
+    }
+    return await response.text();
   } finally {
     clearTimeout(timer);
   }

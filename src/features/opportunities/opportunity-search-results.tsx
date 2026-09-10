@@ -83,7 +83,7 @@ export function OpportunitySearchResults({
     <>
       <PageHeader
         title={view.searchName}
-        subtitle={`${opportunityTechnologyLabel(view.technology)}${view.electricityArea ? ` · ${view.electricityArea} recorded as intent, not a spatial clip` : ""} · contiguous candidate areas, not parcels`}
+        subtitle={`${opportunityTechnologyLabel(view.technology)}${view.electricityArea ? ` · ${view.electricityArea} recorded as intent, not a spatial clip` : ""} · candidate sites inside opportunity zones, not parcels`}
         actions={
           <>
             <Link href="/opportunities" className={buttonClassName("secondary")}>
@@ -102,12 +102,12 @@ export function OpportunitySearchResults({
       />
       <div className="space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <section className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-4">
-          <Fact label="Candidate areas identified" value={String(view.returnedCount)} />
-          <Fact label="Areas evaluated" value={String(view.evaluatedCount)} />
-          <Fact label="Excluded" value={String(view.excludedCount)} />
+          <Fact label="Search area" value={searchAreaKm2(view)} />
+          <Fact label="Opportunity zones" value={String(view.zones.length)} />
+          <Fact label="Candidate sites" value={String(view.candidates.length)} />
           <Fact
-            label="Screening stage"
-            value={view.screeningStage === "detailed" ? "Detailed site screening" : "Discovery screening"}
+            label="Recommended for investigation"
+            value={String(view.candidates.filter((item) => item.recommendation === "prioritise" || item.recommendation === "investigate").length)}
           />
         </section>
 
@@ -116,7 +116,7 @@ export function OpportunitySearchResults({
 
         <p className="text-sm text-muted">
           {view.status === "completed"
-            ? "Discovery screening finished. Candidate Areas are contiguous remaining geometry after supported exclusions — not land parcels and not 1 km cells as final sites."
+            ? "Candidate sites identified. They are target-scale investigation areas grown inside Opportunity Zones after supported exclusions — not land parcels and not the surviving search region."
             : `Run status: ${view.status}.`}
           {view.durationMs != null ? ` Duration ${Math.round(view.durationMs / 1000)}s.` : ""}
           {` Ranking ${view.rankingVersion ?? "suitability-v3"}.`}
@@ -145,7 +145,7 @@ export function OpportunitySearchResults({
               </form>
             ) : null}
             <p className="self-center text-xs text-muted">
-              Detailed screening runs only on selected Candidate Areas (max 5). Discovery uses coarse evidence.
+              Detailed screening runs only on selected Candidate Sites (max 5). Discovery uses coarse evidence.
             </p>
           </section>
         ) : null}
@@ -245,6 +245,18 @@ export function OpportunitySearchResults({
                 }
               />
               <Fact
+                label="Target-area fit"
+                value={selected.targetFitLabel ?? "Not assessed"}
+              />
+              <Fact
+                label="Geometry quality"
+                value={
+                  selected.geometryQuality
+                    ? `${selected.geometryQuality.toUpperCase()}${selected.geometryQualityReason ? ` · ${selected.geometryQualityReason}` : ""}`
+                    : "Not assessed"
+                }
+              />
+              <Fact
                 label="Gross screening area"
                 value={selected.grossAreaHa != null ? `${selected.grossAreaHa.toFixed(1)} ha` : "Unknown"}
               />
@@ -296,6 +308,22 @@ export function OpportunitySearchResults({
                         resolution: "unavailable",
                         providerKey: selected.landCoverProviderKey,
                       })
+                }
+              />
+              <Fact
+                label="Protected-area overlap"
+                value={
+                  selected.protectedOverlapPct != null
+                    ? `${selected.protectedOverlapPct.toFixed(1)}% of site envelope`
+                    : "Insufficient evidence"
+                }
+              />
+              <Fact
+                label="Natura 2000 overlap"
+                value={
+                  selected.naturaOverlapPct != null
+                    ? `${selected.naturaOverlapPct.toFixed(1)}% of site envelope`
+                    : "Insufficient evidence — Natura 2000 layer not ingested"
                 }
               />
               <Fact
@@ -516,10 +544,12 @@ function CandidateSection({
                   {opportunityRecommendationLabel(candidate.recommendation)} ·{" "}
                   {opportunityConfidenceLabel(candidate.dataConfidence)}
                   {candidate.contiguousAreaHa != null
-                    ? ` · ${candidate.contiguousAreaHa.toFixed(1)} ha contiguous`
+                    ? ` · ${candidate.contiguousAreaHa.toFixed(1)} ha contiguous usable`
                     : candidate.usableAreaHa != null
                       ? ` · ${candidate.usableAreaHa.toFixed(1)} ha usable`
                       : ""}
+                  {candidate.targetFitLabel ? ` · ${candidate.targetFitLabel}` : ""}
+                  {candidate.geometryQuality ? ` · geometry ${candidate.geometryQuality}` : ""}
                   {candidate.roadDistanceM != null ? ` · road ${Math.round(candidate.roadDistanceM)} m` : ""}
                 </p>
                 <p className="mt-1 text-xs text-muted">
@@ -560,4 +590,11 @@ function Fact({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm font-medium">{value}</p>
     </div>
   );
+}
+
+function searchAreaKm2(view: OpportunitySearchRunView): string {
+  if (view.west == null || view.south == null || view.east == null || view.north == null) return "Unknown";
+  const km = Math.abs(view.east - view.west) * 111.32 * Math.cos((((view.south + view.north) / 2) * Math.PI) / 180)
+    * Math.abs(view.north - view.south) * 110.57;
+  return `~${Math.round(km)} km²`;
 }

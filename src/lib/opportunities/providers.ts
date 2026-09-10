@@ -41,7 +41,7 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
     status: "supported",
     dimensions: ["environmental"],
     notes:
-      "Official WFS N2000, CC0. Evidence appears only after successful ingest. Direct overlap with a configured exclusion is a hard fail, not a legal impossibility finding.",
+      "Official Naturvårdsverket Natura 2000 open geodata (CC0). Production ingest prefers the national shapefile download (SPA_Rikstackande.zip / SCI when published) over WFS. Evidence appears only after successful ingest with feature count > 0. Direct overlap with a configured exclusion is a hard fail, not a legal impossibility finding.",
   },
   {
     key: "nv-nmd-2023",
@@ -50,7 +50,7 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
     status: "supported",
     dimensions: ["land_suitability"],
     notes:
-      "Current Swedish land-cover evidence (CC0, native 10 m). Discovery processes to 1 km majority class. Detailed screening processes majority-class composition inside Candidate Area geometry at ingested tiles targeting 50 m (capped at 100 m). Never labelled as native 10 m. Mapping version nmd-group-v2. NMD 2018 is legacy fallback only.",
+      "Current Swedish land-cover evidence (CC0, native 10 m). NMD2023 basskikt v0.3 is the screening product: fewer thematic classes grouped for water/wetland/forest/agriculture/open/developed. NMD2023 v2.x is a parallel finer-thematic product, not a replacement that makes v0.3 obsolete. Production path: one-time national GeoTIFF outside Git (NOXHEIM_NMD2023_TIF or NOXHEIM_GEODATA_CACHE / ~/noxheim-geodata), then AOI window extract — never redownload the 1.3+ GB archive per search. Discovery processes to 1 km majority class. Detailed screening targets 50 m (capped at 100 m). NMD 2018 is legacy fallback only.",
   },
   {
     key: "nv-nmd-2018",
@@ -86,7 +86,16 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
     status: "supported",
     dimensions: ["access"],
     notes:
-      "Dataset licence CC0. Scheduled bbox ingest of INSPIRE RoadLink is the production path (retries on WFS ExceptionReport). Lastkajen GeoPackage is the preferred bulk alternative when an operator has an account, but is not auto-wired (TRAFIKVERKET_ROADLINK_GPKG is reserved). OSM is not substituted (ODbL). Distance is not a heavy-transport access finding.",
+      "Dataset licence CC0. Trafikverket WFS has returned HTTP 400 in production proof and is not retried per search. Official bulk geodata is via Lastkajen (operator account). Until a Lastkajen GeoPackage is configured (TRAFIKVERKET_ROADLINK_GPKG), road context stays insufficient evidence and does not block site generation. OSM is not substituted (ODbL).",
+  },
+  {
+    key: "lm-marktacke",
+    name: "Lantmäteriet Marktäcke Nedladdning, vektor",
+    geography: "SE",
+    status: "supported",
+    dimensions: ["land_suitability"],
+    notes:
+      "Complementary topographic land-type vectors via STAC https://api.lantmateriet.se/stac-vektor/v1/collections/marktacke (GeoPackage, avgiftsfri, valuable-dataset terms). Requires Geotorget API access. Not a drop-in replacement for NMD thematic classes. Unconfigured state: AUTH_REQUIRED. Each source is preserved independently.",
   },
   {
     key: "scb-administrative-areas",

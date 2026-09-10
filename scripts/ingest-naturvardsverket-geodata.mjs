@@ -161,7 +161,7 @@ async function fetchDownloadFeatures(dataset) {
     console.log(JSON.stringify({ event: "ingest.nv.download.start", slug: dataset.slug, zip: zipName }));
     let bytes;
     try {
-      bytes = await fetchOpenGeodataBytes(url, { timeoutMs: 180_000 });
+      bytes = await fetchOpenGeodataBytes(url, { timeoutMs: 90_000 });
     } catch {
       continue;
     }

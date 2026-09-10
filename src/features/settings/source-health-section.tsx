@@ -18,8 +18,8 @@ export function SourceHealthSection({
         Noxheim periodically refreshes supported official sources (Ei covering geography,
         Naturvårdsverket protected-area / Natura 2000 / NMD 2023, Copernicus DEM slope summaries,
         Trafikverket RoadLink, and SCB administrative geography) when ingest is configured.
-        Lantmäteriet 1 m DTM is on-demand when Geotorget credentials exist; otherwise Copernicus remains
-        the coarse fallback. Svenska kraftnät county capacity is blocked pending a structured source.
+        Lantmäteriet 1 m DTM and Marktäcke vectors are on-demand when Geotorget credentials exist;
+        otherwise Copernicus remains the coarse terrain fallback and NMD remains the land-cover source.
         Failed or never-ingested providers reduce screening data confidence. This is not real-time grid
         monitoring, and it does not mean available connection capacity. Residential building data remains
         licence-blocked.

@@ -74,6 +74,9 @@ const criteria: ScreeningCriteria = {
   targetMw: 20,
   targetMwh: 80,
   minSiteAreaHa: 8,
+  targetSiteAreaHa: 15,
+  maxCandidateAreaHa: 30,
+  maxReturnedCandidates: 25,
   maxDistanceKm: null,
   excludeProtected: true,
   excludeNatura: true,
@@ -86,16 +89,17 @@ const criteria: ScreeningCriteria = {
   minDistanceResidentialM: null,
   electricityArea: null,
   notes: "Local Hallsberg proof search",
-  rankingVersion: "suitability-v3",
-};
+    rankingVersion: "suitability-v4",
+  };
 
 async function applyRanking(supabase: SupabaseClient, runId: string) {
   const { data: rows, error } = await supabase
     .from("opportunity_run_candidates")
     .select(
-      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, mean_slope_deg, median_slope_deg, p90_slope_deg, pct_below_slope, terrain_queried, land_cover, land_cover_queried, road_distance_m, road_class, road_queried, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, transmission_context, discovery_contiguous_area_ha",
+      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, mean_slope_deg, median_slope_deg, p90_slope_deg, pct_below_slope, terrain_queried, land_cover, land_cover_queried, road_distance_m, road_class, road_queried, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, transmission_context, discovery_contiguous_area_ha, compactness, geometry_quality, target_fit_score, candidate_kind",
     )
-    .eq("run_id", runId);
+    .eq("run_id", runId)
+    .eq("candidate_kind", "site");
   if (error) throw new Error(error.message);
   const ranked = rankScreeningCells(
     (rows ?? []).map((row) => ({
@@ -119,7 +123,7 @@ async function applyRanking(supabase: SupabaseClient, runId: string) {
     keyPositive: item.keyPositive,
     keyRisk: item.keyRisk,
     screening: item.screening,
-    rankingVersion: "suitability-v3",
+    rankingVersion: "suitability-v4",
     strategicFlags: item.strategicFlags,
     rankChangeExplanation: item.rankChangeExplanation,
   }));
@@ -141,11 +145,12 @@ async function main() {
     select
       exists (select 1 from pg_extension where extname = 'postgis') as postgis,
       to_regprocedure('public.execute_opportunity_screening_run(uuid)') is not null as execute_rpc,
+      to_regprocedure('public.segment_opportunity_run_into_sites(uuid)') is not null as segment_rpc,
       to_regprocedure('public.refine_opportunity_run_candidates(uuid,uuid[])') is not null as refine_rpc,
       to_regprocedure('public.promote_opportunity_to_project(uuid)') is not null as promote_rpc,
       to_regclass('public.official_precision_summaries') is not null as precision_table
   `)[0];
-  record("PostGIS + screening RPCs present", Boolean(schema?.postgis && schema?.execute_rpc && schema?.refine_rpc && schema?.promote_rpc && schema?.precision_table));
+  record("PostGIS + screening RPCs present", Boolean(schema?.postgis && schema?.execute_rpc && schema?.segment_rpc && schema?.refine_rpc && schema?.promote_rpc && schema?.precision_table));
 
   const counts = psqlJson(`
     select
@@ -273,6 +278,9 @@ async function main() {
       east: BBOX.east,
       north: BBOX.north,
       min_site_area_ha: 8,
+      target_site_area_ha: 15,
+      max_candidate_area_ha: 30,
+      max_returned_candidates: 25,
       exclude_protected: true,
       exclude_natura: true,
       max_slope_degrees: 5,
@@ -280,7 +288,7 @@ async function main() {
       land_cover_rules: NOXHEIM_DEFAULT_LAND_COVER_PROFILE,
       max_road_distance_m: 1000,
       road_mode: "preference",
-      criteria: { technology: "battery_storage", bbox: BBOX, rankingVersion: "suitability-v3" },
+      criteria: { technology: "battery_storage", bbox: BBOX, rankingVersion: "suitability-v4", methodologyVersion: "site-generation-v2" },
     })
     .select("id")
     .maybeSingle();
@@ -299,6 +307,19 @@ async function main() {
 
   if (!runRow?.run_id) throw new Error("No run id");
   const runId = runRow.run_id;
+  const segmentStarted = Date.now();
+  const { data: segment, error: segmentError } = await anna.supabase.rpc("segment_opportunity_run_into_sites", {
+    p_run_id: runId,
+  });
+  const segmentMs = Date.now() - segmentStarted;
+  const segmentRow = (Array.isArray(segment) ? segment[0] : segment) as
+    | { zone_count?: number; site_count?: number; seed_count?: number; before_dedupe?: number; after_dedupe?: number; duration_ms?: number }
+    | undefined;
+  record(
+    "Site-generation v2 segmented the dissolved region into candidate sites",
+    !segmentError && Number(segmentRow?.site_count ?? 0) > 0,
+    segmentError?.message ?? JSON.stringify(segmentRow),
+  );
   await applyRanking(anna.supabase, runId);
 
   const runStats = psqlJson(`
@@ -320,16 +341,17 @@ async function main() {
       c.local_covering_name, c.nup_covering_name, c.protected_overlap_pct, c.natura_overlap_pct,
       c.terrain_provider_key, c.land_cover_provider_key, c.terrain_resolution, c.land_cover_resolution,
       c.key_positive, c.key_risk, c.exclusion_breakdown,
+      c.target_fit_label, c.geometry_quality, c.candidate_kind, c.seed_score, c.compactness,
       extensions.st_geometrytype(c.geom) as geom_type,
       extensions.st_isvalid(c.geom) as is_valid,
       extensions.st_area(c.geom::extensions.geography)/10000.0 as area_ha
     from public.opportunity_run_candidates as c
-    where c.run_id = '${runId}' and c.excluded = false
+    where c.run_id = '${runId}' and c.candidate_kind = 'site' and c.excluded = false
     order by c.rank nulls last, c.contiguous_area_ha desc nulls last
     limit 8
   `);
 
-  record("Candidate areas generated from live DB", (top?.length ?? 0) > 0, `${top?.length ?? 0} returned, evaluated=${runStats?.evaluated_count}, excluded=${runStats?.excluded_count}`);
+  record("Candidate sites generated from live DB", (top?.length ?? 0) > 0, `${top?.length ?? 0} returned, evaluated=${runStats?.evaluated_count}, excluded=${runStats?.excluded_count}`);
 
   const geomCheck = psqlJson(`
     select
@@ -344,33 +366,48 @@ async function main() {
 
   const mergeCheck = psqlJson(`
     with kept as (
-      select geom from public.opportunity_run_candidates
-      where run_id = '${runId}' and excluded = false
+      select geom, usable_area_ha from public.opportunity_run_candidates
+      where run_id = '${runId}' and candidate_kind = 'site' and excluded = false
     )
     select
       (
         select count(*)::int from kept a, kept b
         where a.geom && b.geom
           and extensions.st_intersects(a.geom, b.geom)
-          and not extensions.st_touches(a.geom, b.geom)
           and a.geom < b.geom
-      ) as overlapping_pairs,
-      (
-        select count(*)::int from kept a, kept b
-        where a.geom && b.geom
-          and extensions.st_touches(a.geom, b.geom)
-          and extensions.st_dimension(extensions.st_intersection(a.geom, b.geom)) = 0
-          and a.geom < b.geom
-      ) as corner_touch_pairs
+          and extensions.st_area(extensions.st_intersection(a.geom, b.geom)::extensions.geography)
+            / nullif(extensions.st_area(extensions.st_union(a.geom, b.geom)::extensions.geography), 0) >= 0.5
+      ) as high_iou_pairs
   `)[0];
-  record("Adjacent areas are dissolved; remaining pairs do not overlap interiors", Number(mergeCheck?.overlapping_pairs) === 0, JSON.stringify(mergeCheck));
+  record("Near-duplicate sites are deduplicated (IoU < 0.5)", Number(mergeCheck?.high_iou_pairs) === 0, JSON.stringify(mergeCheck));
+
+  const siteScale = psqlJson(`
+    select
+      count(*)::int as sites,
+      coalesce(max(contiguous_area_ha), 0) as max_ha,
+      coalesce(min(contiguous_area_ha), 0) as min_ha
+    from public.opportunity_run_candidates
+    where run_id = '${runId}' and candidate_kind = 'site' and excluded = false
+  `)[0];
+  record(
+    "No municipality-scale polygon is returned as a candidate site",
+    Number(siteScale?.sites) >= 2 && Number(siteScale?.max_ha) <= 80,
+    JSON.stringify(siteScale),
+  );
+
+  const zones = psqlJson(`
+    select count(*)::int as n, coalesce(sum(usable_area_ha), 0) as ha
+    from public.opportunity_run_zones
+    where run_id = '${runId}'
+  `)[0];
+  record("Opportunity zones preserved separately from sites", Number(zones?.n) > 0, JSON.stringify(zones));
 
   const displayVsAnalytical = psqlJson(`
     select
       extensions.st_area(c.geom::extensions.geography) as analytical_m2,
       extensions.st_area(extensions.st_simplifypreservetopology(c.geom, 0.00015)::extensions.geography) as display_m2
     from public.opportunity_run_candidates as c
-    where c.run_id = '${runId}' and c.excluded = false
+    where c.run_id = '${runId}' and c.candidate_kind = 'site' and c.excluded = false
     order by c.rank nulls last
     limit 1
   `)[0];
@@ -399,7 +436,7 @@ async function main() {
       c.land_cover_resolution, c.terrain_provider_key, c.land_cover_provider_key,
       c.rank_change_explanation, c.exclusion_breakdown
     from public.opportunity_run_candidates as c
-    where c.id = '${first?.id}'
+    where c.id = '${first?.id ?? "00000000-0000-4000-8000-000000000000"}'
   `)[0];
 
   const other = await signIn(otherEmail, otherPassword);
@@ -408,93 +445,102 @@ async function main() {
   const { data: crossCand } = await other.supabase.from("opportunity_run_candidates").select("id, geom").eq("run_id", runId);
   record("Cross-org run/candidate geometry denied", (crossCand?.length ?? 0) === 0);
 
-  const { data: saved, error: saveError } = await anna.supabase.rpc("save_opportunity_from_run_candidate", {
-    p_candidate_id: first.id,
-  });
-  const savedRow = (Array.isArray(saved) ? saved[0] : saved) as { opportunity_id?: string; slug?: string } | undefined;
-  record("Save candidate as opportunity works", !saveError && Boolean(savedRow?.opportunity_id), saveError?.message);
+  if (first?.id) {
+    const { data: saved, error: saveError } = await anna.supabase.rpc("save_opportunity_from_run_candidate", {
+      p_candidate_id: first.id,
+    });
+    const savedRow = (Array.isArray(saved) ? saved[0] : saved) as { opportunity_id?: string; slug?: string } | undefined;
+    record("Save candidate as opportunity works", !saveError && Boolean(savedRow?.opportunity_id), saveError?.message);
 
-  if (savedRow?.opportunity_id) {
-    const versions = psqlJson(`
+    if (savedRow?.opportunity_id) {
+      const versions = psqlJson(`
       select count(*)::int as n from public.opportunity_assessment_versions
       where opportunity_id = '${savedRow.opportunity_id}'
     `)[0];
-    record("Assessment version created", Number(versions?.n) > 0, String(versions?.n));
+      record("Assessment version created", Number(versions?.n) > 0, String(versions?.n));
 
-    const { error: rejectError } = await anna.supabase
-      .from("development_opportunities")
-      .update({
-        status: "rejected",
-        rejection_reason: "other",
-        rejected_at: new Date().toISOString(),
-      })
-      .eq("id", savedRow.opportunity_id);
-    const rejected = psqlJson(`
+      const { error: rejectError } = await anna.supabase
+        .from("development_opportunities")
+        .update({
+          status: "rejected",
+          rejection_reason: "other",
+          rejected_at: new Date().toISOString(),
+        })
+        .eq("id", savedRow.opportunity_id);
+      const rejected = psqlJson(`
       select status from public.development_opportunities where id = '${savedRow.opportunity_id}'
     `)[0];
-    record(
-      "Reject opportunity works",
-      !rejectError && rejected?.status === "rejected",
-      rejectError?.message ?? rejected?.status,
-    );
+      record(
+        "Reject opportunity works",
+        !rejectError && rejected?.status === "rejected",
+        rejectError?.message ?? rejected?.status,
+      );
 
-    const { error: reopenError } = await anna.supabase
-      .from("development_opportunities")
-      .update({
-        status: "identified",
-        rejection_reason: null,
-        rejected_at: null,
-      })
-      .eq("id", savedRow.opportunity_id)
-      .eq("status", "rejected");
-    const reopened = psqlJson(`
+      const { error: reopenError } = await anna.supabase
+        .from("development_opportunities")
+        .update({
+          status: "identified",
+          rejection_reason: null,
+          rejected_at: null,
+        })
+        .eq("id", savedRow.opportunity_id)
+        .eq("status", "rejected");
+      const reopened = psqlJson(`
       select status from public.development_opportunities where id = '${savedRow.opportunity_id}'
     `)[0];
-    record(
-      "Reopen rejected opportunity works",
-      !reopenError && reopened?.status === "identified",
-      reopenError?.message ?? reopened?.status,
-    );
+      record(
+        "Reopen rejected opportunity works",
+        !reopenError && reopened?.status === "identified",
+        reopenError?.message ?? reopened?.status,
+      );
 
-    await anna.supabase.from("development_opportunities").update({ status: "shortlisted" }).eq("id", savedRow.opportunity_id);
+      await anna.supabase.from("development_opportunities").update({ status: "shortlisted" }).eq("id", savedRow.opportunity_id);
 
-    const { data: promoted, error: promoteError } = await anna.supabase.rpc("promote_opportunity_to_project", {
-      p_opportunity_id: savedRow.opportunity_id,
-    });
-    const promotedRow = (Array.isArray(promoted) ? promoted[0] : promoted) as
-      | { project_id?: string; project_slug?: string }
-      | undefined;
-    record("Promote to project works", !promoteError && Boolean(promotedRow?.project_id), promoteError?.message);
+      const { data: promoted, error: promoteError } = await anna.supabase.rpc("promote_opportunity_to_project", {
+        p_opportunity_id: savedRow.opportunity_id,
+      });
+      const promotedRow = (Array.isArray(promoted) ? promoted[0] : promoted) as
+        | { project_id?: string; project_slug?: string }
+        | undefined;
+      record("Promote to project works", !promoteError && Boolean(promotedRow?.project_id), promoteError?.message);
 
-    const { error: dupError } = await anna.supabase.rpc("promote_opportunity_to_project", {
-      p_opportunity_id: savedRow.opportunity_id,
-    });
-    record("Duplicate promotion is blocked", Boolean(dupError), dupError?.message ?? "duplicate allowed");
+      const { error: dupError } = await anna.supabase.rpc("promote_opportunity_to_project", {
+        p_opportunity_id: savedRow.opportunity_id,
+      });
+      record("Duplicate promotion is blocked", Boolean(dupError), dupError?.message ?? "duplicate allowed");
 
-    const origin = psqlJson(`
+      const origin = psqlJson(`
       select p.originating_opportunity_id, o.id as opportunity_id
       from public.projects as p
       join public.development_opportunities as o on o.promoted_project_id = p.id
       where o.id = '${savedRow.opportunity_id}'
     `)[0];
-    record(
-      "Originating opportunity link remains correct",
-      origin?.originating_opportunity_id === savedRow.opportunity_id,
-      JSON.stringify(origin),
-    );
+      record(
+        "Originating opportunity link remains correct",
+        origin?.originating_opportunity_id === savedRow.opportunity_id,
+        JSON.stringify(origin),
+      );
+    }
+  } else {
+    record("Save candidate as opportunity works", false, "no site-scale candidate to save");
   }
 
   const payload = psqlJson(`
     select octet_length(extensions.st_asbinary(geom))::int as bytes
     from public.opportunity_run_candidates
-    where run_id = '${runId}' and excluded = false
+    where run_id = '${runId}' and candidate_kind = 'site' and excluded = false
   `);
   const geomBytes = payload.reduce((sum: number, row: { bytes?: number }) => sum + Number(row.bytes ?? 0), 0);
 
   const report = {
     discoveryMs,
+    segmentMs,
     refineMs,
     runStats,
+    siteGeneration: segmentRow,
+    zoneCount: zones?.n ?? 0,
+    zoneHa: zones?.ha ?? 0,
+    siteScale,
     providerAvailability: runStats?.provider_availability,
     warnings: runStats?.warnings,
     topCandidates: top,
@@ -506,7 +552,7 @@ async function main() {
 
   const passed = checks.filter((item) => item.pass).length;
   const failed = checks.filter((item) => !item.pass).length;
-  console.log(JSON.stringify({ event: "prove.complete", passed, failed, discoveryMs, refineMs, returned: runStats?.returned_count, geomBytes }, null));
+  console.log(JSON.stringify({ event: "prove.complete", passed, failed, discoveryMs, segmentMs, refineMs, sites: siteScale?.sites, maxHa: siteScale?.max_ha, geomBytes }, null));
   if (failed > 0) process.exit(1);
 }
 

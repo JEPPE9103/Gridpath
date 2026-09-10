@@ -63,10 +63,15 @@ test.describe("Opportunity precision screening", () => {
     await page.getByLabel(/^south$/i).fill("59.1");
     await page.getByLabel(/^east$/i).fill("15.4");
     await page.getByLabel(/^north$/i).fill("59.4");
-    await page.getByRole("button", { name: /find candidate areas/i }).click();
+    await page.getByRole("button", { name: /find candidate sites/i }).click();
 
     await page.waitForURL(/\/opportunities\/searches\/.+\/runs\/.+/, { timeout: 180_000 });
-    await expect(page.getByText(/candidate areas identified/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/candidate sites identified/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/opportunity zones/i).first()).toBeVisible();
+    const firstAreaLine = page.getByRole("button", { name: /#\d+/ }).first();
+    await expect(firstAreaLine).toBeVisible();
+    const firstText = (await firstAreaLine.innerText()).replaceAll(",", "");
+    expect(firstText).not.toMatch(/\b([5-9]\d{3}|\d{5,})\s*ha\b/i);
     await expect(page.locator("canvas, [class*='map']").first()).toBeVisible();
 
     const firstCandidate = page.getByRole("button", { name: /#\d+/ }).first();

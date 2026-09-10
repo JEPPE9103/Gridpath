@@ -37,6 +37,9 @@ export type ScreeningCriteria = {
   targetMw: number | null;
   targetMwh: number | null;
   minSiteAreaHa: number | null;
+  targetSiteAreaHa?: number | null;
+  maxCandidateAreaHa?: number | null;
+  maxReturnedCandidates?: number | null;
   maxDistanceKm: number | null;
   excludeProtected: boolean;
   excludeNatura: boolean;

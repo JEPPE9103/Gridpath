@@ -71,6 +71,9 @@ function screeningCriteriaFromParsed(parsed: ParsedOpportunityForm): ScreeningCr
     targetMw: parsed.targetMw,
     targetMwh: parsed.targetMwh,
     minSiteAreaHa: parsed.minSiteAreaHa,
+    targetSiteAreaHa: parsed.targetSiteAreaHa,
+    maxCandidateAreaHa: parsed.maxCandidateAreaHa,
+    maxReturnedCandidates: parsed.maxReturnedCandidates,
     maxDistanceKm: parsed.maxDistanceKm,
     excludeProtected: parsed.excludeProtected,
     excludeNatura: parsed.excludeNatura,
@@ -83,7 +86,7 @@ function screeningCriteriaFromParsed(parsed: ParsedOpportunityForm): ScreeningCr
     minDistanceResidentialM: parsed.minDistanceResidentialM,
     electricityArea: parsed.electricityArea,
     notes: parsed.notes,
-    rankingVersion: "suitability-v3",
+    rankingVersion: "suitability-v4",
   };
 }
 
@@ -95,9 +98,10 @@ async function applyScreeningRunAssessments(
   const { data: rows, error } = await supabase
     .from("opportunity_run_candidates")
     .select(
-      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, mean_slope_deg, median_slope_deg, p90_slope_deg, pct_below_slope, terrain_queried, land_cover, land_cover_queried, road_distance_m, road_class, road_queried, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, transmission_context, discovery_contiguous_area_ha",
+      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, mean_slope_deg, median_slope_deg, p90_slope_deg, pct_below_slope, terrain_queried, land_cover, land_cover_queried, road_distance_m, road_class, road_queried, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, transmission_context, discovery_contiguous_area_ha, compactness, geometry_quality, target_fit_score, candidate_kind",
     )
-    .eq("run_id", runId);
+    .eq("run_id", runId)
+    .eq("candidate_kind", "site");
   if (error) {
     throw new Error(error.message);
   }
@@ -174,6 +178,9 @@ export async function createOpportunityAction(
       target_mw: parsed.targetMw,
       target_mwh: parsed.targetMwh,
       min_site_area_ha: parsed.minSiteAreaHa,
+      target_site_area_ha: parsed.targetSiteAreaHa,
+      max_candidate_area_ha: parsed.maxCandidateAreaHa,
+      max_returned_candidates: parsed.maxReturnedCandidates,
       max_distance_km: parsed.maxDistanceKm,
       exclude_protected: parsed.excludeProtected,
       exclude_natura: parsed.excludeNatura,
@@ -198,6 +205,9 @@ export async function createOpportunityAction(
         targetMw: parsed.targetMw,
         targetMwh: parsed.targetMwh,
         minSiteAreaHa: parsed.minSiteAreaHa,
+        targetSiteAreaHa: parsed.targetSiteAreaHa,
+        maxCandidateAreaHa: parsed.maxCandidateAreaHa,
+        maxReturnedCandidates: parsed.maxReturnedCandidates,
         maxDistanceKm: parsed.maxDistanceKm,
         excludeProtected: parsed.excludeProtected,
         excludeNatura: parsed.excludeNatura,
@@ -232,6 +242,9 @@ export async function createOpportunityAction(
         targetMw: parsed.targetMw,
         targetMwh: parsed.targetMwh,
         minSiteAreaHa: parsed.minSiteAreaHa,
+        targetSiteAreaHa: parsed.targetSiteAreaHa,
+        maxCandidateAreaHa: parsed.maxCandidateAreaHa,
+        maxReturnedCandidates: parsed.maxReturnedCandidates,
         excludeProtected: parsed.excludeProtected,
         excludeNatura: parsed.excludeNatura,
         slopeMode: parsed.slopeMode,
@@ -265,6 +278,13 @@ export async function createOpportunityAction(
     const runRow = (Array.isArray(run) ? run[0] : run) as { run_id?: string } | undefined;
     if (!runRow?.run_id) {
       return { error: "Could not run geographic screening.", values };
+    }
+    const { error: segmentError } = await supabase.rpc("segment_opportunity_run_into_sites", {
+      p_run_id: runRow.run_id,
+    });
+    if (segmentError) {
+      console.error("createOpportunityAction site segmentation failed", segmentError.message);
+      return { error: publicError(segmentError.message, "Screening ran but site generation failed."), values };
     }
     try {
       await applyScreeningRunAssessments(supabase, runRow.run_id, criteria);
@@ -530,7 +550,7 @@ export async function rerunOpportunitySearchAction(formData: FormData): Promise<
   const { data: search, error } = await supabase
     .from("opportunity_searches")
     .select(
-      "id, technology, country, region, municipality, electricity_area, target_mw, target_mwh, min_site_area_ha, max_distance_km, exclude_protected, exclude_natura, max_slope_percent, max_slope_degrees, slope_mode, land_cover_rules, max_road_distance_m, road_mode, min_distance_residential_m, notes, west",
+      "id, technology, country, region, municipality, electricity_area, target_mw, target_mwh, min_site_area_ha, target_site_area_ha, max_candidate_area_ha, max_returned_candidates, max_distance_km, exclude_protected, exclude_natura, max_slope_percent, max_slope_degrees, slope_mode, land_cover_rules, max_road_distance_m, road_mode, min_distance_residential_m, notes, west",
     )
     .eq("id", searchId)
     .eq("organization_id", organization.id)
@@ -546,6 +566,13 @@ export async function rerunOpportunitySearchAction(formData: FormData): Promise<
   }
   const runRow = (Array.isArray(run) ? run[0] : run) as { run_id?: string } | undefined;
   if (!runRow?.run_id) return;
+  const { error: segmentError } = await supabase.rpc("segment_opportunity_run_into_sites", {
+    p_run_id: runRow.run_id,
+  });
+  if (segmentError) {
+    console.error("rerunOpportunitySearchAction site segmentation failed", segmentError.message);
+    return;
+  }
 
   await applyScreeningRunAssessments(supabase, runRow.run_id, {
     technology: isOpportunityTechnology(search.technology) ? search.technology : "other",
@@ -555,6 +582,10 @@ export async function rerunOpportunitySearchAction(formData: FormData): Promise<
     targetMw: search.target_mw == null ? null : Number(search.target_mw),
     targetMwh: search.target_mwh == null ? null : Number(search.target_mwh),
     minSiteAreaHa: search.min_site_area_ha == null ? null : Number(search.min_site_area_ha),
+    targetSiteAreaHa: search.target_site_area_ha == null ? null : Number(search.target_site_area_ha),
+    maxCandidateAreaHa: search.max_candidate_area_ha == null ? null : Number(search.max_candidate_area_ha),
+    maxReturnedCandidates:
+      search.max_returned_candidates == null ? null : Number(search.max_returned_candidates),
     maxDistanceKm: search.max_distance_km == null ? null : Number(search.max_distance_km),
     excludeProtected: search.exclude_protected,
     excludeNatura: search.exclude_natura,
@@ -599,7 +630,7 @@ export async function refineOpportunityCandidatesAction(formData: FormData): Pro
   const { data: search } = await supabase
     .from("opportunity_searches")
     .select(
-      "technology, country, region, municipality, target_mw, target_mwh, min_site_area_ha, max_distance_km, exclude_protected, exclude_natura, max_slope_percent, max_slope_degrees, slope_mode, land_cover_rules, max_road_distance_m, road_mode, min_distance_residential_m, electricity_area, notes",
+      "technology, country, region, municipality, target_mw, target_mwh, min_site_area_ha, target_site_area_ha, max_candidate_area_ha, max_returned_candidates, max_distance_km, exclude_protected, exclude_natura, max_slope_percent, max_slope_degrees, slope_mode, land_cover_rules, max_road_distance_m, road_mode, min_distance_residential_m, electricity_area, notes",
     )
     .eq("id", searchId)
     .eq("organization_id", organization.id)
@@ -613,6 +644,10 @@ export async function refineOpportunityCandidatesAction(formData: FormData): Pro
       targetMw: search.target_mw == null ? null : Number(search.target_mw),
       targetMwh: search.target_mwh == null ? null : Number(search.target_mwh),
       minSiteAreaHa: search.min_site_area_ha == null ? null : Number(search.min_site_area_ha),
+      targetSiteAreaHa: search.target_site_area_ha == null ? null : Number(search.target_site_area_ha),
+      maxCandidateAreaHa: search.max_candidate_area_ha == null ? null : Number(search.max_candidate_area_ha),
+      maxReturnedCandidates:
+        search.max_returned_candidates == null ? null : Number(search.max_returned_candidates),
       maxDistanceKm: search.max_distance_km == null ? null : Number(search.max_distance_km),
       excludeProtected: search.exclude_protected,
       excludeNatura: search.exclude_natura,

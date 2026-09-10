@@ -11,6 +11,8 @@ const CRITERIA: ScreeningCriteria = {
   targetMw: 100,
   targetMwh: 200,
   minSiteAreaHa: 8,
+  targetSiteAreaHa: 15,
+  maxCandidateAreaHa: 30,
   maxDistanceKm: null,
   excludeProtected: true,
   excludeNatura: true,
@@ -64,6 +66,33 @@ describe("screening cell ranking", () => {
     assert.equal(byId.get("c")?.excluded, false);
     assert.equal(byId.get("c")?.recommendation, "prioritise");
     assert.equal(byId.get("c")?.rank, 1);
+  });
+
+  it("does not let a 5000 ha remainder outrank a target-scale site", () => {
+    const ranked = rankScreeningCells(
+      [
+        cell({
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          name: "Giant remainder",
+          usable_area_ha: 5000,
+          contiguous_area_ha: 5000,
+          compactness: 0.2,
+          geometry_quality: "review",
+        }),
+        cell({
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          name: "Hallsberg South - Site 01",
+          usable_area_ha: 18.4,
+          contiguous_area_ha: 16.9,
+          compactness: 0.82,
+          geometry_quality: "pass",
+          target_fit_score: 1,
+        }),
+      ],
+      { ...CRITERIA, targetSiteAreaHa: 15, maxCandidateAreaHa: 30 },
+    );
+    assert.equal(ranked.find((item) => item.id.startsWith("bbbb"))?.rank, 1);
+    assert.equal(ranked.find((item) => item.id.startsWith("aaaa"))?.rank, 2);
   });
 
   it("does not invent infrastructure proximity from covering geography", () => {
