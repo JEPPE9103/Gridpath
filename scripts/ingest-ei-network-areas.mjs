@@ -373,6 +373,32 @@ async function main() {
   console.log(`Ei local-network ingest against ${url} (mode=${mode})`);
   console.log("Source class: official regulator GIS (not a NOXHEIM fixture)");
 
+  queryLocal(`
+insert into public.grid_sources (
+  name, slug, source_type, publisher, base_url, country_code, active, authority_level, update_frequency
+) values (
+  ${quoteSql(SOURCE_NAME)},
+  ${quoteSql(SOURCE_SLUG)},
+  'gis',
+  ${quoteSql(SOURCE_PUBLISHER)},
+  ${quoteSql(LANDING_URL)},
+  'SE',
+  true,
+  'official',
+  'as_published'
+)
+on conflict (slug) do update
+set
+  name = excluded.name,
+  source_type = excluded.source_type,
+  publisher = excluded.publisher,
+  base_url = excluded.base_url,
+  country_code = excluded.country_code,
+  authority_level = excluded.authority_level,
+  active = true,
+  update_frequency = excluded.update_frequency;
+`);
+
   const begun = beginIngestionRun(queryLocal, quoteSql, {
     slug: SOURCE_SLUG,
     trigger: ingestTriggerType(),

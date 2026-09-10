@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  aspectRatioFromEnvelope,
   compactnessScore,
   geometryQualityFromMetrics,
   resolveSiteAreaProfile,
@@ -9,7 +10,7 @@ import {
   targetFitAssessment,
 } from "./site-generation";
 
-describe("site-generation v2", () => {
+describe("site-generation v2.1", () => {
   it("uses labelled NOXHEIM defaults and never lets max fall below target", () => {
     const profile = resolveSiteAreaProfile({ minSiteAreaHa: 8 });
     assert.equal(profile.minHa, 8);
@@ -35,14 +36,45 @@ describe("site-generation v2", () => {
     assert.match(fitB.label, /no additional ranking benefit/i);
   });
 
-  it("marks elongated geometry as review without claiming constructability", () => {
+  it("treats a practical rectangle as pass and does not require circular compactness", () => {
     const square = compactnessScore(10_000, 400);
-    const corridor = compactnessScore(10_000, 2_000);
+    const rectangle = compactnessScore(15_000, 500);
     assert.ok(square > 0.7);
-    assert.equal(geometryQualityFromMetrics({ compactness: square, coreAreaRatio: 0.95 }).label, "pass");
-    const review = geometryQualityFromMetrics({ compactness: corridor, coreAreaRatio: 0.3 });
+    assert.ok(rectangle > 0.5);
+    assert.equal(
+      geometryQualityFromMetrics({
+        compactness: rectangle,
+        coreAreaRatio: 0.9,
+        aspectRatio: aspectRatioFromEnvelope(150, 100),
+        partCount: 1,
+        usableRatio: 0.85,
+      }).label,
+      "pass",
+    );
+    assert.match(
+      geometryQualityFromMetrics({
+        compactness: rectangle,
+        coreAreaRatio: 0.9,
+        aspectRatio: 1.5,
+        partCount: 1,
+        usableRatio: 0.85,
+      }).reason,
+      /not a preference for circular/i,
+    );
+  });
+
+  it("marks elongated or necked geometry as review without claiming constructability", () => {
+    const corridor = compactnessScore(10_000, 2_000);
+    const review = geometryQualityFromMetrics({
+      compactness: corridor,
+      coreAreaRatio: 0.3,
+      aspectRatio: 8,
+      partCount: 1,
+    });
     assert.equal(review.label, "review");
     assert.match(review.reason, /not constructability/i);
+    const fragmented = geometryQualityFromMetrics({ compactness: 0.7, coreAreaRatio: 0.9, partCount: 3 });
+    assert.equal(fragmented.label, "review");
   });
 
   it("names sites from municipality and bbox direction only", () => {

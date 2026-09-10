@@ -294,9 +294,7 @@ export function suitabilityScoreV4(
   });
   const usable = num(row.contiguous_area_ha) ?? num(row.usable_area_ha) ?? 0;
   const fit = num(row.target_fit_score) ?? targetFitAssessment(usable, profile).score;
-  const compact = num(row.compactness);
-  const geometry =
-    row.geometry_quality === "review" ? 0.45 : compact == null ? 0.7 : Math.max(0, Math.min(1, compact / 0.9));
+  const geometry = row.geometry_quality === "review" ? 0.45 : 0.8;
   const weights = RANKING_WEIGHTS_V4;
   return (
     weights.targetFit * fit +

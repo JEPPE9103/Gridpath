@@ -95,6 +95,33 @@ describe("screening cell ranking", () => {
     assert.equal(ranked.find((item) => item.id.startsWith("aaaa"))?.rank, 2);
   });
 
+  it("does not prefer circular compactness over a practical rectangle when both pass", () => {
+    const ranked = rankScreeningCells(
+      [
+        cell({
+          id: "cccccccccccccccccccccccccccccccccccc",
+          name: "Near-circle buffer",
+          usable_area_ha: 14.92,
+          contiguous_area_ha: 14.92,
+          compactness: 0.997,
+          geometry_quality: "pass",
+          target_fit_score: 0.99,
+        }),
+        cell({
+          id: "dddddddddddddddddddddddddddddddddddd",
+          name: "Irregular open land",
+          usable_area_ha: 17.8,
+          contiguous_area_ha: 17.8,
+          compactness: 0.55,
+          geometry_quality: "pass",
+          target_fit_score: 1,
+        }),
+      ],
+      { ...CRITERIA, targetSiteAreaHa: 15, maxCandidateAreaHa: 30 },
+    );
+    assert.equal(ranked.find((item) => item.id.startsWith("dddd"))?.rank, 1);
+  });
+
   it("does not invent infrastructure proximity from covering geography", () => {
     const [result] = rankScreeningCells([cell()], CRITERIA);
     const proximity = result.screening.dimensions.find((item) => item.key === "grid_proximity");

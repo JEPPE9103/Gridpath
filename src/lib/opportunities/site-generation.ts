@@ -1,32 +1,31 @@
 /**
- * Site-generation v2 — turn regional surviving geography into site-scale candidates.
+ * Site-generation v2.1 — Candidate Sites grown from usable land units, not seed buffers.
  *
  * Search area: customer bbox (may be hundreds of km²).
- * Opportunity zone: a dissolved contiguous remaining region after hard exclusions.
- * Candidate site: a bounded investigation target grown around a deterministic seed
- * inside a zone, stopped at the configured target / maximum area.
+ * Opportunity zone: dissolved remaining region after hard exclusions (regional continuity).
+ * Candidate site: contiguous eligible land grown around a seed until the target
+ * preference is met, or neighbours run out, or the maximum is reached.
  *
- * Algorithm (deterministic, versioned as site-generation-v2):
- * 1. Keep ST_UnaryUnion + ST_Dump as Opportunity Zones (regional continuity).
- * 2. Place SWEREF 99 TM square-grid seeds inside each zone. Spacing is the
- *    greater of 0.75 × target diameter and sqrt(zone_m² / 900) so a county-scale
- *    remainder does not explode into thousands of near-duplicate seeds.
- * 3. Score seeds from supported evidence (land-cover preference, terrain,
- *    distance from protected boundaries). No LLM. No random.
- * 4. Walk seeds by score desc, id. Skip seeds closer than spacing to an
- *    accepted site centroid.
- * 5. Grow by buffering the seed to the target equivalent radius, clipped to
- *    remaining usable geography (not an arbitrary rectangle). Enlarge toward
- *    the max radius if below minimum; shrink if above maximum.
+ * Algorithm (deterministic, versioned as site-generation-v2.1):
+ * 1. Keep ST_UnaryUnion + ST_Dump as Opportunity Zones.
+ * 2. Cover each zone with a 150 m SWEREF 99 TM square grid, clipped to remaining
+ *    usable geography. Units inherit land-cover / terrain scores. Excluded
+ *    land-cover classes (water/wetland by default) are ineligible.
+ * 3. Seeds are the highest-scoring unused eligible units. No LLM. No random.
+ * 4. Region-grow 4-connected (shared edge) through eligible neighbours, always
+ *    adding the highest-scoring neighbour that still fits under maximum area.
+ *    Stop when usable area >= target, or no neighbour remains, or max is hit.
+ *    Do not reshape to force exact target area.
+ * 5. Dissolve selected units. Keep the largest polygon if the union fragments.
  * 6. Drop growths below minimum contiguous usable area.
- * 7. Deduplicate pairs with IoU >= SITE_DEDUPE_IOU (keep higher seed score).
+ * 7. Cells are exclusive (marked used), then IoU >= SITE_DEDUPE_IOU as a safety net.
  * 8. Cap returned sites at maxReturnedCandidates (default 25, hard cap 100).
- * 9. Geometry quality is screening-only (compactness / negative-buffer neck).
+ * 9. Geometry quality is screening-only and must not prefer circles.
  *
  * Extra hectares above the configured target do not add ranking benefit.
  */
 
-export const SITE_GENERATION_VERSION = "site-generation-v2";
+export const SITE_GENERATION_VERSION = "site-generation-v2.1";
 export const RANKING_VERSION_V4 = "suitability-v4";
 
 export const NOXHEIM_DEFAULT_MIN_SITE_AREA_HA = 8;
@@ -38,9 +37,11 @@ export const SITE_RETURN_HARD_CAP = 100;
 export const SITE_CELL_M = 150;
 export const SITE_DEDUPE_IOU = 0.5;
 export const SITE_MIN_SEPARATION_FACTOR = 0.75;
-export const SITE_COMPACTNESS_REVIEW = 0.22;
+export const SITE_COMPACTNESS_REVIEW = 0.12;
+export const SITE_ASPECT_REVIEW = 6;
 export const SITE_NECK_BUFFER_M = 40;
-export const SITE_NECK_AREA_DROP = 0.4;
+export const SITE_NECK_AREA_DROP = 0.45;
+export const SITE_USABLE_RATIO_REVIEW = 0.35;
 
 export type SiteAreaProfile = {
   minHa: number;
@@ -74,14 +75,36 @@ export function compactnessScore(areaM2: number, perimeterM: number): number {
   return (4 * Math.PI * areaM2) / (perimeterM * perimeterM);
 }
 
+export function aspectRatioFromEnvelope(widthM: number, heightM: number): number {
+  const a = Math.max(widthM, heightM);
+  const b = Math.min(widthM, heightM);
+  if (!(b > 0)) return Number.POSITIVE_INFINITY;
+  return a / b;
+}
+
 export function geometryQualityFromMetrics(input: {
   compactness: number;
   coreAreaRatio: number | null;
+  aspectRatio?: number | null;
+  partCount?: number | null;
+  usableRatio?: number | null;
 }): { label: "pass" | "review"; reason: string } {
+  if ((input.partCount ?? 1) > 1) {
+    return {
+      label: "review",
+      reason: "Candidate is fragmented into multiple polygons. Screening geometry quality only — not constructability.",
+    };
+  }
   if (input.compactness < SITE_COMPACTNESS_REVIEW) {
     return {
       label: "review",
-      reason: "Candidate is elongated relative to its area (low compactness). Screening geometry quality only — not constructability.",
+      reason: "Candidate is a narrow corridor or highly irregular relative to its area. Screening geometry quality only — not constructability.",
+    };
+  }
+  if (input.aspectRatio != null && input.aspectRatio > SITE_ASPECT_REVIEW) {
+    return {
+      label: "review",
+      reason: "Candidate is elongated (high length-to-width). Screening geometry quality only — not constructability.",
     };
   }
   if (input.coreAreaRatio != null && input.coreAreaRatio < 1 - SITE_NECK_AREA_DROP) {
@@ -90,7 +113,16 @@ export function geometryQualityFromMetrics(input: {
       reason: "Candidate contains a narrow connection between larger usable sections. Screening geometry quality only — not constructability.",
     };
   }
-  return { label: "pass", reason: "Shape is compact enough for screening comparison." };
+  if (input.usableRatio != null && input.usableRatio < SITE_USABLE_RATIO_REVIEW) {
+    return {
+      label: "review",
+      reason: "Usable geometry is a small fraction of the envelope (holes or excessive boundary complexity). Screening geometry quality only — not constructability.",
+    };
+  }
+  return {
+    label: "pass",
+    reason: "Shape is practical enough for screening comparison. Compactness is not a preference for circular sites.",
+  };
 }
 
 export function targetFitAssessment(
@@ -108,7 +140,7 @@ export function targetFitAssessment(
     const score = 0.55 + (0.45 * (usableHa - profile.minHa)) / span;
     return {
       score: Math.min(1, score),
-      label: `Approaching configured target ${profile.targetHa} ha (${usableHa.toFixed(1)} ha usable).`,
+      label: `Approaching configured target ${profile.targetHa} ha (${usableHa.toFixed(1)} ha usable). Target is a preference, not a required footprint.`,
     };
   }
   if (usableHa <= profile.maxHa) {

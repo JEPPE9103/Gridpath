@@ -166,14 +166,7 @@ export function resolveIngestTarget() {
 
 export function queryIngestSql(target, sql) {
   if (target.mode === "local") {
-    try {
-      return queryLocalPsql(sql);
-    } catch (error) {
-      // Fall through to CLI; some environments still have a working supabase db query.
-      if (!/psql|docker|supabase_db/i.test(error.message)) {
-        throw error;
-      }
-    }
+    return queryLocalPsql(sql);
   }
   const dir = mkdtempSync(path.join(tmpdir(), "noxheim-ei-ingest-"));
   const file = path.join(dir, "query.sql");
@@ -196,10 +189,13 @@ export function queryIngestSql(target, sql) {
 
 function queryLocalPsql(sql) {
   const trimmed = String(sql).replace(/;\s*$/, "").trim();
-  const returnsRows = /^\s*select\b/i.test(trimmed) || /\breturning\b/i.test(trimmed);
-  const wrapped = returnsRows
+  const isPlainSelect = /^\s*select\b/i.test(trimmed);
+  const startsWithWith = /^\s*with\b/i.test(trimmed);
+  const isInsertReturning = /^\s*insert\b/i.test(trimmed) && /\breturning\b/i.test(trimmed);
+  const returnsRows = isPlainSelect || isInsertReturning || startsWithWith;
+  const wrapped = isPlainSelect || isInsertReturning
     ? `with t as (${trimmed}) select coalesce(json_agg(t), '[]'::json)::text as payload from t;`
-    : trimmed;
+    : `${trimmed};`;
   const result = spawnSync(
     "docker",
     [
@@ -229,6 +225,25 @@ function queryLocalPsql(sql) {
   if (!returnsRows) return [];
   const text = String(result.stdout ?? "").trim();
   if (!text || text === "[]") return [];
-  const parsed = JSON.parse(text);
-  return Array.isArray(parsed) ? parsed : [];
+  try {
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    const first = text.split(/\r?\n/).find(Boolean) ?? "";
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(first.trim())) {
+      return [{ id: first.trim() }];
+    }
+    const cols = first.split("|");
+    if (cols.length >= 4 && cols.slice(0, 4).every((col) => /^-?\d+$/.test(col.trim()))) {
+      return [
+        {
+          inserted: Number(cols[0]),
+          updated: Number(cols[1]),
+          unchanged: Number(cols[2]),
+          invalid: Number(cols[3]),
+        },
+      ];
+    }
+    return [{}];
+  }
 }

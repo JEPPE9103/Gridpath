@@ -44,6 +44,37 @@ export async function fetchOpenGeodataBytes(url, { timeoutMs = 180_000 } = {}) {
   return response;
 }
 
+export async function fetchOpenGeodataToFile(url, destPath, { timeoutMs = 3_600_000 } = {}) {
+  if (!isAllowedOpenGeodataUrl(url)) {
+    throw new Error("Refusing to fetch a host that is not on the open-geodata allowlist.");
+  }
+  const { createWriteStream } = await import("node:fs");
+  const { pipeline } = await import("node:stream/promises");
+  const { Readable } = await import("node:stream");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        accept: "application/octet-stream, image/tiff, application/zip, */*",
+        "user-agent": OPEN_GEODATA_USER_AGENT,
+      },
+      signal: controller.signal,
+      redirect: "follow",
+    });
+    if (!response.ok) {
+      throw new Error(`Open geodata fetch HTTP ${response.status} for ${new URL(url).hostname}`);
+    }
+    if (!response.body) {
+      throw new Error("Open geodata fetch returned an empty body.");
+    }
+    await pipeline(Readable.fromWeb(response.body), createWriteStream(destPath));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchOpenGeodata(url, { timeoutMs, accept, consume }) {
   if (!isAllowedOpenGeodataUrl(url)) {
     throw new Error("Refusing to fetch a host that is not on the open-geodata allowlist.");

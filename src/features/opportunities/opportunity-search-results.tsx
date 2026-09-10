@@ -337,8 +337,11 @@ export function OpportunitySearchResults({
               <Fact
                 label="Local / distribution context"
                 value={
-                  [selected.localCoveringName, selected.nupCoveringName].filter(Boolean).join(" · ") ||
-                  "No covering polygon at centroid"
+                  [selected.localCoveringName, selected.nupCoveringName].filter(Boolean).join(" · ")
+                    ? `${[selected.localCoveringName, selected.nupCoveringName].filter(Boolean).join(" · ")} — official covering geography, not available capacity`
+                    : selected.coveringQueried
+                      ? "Official covering queried — no Ei polygon at this centroid. Not available capacity."
+                      : "Official covering geography was not evaluated for this candidate."
                 }
               />
               <Fact

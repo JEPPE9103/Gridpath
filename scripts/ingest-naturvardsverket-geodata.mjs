@@ -8,7 +8,7 @@
  * Default: local Supabase only. Cloud requires the same remote ingest flags as Ei ingest.
  */
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { extractZipBytes } from "./lib/extract-zip.mjs";
@@ -54,6 +54,7 @@ const DATASETS = {
     attribution: "Källa: Naturvårdsverket",
     downloadBase: "https://geodata.naturvardsverket.se/nedladdning/naturvardsregistret/",
     downloadZips: ["SPA_Rikstackande.zip"],
+    skipWfs: true,
   },
 };
 
@@ -63,6 +64,19 @@ function quoteSql(value) {
 
 function quoteSqlNullable(value) {
   return value == null || value === "" ? "null" : quoteSql(value);
+}
+
+function geodataCacheRoot() {
+  return process.env.NOXHEIM_GEODATA_CACHE || path.join(os.homedir(), "noxheim-geodata");
+}
+
+function localZipPath(zipName) {
+  const explicit = process.argv.find((item) => item.startsWith("--zip="))?.slice("--zip=".length);
+  if (explicit && existsSync(explicit)) {
+    return explicit;
+  }
+  const cached = path.join(geodataCacheRoot(), zipName);
+  return existsSync(cached) ? cached : "";
 }
 
 function featureExternalId(properties, dataset) {
@@ -153,16 +167,35 @@ function dbfValue(row, names) {
   return null;
 }
 
-async function fetchDownloadFeatures(dataset) {
+async function fetchDownloadFeatures(dataset, bbox3006) {
   const features = [];
   if (!dataset.downloadBase || !dataset.downloadZips?.length) return features;
+  mkdirSync(geodataCacheRoot(), { recursive: true });
   for (const zipName of dataset.downloadZips) {
     const url = `${dataset.downloadBase}${zipName}`;
-    console.log(JSON.stringify({ event: "ingest.nv.download.start", slug: dataset.slug, zip: zipName }));
+    const cached = localZipPath(zipName);
+    console.log(JSON.stringify({ event: "ingest.nv.download.start", slug: dataset.slug, zip: zipName, local: Boolean(cached) }));
     let bytes;
     try {
-      bytes = await fetchOpenGeodataBytes(url, { timeoutMs: 90_000 });
-    } catch {
+      if (cached) {
+        bytes = new Uint8Array(readFileSync(cached));
+      } else {
+        bytes = await fetchOpenGeodataBytes(url, { timeoutMs: 90_000 });
+        try {
+          writeFileSync(path.join(geodataCacheRoot(), zipName), bytes);
+        } catch {
+          // cache is optional
+        }
+      }
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: "ingest.nv.download.failed",
+          slug: dataset.slug,
+          zip: zipName,
+          message: error instanceof Error ? error.message.slice(0, 240) : "failed",
+        }),
+      );
       continue;
     }
     const tmpDir = mkdtempSync(path.join(os.tmpdir(), "noxheim-nv-"));
@@ -172,8 +205,20 @@ async function fetchDownloadFeatures(dataset) {
       const prj = files.prjPath ? (await import("node:fs")).readFileSync(files.prjPath, "utf8") : "";
       const srid = sridFromPrj(prj);
       for (let i = 0; i < geometries.length; i += 1) {
-        const wkt = geometries[i];
+        const item = geometries[i];
+        const wkt = item?.wkt ?? item;
         if (!wkt) continue;
+        if (bbox3006 && srid === 3006 && item?.envelope) {
+          const env = item.envelope;
+          if (
+            env.xmax < bbox3006.xmin ||
+            env.xmin > bbox3006.xmax ||
+            env.ymax < bbox3006.ymin ||
+            env.ymin > bbox3006.ymax
+          ) {
+            continue;
+          }
+        }
         const props = dbf.records[i]?.deleted ? null : dbf.records[i]?.values ?? {};
         if (!props) continue;
         features.push({
@@ -181,6 +226,7 @@ async function fetchDownloadFeatures(dataset) {
           geometry: null,
           wkt,
           srid,
+          envelope: item?.envelope ?? null,
         });
       }
     } finally {
@@ -194,10 +240,20 @@ async function fetchDownloadFeatures(dataset) {
   return features;
 }
 
-async function fetchAllFeatures(dataset, bbox) {
+async function fetchAllFeatures(dataset, bbox, bbox3006) {
   if (dataset.downloadZips?.length) {
-    const downloaded = await fetchDownloadFeatures(dataset);
+    const downloaded = await fetchDownloadFeatures(dataset, bbox3006);
     if (downloaded.length) return downloaded;
+    if (dataset.skipWfs) {
+      console.error(
+        JSON.stringify({
+          event: "ingest.nv.download.empty",
+          slug: dataset.slug,
+          message: "Official zip returned 0 features. Not falling through to unstable WFS.",
+        }),
+      );
+      return downloaded;
+    }
   }
   const features = [];
   let startIndex = 0;
@@ -236,30 +292,48 @@ function contentHashForFeatures(features, dataset) {
     .digest("hex");
 }
 
-function upsertBatchSql(sourceId, snapshotId, dataset, features, fetchedAt) {
+function clipToBboxSql(geomSql, bbox) {
+  if (!bbox) return geomSql;
+  return `extensions.st_multi(
+    extensions.st_collectionextract(
+      extensions.st_clipbybox2d(
+        ${geomSql},
+        extensions.st_makebox2d(
+          extensions.st_point(${bbox.west}, ${bbox.south}),
+          extensions.st_point(${bbox.east}, ${bbox.north})
+        )
+      ),
+      3
+    )
+  )`;
+}
+
+function upsertBatchSql(sourceId, snapshotId, dataset, features, fetchedAt, bbox) {
   const values = [];
   for (const feature of features) {
     const externalId = featureExternalId(feature.properties, dataset);
     if (!externalId || (!feature.geometry && !feature.wkt)) continue;
-    const geomSql = feature.wkt
+    let geomSql = feature.wkt
       ? `extensions.st_multi(
-        extensions.st_collectionextract(
-          extensions.st_makevalid(
+          extensions.st_collectionextract(
             extensions.st_transform(
               extensions.st_setsrid(extensions.st_geomfromtext(${quoteSql(feature.wkt)}), ${Number(feature.srid) || 3006}),
               4326
-            )
-          ),
-          3
-        )
-      )`
+            ),
+            3
+          )
+        )`
       : (() => {
           const geomType = feature.geometry?.type;
           if (geomType !== "Polygon" && geomType !== "MultiPolygon") return null;
           return `extensions.st_multi(
         extensions.st_collectionextract(
-          extensions.st_makevalid(
-            extensions.st_setsrid(extensions.st_geomfromgeojson(${quoteSql(JSON.stringify(feature.geometry))}), 4326)
+          extensions.st_buffer(
+            extensions.st_simplifypreservetopology(
+              extensions.st_setsrid(extensions.st_geomfromgeojson(${quoteSql(JSON.stringify(feature.geometry))}), 4326),
+              0.001
+            ),
+            0
           ),
           3
         )
@@ -355,7 +429,42 @@ set
     ingestionRunId = begun.run_id;
 
     const retrievedAt = new Date().toISOString();
-    const features = await fetchAllFeatures(dataset, bbox);
+    let bbox3006 = null;
+    if (bbox) {
+      const pad = 0.05;
+      const row = query(`
+        select
+          extensions.st_xmin(g) as xmin,
+          extensions.st_ymin(g) as ymin,
+          extensions.st_xmax(g) as xmax,
+          extensions.st_ymax(g) as ymax
+        from (
+          select extensions.st_transform(
+            extensions.st_setsrid(
+              extensions.st_makeenvelope(${bbox.west - pad}, ${bbox.south - pad}, ${bbox.east + pad}, ${bbox.north + pad}),
+              4326
+            ),
+            3006
+          ) as g
+        ) as transformed;
+      `)[0];
+      bbox3006 = {
+        xmin: Number(row.xmin),
+        ymin: Number(row.ymin),
+        xmax: Number(row.xmax),
+        ymax: Number(row.ymax),
+      };
+    }
+    const features = await fetchAllFeatures(dataset, bbox, bbox3006);
+    console.log(JSON.stringify({ event: "ingest.nv.features", slug: dataset.slug, count: features.length, bbox: Boolean(bbox) }));
+    const sample = features[0];
+    console.log(JSON.stringify({
+      event: "ingest.nv.sample",
+      slug: dataset.slug,
+      srid: sample?.srid,
+      envelope: sample?.envelope,
+      wktHead: String(sample?.wkt ?? "").slice(0, 120),
+    }));
     if (features.length === 0) {
       throw new Error(
         `Naturvårdsverket WFS returned 0 features for ${dataset.slug}. Treating the layer as unavailable rather than an empty catalogue.`,
@@ -382,7 +491,7 @@ select count(*)::int as n
 from public.official_geographic_features
 where source_id = ${quoteSql(source.id)}::uuid;
 `);
-      if (Number(countRows[0]?.n) > 0) {
+      if (!bbox && Number(countRows[0]?.n) >= features.length) {
         completeIngestionRun(query, quoteSql, quoteSqlNullable, {
           runId: ingestionRunId,
           status: "success",
@@ -448,14 +557,18 @@ returning id;
       sourceChanged = true;
     }
 
-    const BATCH = 20;
+    const BATCH = 5;
     let processed = 0;
     for (let i = 0; i < features.length; i += BATCH) {
-      const sql = upsertBatchSql(source.id, snapshotId, dataset, features.slice(i, i + BATCH), retrievedAt);
+      const sql = upsertBatchSql(source.id, snapshotId, dataset, features.slice(i, i + BATCH), retrievedAt, bbox);
       if (!sql) continue;
       try {
+        console.log(JSON.stringify({ event: "ingest.nv.batch.start", slug: dataset.slug, offset: i, total: features.length }));
         query(sql);
         processed += Math.min(BATCH, features.length - i);
+        if (processed % 10 === 0 || i + BATCH >= features.length) {
+          console.log(JSON.stringify({ event: "ingest.nv.batch", slug: dataset.slug, processed, total: features.length }));
+        }
       } catch (error) {
         console.error(
           JSON.stringify({

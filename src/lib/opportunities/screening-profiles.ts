@@ -42,7 +42,7 @@ export type ScreeningProfileRecord = {
 };
 
 export const RANKING_VERSION = "suitability-v4";
-export const METHODOLOGY_VERSION = "site-generation-v2";
+export const METHODOLOGY_VERSION = "site-generation-v2.1";
 export const RANKING_VERSION_V2 = "suitability-v2";
 export const RANKING_VERSION_V3 = "suitability-v3";
 

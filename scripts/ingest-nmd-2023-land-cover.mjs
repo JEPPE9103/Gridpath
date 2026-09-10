@@ -18,8 +18,9 @@
  * Usage:
  *   node scripts/ingest-nmd-2023-land-cover.mjs --tif=C:/data/NMD2023bas_v0_3.tif --bbox=14.9,59.1,15.4,59.4
  */
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fromFile } from "geotiff";
@@ -31,7 +32,7 @@ import {
   completeIngestionRun,
   ingestTriggerType,
 } from "./lib/ingestion-runs.mjs";
-import { fetchOpenGeodataBytes } from "./lib/open-geodata-fetch.mjs";
+import { fetchOpenGeodataToFile } from "./lib/open-geodata-fetch.mjs";
 
 const SLUG = "nv-nmd-2023";
 const LISTING = "https://geodata.naturvardsverket.se/nedladdning/marktacke/NMD2023/Basskikt_v0_x/";
@@ -91,6 +92,32 @@ function resolveNmd2023Tif(argv) {
     if (existsSync(candidate)) return candidate;
   }
   return explicit;
+}
+
+function resolveNmd2023Zip() {
+  const cached = path.join(geodataCacheRoot(), ZIP_NAME);
+  return existsSync(cached) ? cached : "";
+}
+
+function extractZipFile(zipPath, destDir) {
+  mkdirSync(destDir, { recursive: true });
+  const tar = spawnSync("tar", ["-xf", zipPath, "-C", destDir], { encoding: "utf8" });
+  if (tar.status === 0) return;
+  extractZipBytes(readFileSync(zipPath), destDir);
+}
+
+function findTifInDir(dir) {
+  const entries = readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const nested = findTifInDir(full);
+      if (nested) return nested;
+    } else if (entry.name.toLowerCase().endsWith(".tif")) {
+      return full;
+    }
+  }
+  return "";
 }
 
 function bboxTo3006(query, bbox) {
@@ -229,14 +256,26 @@ on conflict (slug) do update set name = excluded.name, active = true;
   }
   ingestionRunId = begun.run_id;
 
-  if (!tifPath && download) {
+  const cacheRoot = geodataCacheRoot();
+  mkdirSync(cacheRoot, { recursive: true });
+  let zipPath = resolveNmd2023Zip();
+  if (!tifPath && !zipPath && download) {
+    zipPath = path.join(cacheRoot, ZIP_NAME);
+    console.log(JSON.stringify({ event: "ingest.nmd2023.download.start", zip: ZIP_NAME }));
+    await fetchOpenGeodataToFile(`${LISTING}${ZIP_NAME}`, zipPath, { timeoutMs: 3_600_000 });
+  }
+  if (!tifPath && zipPath) {
     tmpDir = mkdtempSync(path.join(os.tmpdir(), "noxheim-nmd2023-"));
-    const zipBytes = await fetchOpenGeodataBytes(`${LISTING}${ZIP_NAME}`, { timeoutMs: 1_200_000 });
-    extractZipBytes(zipBytes, tmpDir);
-    const { readdirSync } = await import("node:fs");
-    const tifName = readdirSync(tmpDir).find((name) => name.toLowerCase().endsWith(".tif"));
-    if (!tifName) throw new Error("NMD 2023 zip did not contain a GeoTIFF.");
-    tifPath = path.join(tmpDir, tifName);
+    extractZipFile(zipPath, tmpDir);
+    const extracted = findTifInDir(tmpDir);
+    if (!extracted) throw new Error("NMD 2023 zip did not contain a GeoTIFF.");
+    const cachedTif = path.join(cacheRoot, path.basename(extracted));
+    try {
+      renameSync(extracted, cachedTif);
+      tifPath = cachedTif;
+    } catch {
+      tifPath = extracted;
+    }
   }
   if (!tifPath || !existsSync(tifPath)) {
     completeIngestionRun(query, quoteSql, quoteSqlNullable, {

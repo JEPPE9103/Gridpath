@@ -87,17 +87,24 @@ function polygonRecordToWkt(buffer, start) {
   if (type !== 5 && type !== 15 && type !== 25) {
     return { wkt: null, reason: `unsupported_shape_type_${type}` };
   }
-  if (start + 44 > buffer.length) return { wkt: null, reason: "truncated_polygon_header" };
+  if (start + 44 > buffer.length) return { wkt: null, envelope: null, reason: "truncated_polygon_header" };
+  const xmin = buffer.readDoubleLE(start + 4);
+  const ymin = buffer.readDoubleLE(start + 8);
+  const xmax = buffer.readDoubleLE(start + 12);
+  const ymax = buffer.readDoubleLE(start + 16);
+  const envelope = { xmin, ymin, xmax, ymax };
   const numParts = buffer.readInt32LE(start + 36);
   const numPoints = buffer.readInt32LE(start + 40);
   const partsStart = start + 44;
   const pointsStart = partsStart + numParts * 4;
-  const pointStride = type === 5 ? 16 : 24;
+  const pointStride = 16;
   if (numParts < 1 || numPoints < 4 || pointsStart + numPoints * pointStride > buffer.length) {
-    return { wkt: null, reason: "invalid_polygon_layout" };
+    return { wkt: null, envelope, reason: "invalid_polygon_layout" };
   }
   const parts = [];
   for (let i = 0; i < numParts; i += 1) parts.push(buffer.readInt32LE(partsStart + i * 4));
+  const looksGeographic = ymax < 100 && xmax < 100;
+  const looksProjected = ymax > 1_000_000 || ymin > 1_000_000;
   const points = [];
   for (let i = 0; i < numPoints; i += 1) {
     points.push([
@@ -106,14 +113,37 @@ function polygonRecordToWkt(buffer, start) {
     ]);
   }
   const rings = [];
+  const kept = [];
   for (let i = 0; i < parts.length; i += 1) {
     const from = parts[i];
     const to = i + 1 < parts.length ? parts[i + 1] : numPoints;
-    const ring = ringToWkt(points.slice(from, to));
+    const ringPoints = points.slice(from, to).filter(([x, y]) => {
+      if (looksGeographic) {
+        return x >= 10 && x <= 25 && y >= 54 && y <= 70;
+      }
+      if (looksProjected) {
+        return y >= 1_000_000 && y <= 9_000_000 && x >= -200_000 && x <= 2_000_000;
+      }
+      return true;
+    });
+    kept.push(...ringPoints);
+    const ring = ringToWkt(ringPoints);
     if (ring) rings.push(ring);
   }
-  if (rings.length === 0) return { wkt: null, reason: "empty_rings" };
-  return { wkt: `MULTIPOLYGON(${rings.map((ring) => `(${ring})`).join(",")})`, reason: null };
+  if (rings.length === 0) return { wkt: null, envelope, reason: "empty_rings" };
+  const cleanEnvelope = kept.length
+    ? {
+        xmin: Math.min(...kept.map((point) => point[0])),
+        ymin: Math.min(...kept.map((point) => point[1])),
+        xmax: Math.max(...kept.map((point) => point[0])),
+        ymax: Math.max(...kept.map((point) => point[1])),
+      }
+    : envelope;
+  return {
+    wkt: `MULTIPOLYGON(${rings.map((ring) => `(${ring})`).join(",")})`,
+    envelope: cleanEnvelope,
+    reason: null,
+  };
 }
 
 export function readShapefilePolygons(shpBuffer, shxBuffer) {
@@ -124,8 +154,8 @@ export function readShapefilePolygons(shpBuffer, shxBuffer) {
     const recordCount = Math.floor((shxBuffer.length - 100) / 8);
     for (let i = 0; i < recordCount; i += 1) {
       const recordOffset = shxBuffer.readInt32BE(100 + i * 8) * 2;
-      const { wkt } = polygonRecordToWkt(shpBuffer, recordOffset + 8);
-      geometries.push(wkt);
+      const { wkt, envelope } = polygonRecordToWkt(shpBuffer, recordOffset + 8);
+      geometries.push({ wkt, envelope });
     }
   }
   return { geometries };

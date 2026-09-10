@@ -651,6 +651,32 @@ async function main() {
   console.log("Source class: official regulator NUP (not a NOXHEIM fixture)");
   console.log("Semantics: forecast MW = forecast transfer-capacity NEED, not available capacity.");
 
+  queryLocal(`
+insert into public.grid_sources (
+  name, slug, source_type, publisher, base_url, country_code, active, authority_level, update_frequency
+) values (
+  ${quoteSql(SOURCE_NAME)},
+  ${quoteSql(SOURCE_SLUG)},
+  'excel',
+  ${quoteSql(SOURCE_PUBLISHER)},
+  ${quoteSql(LANDING_URL)},
+  'SE',
+  true,
+  'official',
+  'as_published'
+)
+on conflict (slug) do update
+set
+  name = excluded.name,
+  source_type = excluded.source_type,
+  publisher = excluded.publisher,
+  base_url = excluded.base_url,
+  country_code = excluded.country_code,
+  authority_level = excluded.authority_level,
+  active = true,
+  update_frequency = excluded.update_frequency;
+`);
+
   const begun = beginIngestionRun(queryLocal, quoteSql, {
     slug: SOURCE_SLUG,
     trigger: ingestTriggerType(),

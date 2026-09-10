@@ -11,6 +11,7 @@ select
   to_regprocedure('public.create_development_opportunity(uuid,text,text,text,text,text,double precision,double precision,numeric,numeric,numeric,text,uuid,text,text,text,text)') is not null as has_create_opportunity,
   to_regprocedure('public.execute_opportunity_screening_run(uuid)') is not null as has_execute_screening_run,
   to_regprocedure('public.segment_opportunity_run_into_sites(uuid)') is not null as has_segment_sites,
+  to_regprocedure('private.land_cover_pref_score(text,jsonb)') is not null as has_land_cover_pref,
   to_regprocedure('public.apply_opportunity_run_assessments(uuid,jsonb)') is not null as has_apply_run_assessments,
   to_regprocedure('public.save_opportunity_from_run_candidate(uuid)') is not null as has_save_run_candidate,
   to_regprocedure('public.get_opportunity_run_geojson(uuid)') is not null as has_run_geojson,
