@@ -42,7 +42,7 @@ test.describe("Noxheim V1 critical flows", () => {
     await expect(page.getByText(/weekly digest/i)).toBeVisible();
 
     await page.goto("/internal/operations");
-    await expect(page.getByText(/operations/i).or(page.getByText(/not found/i)).first()).toBeVisible();
+    await expectOperatorToolingHiddenFromCustomer(page);
   });
 
   test("create project from portfolio when the form is available", async ({ page }) => {
@@ -62,10 +62,7 @@ test.describe("Noxheim V1 critical flows", () => {
   test("viewer cannot reach operator internals as a customer page", async ({ page }) => {
     await signIn(page);
     await page.goto("/internal/operations");
-    const body = await page.locator("body").innerText();
-    if (!process.env.OPERATOR_EMAILS?.toLowerCase().includes(email.toLowerCase())) {
-      expect(body.toLowerCase().includes("recent ingestion runs")).toBeFalsy();
-    }
+    await expectOperatorToolingHiddenFromCustomer(page);
   });
 });
 
@@ -75,4 +72,21 @@ async function signIn(page: Page) {
   await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForURL(/\/(portfolio|overview|onboarding)/);
+}
+
+async function expectOperatorToolingHiddenFromCustomer(page: Page) {
+  const operatorAllowlisted = Boolean(
+    email && process.env.OPERATOR_EMAILS?.toLowerCase().includes(email.toLowerCase()),
+  );
+  const response = await page.goto("/internal/operations");
+  if (operatorAllowlisted) {
+    await expect(page.getByRole("heading", { name: /^operations$/i })).toBeVisible();
+    return;
+  }
+  expect(response?.status()).toBe(404);
+  const html = (await page.content()).toLowerCase();
+  expect(html).toContain('name="next-error" content="not-found"');
+  expect(html.includes("recent ingestion runs")).toBeFalsy();
+  expect(html.includes("noxheim operators only")).toBeFalsy();
+  expect(html.includes("failed notification deliveries")).toBeFalsy();
 }

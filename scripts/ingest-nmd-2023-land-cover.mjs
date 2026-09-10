@@ -9,6 +9,8 @@
  * Licence: CC0
  * Attribution preferred: “NMD2023 v0.3, Naturvårdsverket”
  * Raster: 10 m, EPSG:3006. Nationwide zip is ~1.3 GB — never commit it.
+ * Cell identity is (source_id, SWEREF cell origin at the processing resolution),
+ * not a window-local raster index, so overlapping AOIs upsert the same official cell.
  *
  * Production path: one-time national GeoTIFF outside Git via --tif=,
  * NOXHEIM_NMD2023_TIF, NOXHEIM_GEODATA_CACHE, or ~/noxheim-geodata.
@@ -200,6 +202,10 @@ function majorityResample(samples, srcW, srcH, factor) {
   return { samples: out, width: outW, height: outH };
 }
 
+function nmdCellExternalId(prefix, xmin, ymax) {
+  return `${prefix}:${Math.round(xmin)}:${Math.round(ymax)}`;
+}
+
 function summarise(samples, width, height, originX, originY, cellW, cellH, prefix) {
   const rows = [];
   for (let y = 0; y < height; y += 1) {
@@ -209,7 +215,7 @@ function summarise(samples, width, height, originX, originY, cellW, cellH, prefi
       const xmin = originX + x * cellW;
       const ymax = originY - y * cellH;
       rows.push({
-        externalId: `${prefix}:${x}:${y}`,
+        externalId: nmdCellExternalId(prefix, xmin, ymax),
         xmin,
         ymin: ymax - cellH,
         xmax: xmin + cellW,
@@ -387,7 +393,18 @@ on conflict (slug) do update set name = excluded.name, active = true;
     : [];
 
   const retrievedAt = new Date().toISOString();
-  const hash = createHash("sha256").update(`${SLUG}|${discovery.length}|${precision.length}`).digest("hex");
+  const hash = createHash("sha256")
+    .update(
+      JSON.stringify({
+        slug: SLUG,
+        bbox,
+        discovery: discovery.length,
+        precision: precision.length,
+        identity: "sweref_cell_origin",
+        processingM,
+      }),
+    )
+    .digest("hex");
   const source = query(`select id from public.grid_sources where slug = ${quoteSql(SLUG)};`)[0];
   const inserted = query(`
 insert into public.source_snapshots (
@@ -413,11 +430,31 @@ insert into public.source_snapshots (
     bbox,
     discovery_count: discovery.length,
     precision_count: precision.length,
+    identity: "source_id + sweref_cell_origin",
   }))}::jsonb
 )
+on conflict (source_id, content_hash) do update
+set retrieved_at = excluded.retrieved_at, metadata = excluded.metadata, status = 'success'
 returning id;
 `);
   const snapshotId = inserted[0].id;
+
+  query(`
+delete from public.official_physical_summaries as s
+using public.grid_sources as gs
+where s.source_id = gs.id
+  and gs.slug = ${quoteSql(SLUG)}
+  and s.summary_class = 'land_cover'
+  and s.external_id ~ ${quoteSql("^nmd2023:(1km|[0-9]+m):[0-9]{1,5}:[0-9]{1,5}$")};
+`);
+  query(`
+delete from public.official_precision_summaries as s
+using public.grid_sources as gs
+where s.source_id = gs.id
+  and gs.slug = ${quoteSql(SLUG)}
+  and s.summary_class = 'land_cover'
+  and s.external_id ~ ${quoteSql("^nmd2023:(1km|[0-9]+m):[0-9]{1,5}:[0-9]{1,5}$")};
+`);
 
   if (bbox) {
     query(`

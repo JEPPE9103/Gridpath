@@ -55,6 +55,24 @@ describe("resolveAuthNavigation", () => {
       }),
       { type: "redirect", pathname: "/login" },
     );
+    assert.deepEqual(
+      resolveAuthNavigation({
+        pathname: "/opportunities",
+        hasUser: false,
+        hasOrganization: false,
+        isRecovery: false,
+      }),
+      { type: "redirect", pathname: "/login" },
+    );
+    assert.deepEqual(
+      resolveAuthNavigation({
+        pathname: "/opportunities/new",
+        hasUser: false,
+        hasOrganization: false,
+        isRecovery: false,
+      }),
+      { type: "redirect", pathname: "/login" },
+    );
   });
 
   it("sends an authenticated login visit to the user's workspace or onboarding", () => {
@@ -82,6 +100,15 @@ describe("resolveAuthNavigation", () => {
     assert.deepEqual(
       resolveAuthNavigation({
         pathname: "/map",
+        hasUser: true,
+        hasOrganization: false,
+        isRecovery: false,
+      }),
+      { type: "redirect", pathname: "/onboarding" },
+    );
+    assert.deepEqual(
+      resolveAuthNavigation({
+        pathname: "/opportunities",
         hasUser: true,
         hasOrganization: false,
         isRecovery: false,

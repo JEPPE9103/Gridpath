@@ -19,7 +19,28 @@ const DEMO_SERVICE =
 const ANNA_EMAIL = "anna@noxheim-demo.local";
 const ANNA_PASSWORD = "NoxheimDemo2026!";
 const NORTHGRID = "a0000000-0000-4000-8000-000000000001";
-const BBOX = { west: 14.9, south: 59.1, east: 15.4, north: 59.4 };
+const DEFAULT_BBOX = { west: 14.9, south: 59.1, east: 15.4, north: 59.4 };
+
+function argValue(name: string, fallback: string) {
+  const raw = process.argv.find((item) => item.startsWith(`--${name}=`))?.slice(name.length + 3);
+  return raw && raw.length > 0 ? raw : fallback;
+}
+
+function parseProofBbox() {
+  const raw = argValue("bbox", `${DEFAULT_BBOX.west},${DEFAULT_BBOX.south},${DEFAULT_BBOX.east},${DEFAULT_BBOX.north}`);
+  const [west, south, east, north] = raw.split(",").map(Number);
+  if (![west, south, east, north].every(Number.isFinite) || west >= east || south >= north) {
+    throw new Error("Provide --bbox=west,south,east,north");
+  }
+  return { west, south, east, north };
+}
+
+const BBOX = parseProofBbox();
+const PROOF_NAME = argValue("name", "Hallsberg BESS proof");
+const PROOF_REGION = argValue("region", "Örebro");
+const PROOF_MUNICIPALITY = argValue("municipality", "Hallsberg");
+const PROOF_REPORT = argValue("report", path.join("scripts", "tmp-proof-report.json"));
+const PROOF_SLUG = PROOF_MUNICIPALITY.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "aoi";
 
 const V2_BASELINE = {
   version: "site-generation-v2",
@@ -123,7 +144,7 @@ function writeVisualArtifact(
 ) {
   const envelope = `extensions.st_setsrid(extensions.st_makeenvelope(${BBOX.west}, ${BBOX.south}, ${BBOX.east}, ${BBOX.north}), 4326)`;
   const search = psqlJson(`
-    select 'search'::text as kind, 'Hallsberg search boundary'::text as name,
+    select 'search'::text as kind, '${PROOF_MUNICIPALITY.replace(/'/g, "''")} search boundary'::text as name,
       extensions.st_asgeojson(${envelope})::json as geom_json
   `);
   const zones = psqlJson(`
@@ -159,14 +180,14 @@ function writeVisualArtifact(
 
   const geojson = {
     type: "FeatureCollection",
-    name: "hallsberg-site-generation-v2.1",
+    name: `${PROOF_SLUG}-site-generation-v2.1`,
     features: collection.map((row: { kind?: string; name?: string; geom_json?: unknown }) => ({
       type: "Feature",
       properties: { kind: row.kind, name: row.name },
       geometry: row.geom_json,
     })),
   };
-  const geojsonPath = path.join(process.cwd(), "scripts", "tmp-hallsberg-v21.geojson");
+  const geojsonPath = path.join(process.cwd(), "scripts", `tmp-${PROOF_SLUG}-v21.geojson`);
   writeFileSync(geojsonPath, JSON.stringify(geojson));
 
   const width = 900;
@@ -202,10 +223,10 @@ function writeVisualArtifact(
   <g transform="translate(0,170)">
     ${paths}
   </g>
-  <text x="16" y="22" font-size="16" font-family="sans-serif" fill="#111827">Hallsberg site-generation-v2.1 shape audit</text>
+  <text x="16" y="22" font-size="16" font-family="sans-serif" fill="#111827">${PROOF_MUNICIPALITY} site-generation-v2.1 shape audit</text>
   ${labels}
 </svg>`;
-  writeFileSync(path.join(process.cwd(), "scripts", "tmp-hallsberg-v21.svg"), svg);
+  writeFileSync(path.join(process.cwd(), "scripts", `tmp-${PROOF_SLUG}-v21.svg`), svg);
   return geojsonPath;
 }
 
@@ -221,8 +242,8 @@ async function signIn(email: string, password: string) {
 const criteria: ScreeningCriteria = {
   technology: "battery_storage",
   country: "SE",
-  region: "Örebro",
-  municipality: "Hallsberg",
+  region: PROOF_REGION,
+  municipality: PROOF_MUNICIPALITY,
   targetMw: 20,
   targetMwh: 80,
   minSiteAreaHa: 8,
@@ -240,7 +261,7 @@ const criteria: ScreeningCriteria = {
   roadMode: "preference",
   minDistanceResidentialM: null,
   electricityArea: null,
-  notes: "Local Hallsberg proof search",
+  notes: `Local ${PROOF_MUNICIPALITY} proof search`,
     rankingVersion: "suitability-v4",
   };
 
@@ -329,7 +350,7 @@ async function main() {
   `);
   const nmd2023 = landCoverSources.find((row: { slug?: string }) => row.slug === "nv-nmd-2023");
   record(
-    "NMD 2023 basskikt evidence is present for the Hallsberg window",
+    "NMD 2023 basskikt evidence is present for the search window",
     Number(nmd2023?.n ?? 0) > 0,
     JSON.stringify(landCoverSources),
   );
@@ -439,11 +460,11 @@ async function main() {
     .insert({
       organization_id: NORTHGRID,
       created_by: anna.user.id,
-      name: "Hallsberg BESS proof",
+      name: PROOF_NAME,
       technology: "battery_storage",
       country: "SE",
-      region: "Örebro",
-      municipality: "Hallsberg",
+      region: PROOF_REGION,
+      municipality: PROOF_MUNICIPALITY,
       west: BBOX.west,
       south: BBOX.south,
       east: BBOX.east,
@@ -669,9 +690,9 @@ from public.segment_opportunity_run_into_sites('${runId}'::uuid) as t;
   let artifactPath = "";
   try {
     artifactPath = writeVisualArtifact(runId, top);
-    record("Visual Hallsberg shape-audit artifact written", true, artifactPath);
+    record("Visual shape-audit artifact written", true, artifactPath);
   } catch (error) {
-    record("Visual Hallsberg shape-audit artifact written", false, error instanceof Error ? error.message : "failed");
+    record("Visual shape-audit artifact written", false, error instanceof Error ? error.message : "failed");
   }
 
   const displayVsAnalytical = psqlJson(`
@@ -842,7 +863,7 @@ from public.segment_opportunity_run_into_sites('${runId}'::uuid) as t;
       },
     },
   };
-  writeFileSync(path.join(process.cwd(), "scripts", "tmp-proof-report.json"), JSON.stringify(report, null, 2));
+  writeFileSync(path.resolve(process.cwd(), PROOF_REPORT), JSON.stringify(report, null, 2));
 
   const passed = checks.filter((item) => item.pass).length;
   const failed = checks.filter((item) => !item.pass).length;

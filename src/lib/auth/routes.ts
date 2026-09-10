@@ -14,6 +14,7 @@ const WORKSPACE_PREFIXES = [
   "/documents",
   "/reports",
   "/projects",
+  "/opportunities",
   "/settings",
 ] as const;
 

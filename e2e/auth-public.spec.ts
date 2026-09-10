@@ -6,6 +6,10 @@ test.describe("public authentication routes", () => {
     await expect(page).toHaveURL(/\/login/);
     await page.goto("/portfolio");
     await expect(page).toHaveURL(/\/login/);
+    await page.goto("/opportunities");
+    await expect(page).toHaveURL(/\/login/);
+    await page.goto("/opportunities/new");
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test("reset-password without a recovery session stays on the dedicated page", async ({ page }) => {
