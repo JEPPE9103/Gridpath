@@ -99,10 +99,19 @@ export function OpportunityComparePage({
                 ))}
               </tr>
               <tr>
-                <td className="border-b border-line px-3 py-2 text-muted">Data confidence</td>
+                <td className="border-b border-line px-3 py-2 text-muted">Recommendation confidence</td>
                 {items.map((item) => (
                   <td key={item.id} className="border-b border-line px-3 py-2">
                     {opportunityConfidenceLabel(item.dataConfidence)}
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                <td className="border-b border-line px-3 py-2 text-muted">Network area</td>
+                {items.map((item) => (
+                  <td key={item.id} className="border-b border-line px-3 py-2">
+                    Official covering geography — not an indication of available connection capacity.
+                    {item.keyPositive ? ` ${item.keyPositive}` : ""}
                   </td>
                 ))}
               </tr>

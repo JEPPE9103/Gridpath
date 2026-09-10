@@ -16,6 +16,10 @@ test.describe("Opportunity precision screening", () => {
 
     await page.goto("/opportunities");
     await expect(page.getByRole("heading", { name: /opportunit/i }).first()).toBeVisible();
+    const emptyBody = (await page.locator("body").innerText()).toLowerCase();
+    if (emptyBody.includes("no opportunities yet") || emptyBody.includes("first development opportunity")) {
+      expect(emptyBody.includes("first development opportunity") || emptyBody.includes("new search")).toBeTruthy();
+    }
 
     await page.goto("/opportunities/new");
     await expect(page.getByRole("heading", { name: /new opportunity search/i })).toBeVisible();
@@ -63,11 +67,20 @@ test.describe("Opportunity precision screening", () => {
     await page.getByLabel(/^south$/i).fill("59.1");
     await page.getByLabel(/^east$/i).fill("15.4");
     await page.getByLabel(/^north$/i).fill("59.4");
-    await page.getByRole("button", { name: /find candidate sites/i }).click();
+    await page.getByRole("button", { name: /find candidate sites/i }).click({ noWaitAfter: true });
+    await Promise.race([
+      page.getByRole("heading", { name: /analysing search area/i }).waitFor({ state: "visible", timeout: 8_000 }),
+      page.waitForURL(/\/opportunities\/searches\/.+\/runs\/.+/, { timeout: 8_000 }),
+    ]).catch(() => undefined);
 
     await page.waitForURL(/\/opportunities\/searches\/.+\/runs\/.+/, { timeout: 180_000 });
     await expect(page.getByText(/candidate sites identified/i)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/opportunity zones/i).first()).toBeVisible();
+    await expect(page.getByText(/evidence coverage/i).first()).toBeVisible();
+    await expect(page.getByText(/not an indication of available connection capacity/i).first()).toBeVisible();
+    const body = (await page.locator("body").innerText()).toLowerCase();
+    expect(body.includes("failed geometry") || body.includes("bad site")).toBeFalsy();
+    expect(body.includes("search failed")).toBeFalsy();
     const firstAreaLine = page.getByRole("button", { name: /#\d+/ }).first();
     await expect(firstAreaLine).toBeVisible();
     const firstText = (await firstAreaLine.innerText()).replaceAll(",", "");

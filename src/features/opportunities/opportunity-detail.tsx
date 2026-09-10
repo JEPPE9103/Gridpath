@@ -4,6 +4,7 @@ import { BellButton } from "@/components/layout/app-shell";
 import { Button, buttonClassName } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { SourceBadge } from "@/components/ui/badges";
+import { EvidenceCoveragePanel, NetworkCoveringNote, ProvenanceChip } from "@/features/opportunities/evidence-coverage-panel";
 import type { OpportunityListItem } from "@/lib/data/opportunities";
 import {
   promoteOpportunityAction,
@@ -23,6 +24,11 @@ import {
   opportunityStatusLabel,
   opportunityTechnologyLabel,
 } from "@/lib/opportunities/catalog";
+import {
+  NETWORK_COVERING_NOTE,
+  buildEvidenceCoverageFromAssessments,
+  recommendationConfidenceCaption,
+} from "@/lib/opportunities/evidence-coverage";
 import type { DataSourceKind } from "@/types";
 import Link from "next/link";
 
@@ -71,6 +77,8 @@ export function OpportunityDetailPage({
   const positives = assessments.filter((row) => row.result === "strong" && row.completeness === "available");
   const risks = assessments.filter((row) => row.result === "review_required" || row.result === "excluded");
   const gaps = assessments.filter((row) => row.completeness === "insufficient");
+  const coverage = buildEvidenceCoverageFromAssessments({ assessments });
+  const gridAssessment = assessments.find((row) => row.dimension === "grid_context");
 
   return (
     <>
@@ -91,23 +99,33 @@ export function OpportunityDetailPage({
           <Fact label="Status" value={opportunityStatusLabel(item.status)} />
           <Fact label="Target" value={item.targetMw != null ? `${item.targetMw} MW` : "Not set"} />
           <Fact label="Energy" value={item.targetMwh != null ? `${item.targetMwh} MWh` : "Not set"} />
-          <Fact label="Data confidence" value={opportunityConfidenceLabel(item.dataConfidence)} />
+          <Fact label="Recommendation confidence" value={opportunityConfidenceLabel(item.dataConfidence)} />
           <Fact label="Recommendation" value={opportunityRecommendationLabel(item.recommendation)} />
         </section>
 
         <section className="rounded-md border border-line bg-surface p-5">
           <h2 className="text-base font-semibold">Why NOXHEIM ranks this</h2>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <ProvenanceChip label="Noxheim Derived" />
+            {item.targetMw != null ? <ProvenanceChip label="Customer Entered" /> : null}
+          </div>
           <p className="mt-2 text-sm leading-6">{item.recommendationSummary}</p>
+          <p className="mt-2 text-xs text-muted">{recommendationConfidenceCaption(item.dataConfidence, coverage)}</p>
           <div className="mt-4 grid gap-4 lg:grid-cols-3">
             <SignalList title="Positive signals" items={positives.map((row) => row.explanation)} empty="No official or customer-positive signal stored yet." />
             <SignalList title="Risks" items={risks.map((row) => row.explanation)} empty="No stored risk dimension." />
             <SignalList title="Uncertainties" items={gaps.map((row) => row.explanation)} empty="No evidence gaps recorded." />
           </div>
-          <p className="mt-4 text-xs text-muted">
-            This is not a prediction of connection, feasibility or financial viability. Covering
-            official geography is not available capacity.
-          </p>
+          <div className="mt-4">
+            <NetworkCoveringNote
+              title={gridAssessment?.completeness === "available" ? "Official covering geography" : "Not evaluated"}
+              detail={gridAssessment?.explanation}
+              note={NETWORK_COVERING_NOTE}
+            />
+          </div>
         </section>
+
+        <EvidenceCoveragePanel coverage={coverage} />
 
         <section className="rounded-md border border-line bg-surface p-5">
           <h2 className="text-base font-semibold">Origin</h2>

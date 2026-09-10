@@ -44,7 +44,8 @@ export function MapGridContextCard({
         </div>
       </dl>
       <p className="mt-2 text-[11px] leading-4 text-muted">
-        {COVERING_OFFICIAL_AREA_LABEL} — geographic covering, not a connection point.
+        {COVERING_OFFICIAL_AREA_LABEL} — geographic covering, not a connection point. Not an indication
+        of available connection capacity.
       </p>
       <Link href={`/projects/${project.slug}?tab=grid`} className="mt-3 block">
         <Button variant="secondary" className="w-full">

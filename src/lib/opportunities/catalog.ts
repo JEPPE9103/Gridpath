@@ -110,9 +110,9 @@ const RECOMMENDATION_LABELS: Record<OpportunityRecommendationValue, string> = {
 };
 
 const CONFIDENCE_LABELS: Record<OpportunityConfidenceValue, string> = {
-  high: "High",
-  medium: "Medium",
-  low: "Low",
+  high: "Strong on evaluated evidence",
+  medium: "Moderate",
+  low: "Limited",
   unknown: "Unknown",
 };
 
@@ -148,7 +148,7 @@ const DIMENSION_RESULT_LABELS: Record<DimensionResultValue, string> = {
 };
 
 const SOURCE_LABELS: Record<EvidenceSourceValue, string> = {
-  customer_data: "Customer Data",
+  customer_data: "Customer Entered",
   official: "Official Source",
   noxheim_derived: "Noxheim Derived",
 };

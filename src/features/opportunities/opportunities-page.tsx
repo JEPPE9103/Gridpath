@@ -7,6 +7,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { DevelopmentFunnel } from "@/features/opportunities/development-funnel";
 import type { OpportunityListItem, OpportunityOverview } from "@/lib/data/opportunities";
 import {
+  EMPTY_OPPORTUNITIES_DESCRIPTION,
+  EMPTY_OPPORTUNITIES_TITLE,
+} from "@/lib/opportunities/evidence-coverage";
+import {
   opportunityConfidenceLabel,
   opportunityRecommendationLabel,
   opportunityStatusLabel,
@@ -85,17 +89,19 @@ export function OpportunitiesPage({ overview }: { overview: OpportunityOverview 
         <DevelopmentFunnel funnel={overview.funnel} />
 
         {overview.ranked.length === 0 ? (
+          overview.funnel.total === 0 ? (
           <EmptyState
-            title="No opportunities yet"
-            description="Start by defining what kind of development opportunity your team is looking for."
+            title={EMPTY_OPPORTUNITIES_TITLE}
+            description={EMPTY_OPPORTUNITIES_DESCRIPTION}
             action={
               overview.canWrite ? (
                 <Link href="/opportunities/new" className={buttonClassName()}>
-                  New opportunity search
+                  New search
                 </Link>
               ) : undefined
             }
           />
+          ) : null
         ) : (
           <section>
             <h2 className="text-base font-semibold">Ranked for investigation</h2>
@@ -190,7 +196,7 @@ function OpportunityRow({
           {item.keyRisk ? `Risk: ${item.keyRisk}` : "No stored risk yet."}
         </p>
         <p className="mt-1 text-xs text-muted">
-          Data confidence: {opportunityConfidenceLabel(item.dataConfidence)}
+          Recommendation confidence: {opportunityConfidenceLabel(item.dataConfidence)}
           {item.ownerName ? ` · ${item.ownerName}` : ""} · Updated {formatRelative(item.lastUpdated, now)}
         </p>
       </div>

@@ -142,9 +142,11 @@ export const CORE_SCREENING_DIMENSIONS = [
 ] as const;
 
 /**
- * Data confidence describes evidence coverage, not project success probability.
- * HIGH requires several currently supported core dimensions and no unevaluated
- * critical exclusion. Missing evidence never counts as a positive.
+ * Recommendation confidence is not evidence completeness and not project success.
+ * HIGH is reserved for cases where core official evidence and optional relevant
+ * evidence (roads, detailed terrain) were actually evaluated. Missing optional
+ * evidence caps the stored value at medium so "high" cannot imply that every
+ * development question is resolved.
  */
 export function deriveOpportunityConfidence(input: {
   availableDimensions: number;
@@ -152,6 +154,7 @@ export function deriveOpportunityConfidence(input: {
   criticalUnevaluated: boolean;
   coreAvailable?: number;
   coreSupported?: number;
+  optionalUnevaluated?: boolean;
 }): OpportunityConfidenceValue {
   const coreAvailable = input.coreAvailable ?? input.officialDimensions;
   const coreSupported = input.coreSupported ?? CORE_SCREENING_DIMENSIONS.length;
@@ -159,19 +162,20 @@ export function deriveOpportunityConfidence(input: {
     if (coreAvailable >= 1) return "low";
     return "unknown";
   }
+  let value: OpportunityConfidenceValue = "unknown";
   if (coreAvailable >= 5 && input.officialDimensions >= 3 && input.availableDimensions >= 5) {
-    return "high";
+    value = "high";
+  } else if (input.officialDimensions >= 2 && input.availableDimensions >= 4) {
+    value = "medium";
+  } else if (coreAvailable >= Math.min(3, coreSupported) && input.officialDimensions >= 1) {
+    value = "medium";
+  } else if (input.availableDimensions >= 1) {
+    value = "low";
   }
-  if (input.officialDimensions >= 2 && input.availableDimensions >= 4) {
-    return "high";
-  }
-  if (coreAvailable >= Math.min(3, coreSupported) && input.officialDimensions >= 1) {
+  if (value === "high" && input.optionalUnevaluated === true) {
     return "medium";
   }
-  if (input.availableDimensions >= 1) {
-    return "low";
-  }
-  return "unknown";
+  return value;
 }
 
 function normalizePlace(value: string | null | undefined): string {
@@ -605,12 +609,16 @@ export function evaluateOpportunityScreening(input: {
     Number(Boolean(landCover?.queried)) +
     Number(Boolean(road?.queried && road.nearestDistanceM != null)) +
     Number(candidate.covering.queried);
+  const optionalUnevaluated =
+    !(road?.queried && road.nearestDistanceM != null) ||
+    terrainMetrics.resolution !== "detailed";
   const dataConfidence = deriveOpportunityConfidence({
     availableDimensions: available.length,
     officialDimensions: officialAvailable,
     criticalUnevaluated: environmentalUnevaluated,
     coreAvailable,
     coreSupported: 5,
+    optionalUnevaluated,
   });
 
   let recommendation: OpportunityRecommendationValue = "insufficient_evidence";

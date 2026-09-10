@@ -24,6 +24,7 @@ describe("spatial screening geography", () => {
     assert.equal(result.ok, false);
     if (!result.ok) {
       assert.match(result.error, /Maximum for this release/i);
+      assert.match(result.error, /west–east|south–north|Narrow/i);
     }
   });
 

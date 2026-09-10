@@ -37,12 +37,29 @@ describe("opportunity form validation", () => {
     form.set("north", "59.4");
     form.set("electricityArea", "SE3");
     form.set("excludeProtected", "on");
+    form.set("minSiteAreaHa", "8");
+    form.set("targetSiteAreaHa", "15");
+    form.set("maxCandidateAreaHa", "30");
     const result = parseOpportunityForm(form);
     assert.ok(result.parsed);
     assert.equal(result.parsed?.searchMode, "geography");
     assert.equal(result.parsed?.electricityArea, "SE3");
     assert.ok(result.parsed?.bbox);
     assert.ok((result.parsed?.cellSizeMeters ?? 0) >= 2000);
+    assert.equal(result.parsed?.minSiteAreaHa, 8);
+    assert.equal(result.parsed?.targetSiteAreaHa, 15);
+    assert.equal(result.parsed?.maxCandidateAreaHa, 30);
+  });
+
+  it("explains incomplete search-area input without raw coordinate jargon", () => {
+    const form = new FormData();
+    form.set("name", "Missing edges");
+    form.set("technology", "battery_storage");
+    form.set("searchMode", "geography");
+    form.set("west", "14.9");
+    const result = parseOpportunityForm(form);
+    assert.equal(result.parsed, null);
+    assert.match(result.fieldErrors.west ?? "", /west, south, east and north/i);
   });
 
   it("rejects invalid coordinates without inventing a site", () => {

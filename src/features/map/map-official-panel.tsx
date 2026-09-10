@@ -66,6 +66,7 @@ export function MapOfficialPanel({
           </>
         )}
         <Line label={COVERING_OFFICIAL_AREA_LABEL} value="Geographic covering, not a connection point" />
+        <Line label="Capacity" value="Not an indication of available connection capacity." />
         <Line
           label="Projects in this workspace"
           value={

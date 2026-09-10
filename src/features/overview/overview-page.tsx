@@ -18,6 +18,11 @@ import type { OpportunityFunnel } from "@/lib/data/opportunities";
 import { OfficialChangesSignal } from "@/features/changes/official-changes-signal";
 import { formatMWTotal, formatRelative } from "@/lib/format";
 import {
+  EMPTY_OVERVIEW_DESCRIPTION,
+  EMPTY_OVERVIEW_TITLE,
+} from "@/lib/opportunities/evidence-coverage";
+import { buttonClassName } from "@/components/ui/button";
+import {
   AlertTriangle,
   CheckCircle2,
   Info,
@@ -137,6 +142,18 @@ export function OverviewPage({
               </Link>
             </div>
             <DevelopmentFunnel funnel={funnel} />
+
+            {funnel.total === 0 && kpis.activeSites === 0 ? (
+              <EmptyState
+                title={EMPTY_OVERVIEW_TITLE}
+                description={EMPTY_OVERVIEW_DESCRIPTION}
+                action={
+                  <Link href="/opportunities/new" className={buttonClassName()}>
+                    New search
+                  </Link>
+                }
+              />
+            ) : null}
 
             <PortfolioAttentionSection
               attention={portfolioAttention}

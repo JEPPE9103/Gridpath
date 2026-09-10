@@ -70,7 +70,7 @@ export function OfficialGeographicContextSection({
           <h2 className="text-base font-semibold">Official geographic context</h2>
           <p className="mt-1 text-sm text-muted">
             Project location → local network area → NUP context. {COVERING_OFFICIAL_AREA_LABEL}, not a
-            connection point.
+            connection point. Not an indication of available connection capacity.
           </p>
         </div>
         <Link href={`/map?project=${encodeURIComponent(slug)}`}>

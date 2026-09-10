@@ -87,32 +87,46 @@ export function validateSearchBbox(input: {
 }): BboxValidation {
   const { west, south, east, north } = input;
   if (west == null && south == null && east == null && north == null) {
-    return { ok: false, error: "Enter a search bounding box for geographic screening." };
+    return {
+      ok: false,
+      error: "Enter the four edges of the area to screen (west, south, east and north) in decimal degrees.",
+    };
   }
   if (west == null || south == null || east == null || north == null) {
-    return { ok: false, error: "Enter west, south, east and north for the search bounding box." };
+    return {
+      ok: false,
+      error: "Enter all four edges of the search area: west, south, east and north.",
+    };
   }
   if (![west, south, east, north].every((value) => Number.isFinite(value))) {
-    return { ok: false, error: "Bounding box coordinates must be finite numbers." };
+    return { ok: false, error: "Search-area coordinates must be numbers in decimal degrees." };
   }
   if (west < -180 || east > 180 || west >= east) {
-    return { ok: false, error: "West must be less than east, between -180 and 180.", field: "west" };
+    return {
+      ok: false,
+      error: "West must be west of east. Use decimal degrees between -180 and 180.",
+      field: "west",
+    };
   }
   if (south < -90 || north > 90 || south >= north) {
-    return { ok: false, error: "South must be less than north, between -90 and 90.", field: "south" };
+    return {
+      ok: false,
+      error: "South must be south of north. Use decimal degrees between -90 and 90.",
+      field: "south",
+    };
   }
   const clipped = intersectSwedenEnvelope({ west, south, east, north });
   if (!clipped) {
     return {
       ok: false,
-      error: "The bounding box does not intersect the supported Swedish envelope.",
+      error: "That search area does not overlap Sweden. NOXHEIM currently screens Swedish geography only.",
     };
   }
   const areaKm2 = bboxAreaKm2(clipped);
   if (areaKm2 > MAX_SEARCH_BBOX_KM2) {
     return {
       ok: false,
-      error: `Search area is ${areaKm2.toFixed(0)} km². Maximum for this release is ${MAX_SEARCH_BBOX_KM2} km². Narrow the bounding box.`,
+      error: `Search area is ${areaKm2.toFixed(0)} km². Maximum for this release is ${MAX_SEARCH_BBOX_KM2} km². Narrow the west–east and south–north extents.`,
     };
   }
   const areaM2 = areaKm2 * 1_000_000;

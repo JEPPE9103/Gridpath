@@ -261,4 +261,39 @@ describe("opportunity screening", () => {
     assert.equal(technologyToProjectDb("hybrid"), "other");
     assert.equal(technologyToProjectDb("hydrogen"), "other");
   });
+
+  it("does not store high confidence while roads and detailed terrain are unevaluated", () => {
+    const result = evaluateOpportunityScreening({
+      criteria: CRITERIA,
+      candidate: candidate({
+        covering: officialCovering(),
+        ...clearEnvLayers(),
+        terrain: {
+          queried: true,
+          meanSlopeDeg: 2,
+          medianSlopeDeg: 2,
+          p90SlopeDeg: 3,
+          maxSlopeDeg: 4,
+          pctBelowThreshold: 92,
+          sourceName: "Copernicus DEM GLO-90",
+          resolution: "coarse",
+        },
+        landCover: {
+          queried: true,
+          composition: {
+            water: 0,
+            wetland: 0,
+            forest: 10,
+            agriculture: 10,
+            open: 80,
+            developed: 0,
+            unclassified: 0,
+          },
+          sourceName: "NMD 2023",
+        },
+      }),
+    });
+    assert.equal(result.dataConfidence, "medium");
+    assert.equal(opportunityCopyContainsForbiddenTerm(result.recommendationSummary), null);
+  });
 });

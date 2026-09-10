@@ -218,7 +218,7 @@ export function ScreeningResultsMap({
         </label>
         <label className="flex items-center gap-1">
           <input type="checkbox" checked={showZones} onChange={(event) => setShowZones(event.target.checked)} />
-          Opportunity zones
+          Opportunity zones (context)
         </label>
         <label className="flex items-center gap-1">
           <input type="checkbox" checked={showExcluded} onChange={(event) => setShowExcluded(event.target.checked)} />
@@ -231,8 +231,9 @@ export function ScreeningResultsMap({
       </div>
       <div ref={containerRef} className="h-80 w-full" />
       <p className="border-t border-line bg-surface px-3 py-2 text-xs text-muted">
-        Candidate sites are the primary decision layer. Opportunity zones are the broader remaining
-        geography after exclusions — toggle them on to see regional context. Not land parcels.
+        Candidate Sites are the primary decision layer. Opportunity Zones are the broader remaining
+        geography after exclusions — off by default so a large zone is not mistaken for a proposed site.
+        Not land parcels.
         {selectedId
           ? ` Selected fill uses ${fillForRecommendation(
               candidates.find((item) => item.id === selectedId)?.recommendation ?? "",

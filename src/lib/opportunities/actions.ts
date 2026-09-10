@@ -14,6 +14,7 @@ import {
 import { rankScreeningCells } from "@/lib/opportunities/run-ranking";
 import { METHODOLOGY_VERSION, RANKING_VERSION } from "@/lib/opportunities/screening-profiles";
 import { emptyCovering, evaluateOpportunityScreening, type ScreeningCriteria } from "@/lib/opportunities/screening";
+import { publicOpportunityError } from "@/lib/opportunities/copy";
 import { parseOpportunityForm, type OpportunityFormFieldErrors, type OpportunityFormInput, type ParsedOpportunityForm } from "@/lib/opportunities/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -40,26 +41,7 @@ function revalidateOpportunityPaths(slug?: string) {
 }
 
 function publicError(message: string | undefined, fallback: string): string {
-  const text = (message ?? "").toLowerCase();
-  if (text.includes("not authenticated") || text.includes("no organization")) {
-    return "Sign in to manage opportunities.";
-  }
-  if (text.includes("not allowed") || text.includes("permission") || text.includes("42501")) {
-    return "You do not have permission to do that.";
-  }
-  if (text.includes("already promoted")) {
-    return "This opportunity has already been promoted.";
-  }
-  if (text.includes("coordinates required")) {
-    return "Add coordinates before promoting to a project.";
-  }
-  if (text.includes("rejected")) {
-    return "Reopen a rejected opportunity before promoting it.";
-  }
-  if (text.includes("bounding box") || text.includes("15000")) {
-    return message ?? fallback;
-  }
-  return fallback;
+  return publicOpportunityError(message, fallback);
 }
 
 function screeningCriteriaFromParsed(parsed: ParsedOpportunityForm): ScreeningCriteria {
