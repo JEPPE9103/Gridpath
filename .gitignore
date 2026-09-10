@@ -51,3 +51,6 @@ next-env.d.ts
 
 # local operator scratch SQL
 tmp-*.sql
+
+# local proof / probe artifacts (never commit downloads or live reports)
+/scripts/tmp-*

@@ -8,6 +8,10 @@
  * Default: local Supabase only. Cloud requires the same remote ingest flags as Ei ingest.
  */
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { extractZipBytes } from "./lib/extract-zip.mjs";
 import { queryIngestSql, resolveIngestTarget } from "./lib/ingest-target.mjs";
 import {
   beginIngestionRun,
@@ -15,7 +19,8 @@ import {
   completeIngestionRun,
   ingestTriggerType,
 } from "./lib/ingestion-runs.mjs";
-import { fetchOpenGeodataText, parseGeoJsonFeatureCollection } from "./lib/open-geodata-fetch.mjs";
+import { fetchOpenGeodataBytes, fetchOpenGeodataText, parseGeoJsonFeatureCollection } from "./lib/open-geodata-fetch.mjs";
+import { readShapefileDir } from "./lib/shapefile.mjs";
 
 const PAGE_SIZE = 100;
 
@@ -32,6 +37,8 @@ const DATASETS = {
     designationProperty: "SKYDDSTYP",
     license: "CC0",
     attribution: "Källa: Naturvårdsverket",
+    downloadBase: "https://geodata.naturvardsverket.se/nedladdning/naturvardsregistret/",
+    downloadZips: ["NR.zip", "NP.zip", "NVO.zip", "NVA.zip"],
   },
   natura: {
     slug: "nv-natura-2000",
@@ -45,6 +52,8 @@ const DATASETS = {
     designationProperty: "OMRADESTYP",
     license: "CC0",
     attribution: "Källa: Naturvårdsverket",
+    downloadBase: "https://geodata.naturvardsverket.se/nedladdning/naturvardsregistret/",
+    downloadZips: ["SPA_Rikstackande.zip"],
   },
 };
 
@@ -60,12 +69,20 @@ function featureExternalId(properties, dataset) {
   const raw =
     properties?.[dataset.idProperty] ??
     properties?.NVRID ??
+    properties?.NVRId ??
     properties?.OMRADESKOD ??
     properties?.Sitecode ??
     properties?.SITECODE ??
     properties?.GmlID ??
-    properties?.OBJECTID;
-  return raw == null ? null : String(raw).trim();
+    properties?.OBJECTID ??
+    dbfValue(properties ?? {}, [dataset.idProperty, "NVRID", "NVR_ID", "OMRADESKOD", "SITECODE", "Sitecode", "ID"]);
+  if (raw == null || String(raw).trim() === "") {
+    const zip = properties?._downloadZip ?? "zip";
+    const fallback = properties?.NAMN ?? properties?.NAME ?? properties?.OMRADESNAMN;
+    return fallback ? `${zip}:${fallback}` : null;
+  }
+  const id = String(raw).trim();
+  return properties?._downloadZip ? `${properties._downloadZip}:${id}` : id;
 }
 
 function featureName(properties, dataset) {
@@ -89,7 +106,19 @@ function featureDesignation(properties, dataset) {
   );
 }
 
-function buildWfsUrl(dataset, startIndex) {
+function parseBbox(argv) {
+  const raw =
+    argv.find((item) => item.startsWith("--bbox="))?.slice("--bbox=".length) ||
+    process.env.NOXHEIM_SCREENING_INGEST_BBOX;
+  if (!raw) return null;
+  const [west, south, east, north] = raw.split(",").map(Number);
+  if (![west, south, east, north].every(Number.isFinite) || west >= east || south >= north) {
+    throw new Error("Provide --bbox=west,south,east,north.");
+  }
+  return { west, south, east, north };
+}
+
+function buildWfsUrl(dataset, startIndex, bbox) {
   const url = new URL(dataset.wfsBase);
   url.searchParams.set("service", "WFS");
   url.searchParams.set("version", "2.0.0");
@@ -99,22 +128,100 @@ function buildWfsUrl(dataset, startIndex) {
   url.searchParams.set("srsName", "EPSG:4326");
   url.searchParams.set("count", String(PAGE_SIZE));
   url.searchParams.set("startIndex", String(startIndex));
+  if (bbox) {
+    url.searchParams.set("bbox", `${bbox.west},${bbox.south},${bbox.east},${bbox.north},EPSG:4326`);
+  }
   return url.href;
 }
 
-async function fetchAllFeatures(dataset) {
+function sridFromPrj(prjText) {
+  if (!prjText) return 3006;
+  if (/4326|WGS.?84/i.test(prjText)) return 4326;
+  return 3006;
+}
+
+function dbfValue(row, names) {
+  for (const name of names) {
+    if (row[name] != null && String(row[name]).trim() !== "") return String(row[name]).trim();
+  }
+  const lower = names.map((name) => name.toLowerCase());
+  for (const [key, value] of Object.entries(row)) {
+    if (lower.includes(key.toLowerCase()) && value != null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+  return null;
+}
+
+async function fetchDownloadFeatures(dataset) {
+  const features = [];
+  if (!dataset.downloadBase || !dataset.downloadZips?.length) return features;
+  for (const zipName of dataset.downloadZips) {
+    const url = `${dataset.downloadBase}${zipName}`;
+    console.log(JSON.stringify({ event: "ingest.nv.download.start", slug: dataset.slug, zip: zipName }));
+    let bytes;
+    try {
+      bytes = await fetchOpenGeodataBytes(url, { timeoutMs: 180_000 });
+    } catch {
+      continue;
+    }
+    const tmpDir = mkdtempSync(path.join(os.tmpdir(), "noxheim-nv-"));
+    try {
+      extractZipBytes(bytes, tmpDir);
+      const { files, dbf, geometries } = readShapefileDir(tmpDir);
+      const prj = files.prjPath ? (await import("node:fs")).readFileSync(files.prjPath, "utf8") : "";
+      const srid = sridFromPrj(prj);
+      for (let i = 0; i < geometries.length; i += 1) {
+        const wkt = geometries[i];
+        if (!wkt) continue;
+        const props = dbf.records[i]?.deleted ? null : dbf.records[i]?.values ?? {};
+        if (!props) continue;
+        features.push({
+          properties: { ...props, _downloadZip: zipName },
+          geometry: null,
+          wkt,
+          srid,
+        });
+      }
+    } finally {
+      try {
+        rmSync(tmpDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    }
+  }
+  return features;
+}
+
+async function fetchAllFeatures(dataset, bbox) {
+  if (dataset.downloadZips?.length) {
+    const downloaded = await fetchDownloadFeatures(dataset);
+    if (downloaded.length) return downloaded;
+  }
   const features = [];
   let startIndex = 0;
-  while (true) {
-    const text = await fetchOpenGeodataText(buildWfsUrl(dataset, startIndex));
-    const collection = parseGeoJsonFeatureCollection(text);
-    if (!collection.features.length) break;
-    features.push(...collection.features);
-    startIndex += collection.features.length;
-    if (collection.features.length < PAGE_SIZE) break;
-    if (startIndex > 200_000) {
-      throw new Error("WFS paging exceeded the safety cap.");
+  const pageCap = bbox ? 20_000 : 200_000;
+  try {
+    while (true) {
+      const text = await fetchOpenGeodataText(buildWfsUrl(dataset, startIndex, bbox));
+      const collection = parseGeoJsonFeatureCollection(text);
+      if (!collection.features.length) break;
+      features.push(...collection.features);
+      startIndex += collection.features.length;
+      if (collection.features.length < PAGE_SIZE) break;
+      if (startIndex > pageCap) {
+        throw new Error("WFS paging exceeded the safety cap.");
+      }
     }
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: "ingest.nv.wfs_failed",
+        slug: dataset.slug,
+        message: error instanceof Error ? error.message.slice(0, 200) : "failed",
+      }),
+    );
   }
   return features;
 }
@@ -133,10 +240,32 @@ function upsertBatchSql(sourceId, snapshotId, dataset, features, fetchedAt) {
   const values = [];
   for (const feature of features) {
     const externalId = featureExternalId(feature.properties, dataset);
-    if (!externalId || !feature.geometry) continue;
-    const geomType = feature.geometry.type;
-    if (geomType !== "Polygon" && geomType !== "MultiPolygon") continue;
-    const geomJson = JSON.stringify(feature.geometry);
+    if (!externalId || (!feature.geometry && !feature.wkt)) continue;
+    const geomSql = feature.wkt
+      ? `extensions.st_multi(
+        extensions.st_collectionextract(
+          extensions.st_makevalid(
+            extensions.st_transform(
+              extensions.st_setsrid(extensions.st_geomfromtext(${quoteSql(feature.wkt)}), ${Number(feature.srid) || 3006}),
+              4326
+            )
+          ),
+          3
+        )
+      )`
+      : (() => {
+          const geomType = feature.geometry?.type;
+          if (geomType !== "Polygon" && geomType !== "MultiPolygon") return null;
+          return `extensions.st_multi(
+        extensions.st_collectionextract(
+          extensions.st_makevalid(
+            extensions.st_setsrid(extensions.st_geomfromgeojson(${quoteSql(JSON.stringify(feature.geometry))}), 4326)
+          ),
+          3
+        )
+      )`;
+        })();
+    if (!geomSql) continue;
     values.push(`(
       ${quoteSql(sourceId)}::uuid,
       ${quoteSql(snapshotId)}::uuid,
@@ -144,17 +273,10 @@ function upsertBatchSql(sourceId, snapshotId, dataset, features, fetchedAt) {
       ${quoteSql(externalId)},
       ${quoteSqlNullable(featureName(feature.properties, dataset))},
       ${quoteSqlNullable(featureDesignation(feature.properties, dataset))},
-      ${quoteSqlNullable(feature.properties?.KOMMUN ?? feature.properties?.Kommun ?? null)},
-      ${quoteSqlNullable(feature.properties?.LAN ?? feature.properties?.Lan ?? null)},
+      ${quoteSqlNullable(feature.properties?.KOMMUN ?? feature.properties?.Kommun ?? dbfValue(feature.properties ?? {}, ["KOMMUN", "Kommun"]))},
+      ${quoteSqlNullable(feature.properties?.LAN ?? feature.properties?.Lan ?? dbfValue(feature.properties ?? {}, ["LAN", "Lan"]))},
       ${feature.properties?.AREA_HA == null ? "null" : Number(feature.properties.AREA_HA)},
-      extensions.st_multi(
-        extensions.st_collectionextract(
-          extensions.st_makevalid(
-            extensions.st_setsrid(extensions.st_geomfromgeojson(${quoteSql(geomJson)}), 4326)
-          ),
-          3
-        )
-      ),
+      ${geomSql},
       ${quoteSql(JSON.stringify(feature.properties ?? {}))}::jsonb,
       ${quoteSql(fetchedAt)}::timestamptz
     )`);
@@ -183,6 +305,7 @@ where not extensions.st_isempty(excluded.geom);
 }
 
 export async function ingestNaturvardsverketDataset(key) {
+  const bbox = parseBbox(process.argv.slice(2));
   const dataset = DATASETS[key];
   if (!dataset) {
     throw new Error(`Unknown Naturvårdsverket dataset: ${key}`);
@@ -232,7 +355,12 @@ set
     ingestionRunId = begun.run_id;
 
     const retrievedAt = new Date().toISOString();
-    const features = await fetchAllFeatures(dataset);
+    const features = await fetchAllFeatures(dataset, bbox);
+    if (features.length === 0) {
+      throw new Error(
+        `Naturvårdsverket WFS returned 0 features for ${dataset.slug}. Treating the layer as unavailable rather than an empty catalogue.`,
+      );
+    }
     const hash = contentHashForFeatures(features, dataset);
 
     const existing = query(`
@@ -254,36 +382,42 @@ select count(*)::int as n
 from public.official_geographic_features
 where source_id = ${quoteSql(source.id)}::uuid;
 `);
-      completeIngestionRun(query, quoteSql, quoteSqlNullable, {
-        runId: ingestionRunId,
-        status: "success",
-        snapshotId,
-        sourceChanged: false,
-        observationsProcessed: countRows[0]?.n ?? features.length,
-        externalChangesCreated: 0,
-        impactsCreated: 0,
-        errorCode: null,
-        errorMessage: null,
-        metadata: {
-          dataset: dataset.typeName,
-          license: dataset.license,
-          feature_count: features.length,
-          probe_only: false,
-          unchanged: true,
-        },
-      });
-      console.log(
-        JSON.stringify({
-          event: "ingest.nv.complete",
-          slug: dataset.slug,
-          features: features.length,
+      if (Number(countRows[0]?.n) > 0) {
+        completeIngestionRun(query, quoteSql, quoteSqlNullable, {
+          runId: ingestionRunId,
+          status: "success",
+          snapshotId,
           sourceChanged: false,
-        }),
-      );
-      return;
+          observationsProcessed: countRows[0]?.n ?? features.length,
+          externalChangesCreated: 0,
+          impactsCreated: 0,
+          errorCode: null,
+          errorMessage: null,
+          metadata: {
+            dataset: dataset.typeName,
+            license: dataset.license,
+            feature_count: features.length,
+            probe_only: false,
+            unchanged: true,
+          },
+        });
+        console.log(
+          JSON.stringify({
+            event: "ingest.nv.complete",
+            slug: dataset.slug,
+            features: features.length,
+            sourceChanged: false,
+          }),
+        );
+        return;
+      }
     }
 
-    const inserted = query(`
+    let snapshotId = existing[0]?.id ?? null;
+    let sourceChanged = false;
+
+    if (!snapshotId) {
+      const inserted = query(`
 insert into public.source_snapshots (
   source_id, retrieved_at, published_at, content_hash, raw_content, storage_path, status, metadata
 ) values (
@@ -303,16 +437,18 @@ insert into public.source_snapshots (
       wfs: dataset.wfsBase,
       crs: "EPSG:4326",
       feature_count: features.length,
+      ingest_path: features[0]?.wkt ? "official_zip" : "wfs",
       commercial_use: "CC0 — no copyright restriction; attribution preferred",
     }),
   )}::jsonb
 )
 returning id;
 `);
-    const snapshotId = inserted[0].id;
-    const sourceChanged = true;
+      snapshotId = inserted[0].id;
+      sourceChanged = true;
+    }
 
-    const BATCH = 5;
+    const BATCH = 20;
     let processed = 0;
     for (let i = 0; i < features.length; i += BATCH) {
       const sql = upsertBatchSql(source.id, snapshotId, dataset, features.slice(i, i + BATCH), retrievedAt);
@@ -335,7 +471,12 @@ returning id;
     query(`
 delete from public.official_geographic_features
 where source_id = ${quoteSql(source.id)}::uuid
-  and (snapshot_id is distinct from ${quoteSql(snapshotId)}::uuid);
+  and (snapshot_id is distinct from ${quoteSql(snapshotId)}::uuid)
+  ${
+    bbox
+      ? `and geom && extensions.st_setsrid(extensions.st_makeenvelope(${bbox.west}, ${bbox.south}, ${bbox.east}, ${bbox.north}), 4326)`
+      : ""
+  };
 `);
 
     completeIngestionRun(query, quoteSql, quoteSqlNullable, {

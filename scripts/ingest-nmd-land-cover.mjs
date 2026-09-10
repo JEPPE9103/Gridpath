@@ -98,10 +98,22 @@ on conflict (slug) do update set name = excluded.name, active = true;
   const zipBytes = await fetchOpenGeodataBytes(zipUrl, { timeoutMs: 300_000 });
   tmpDir = mkdtempSync(path.join(os.tmpdir(), "noxheim-nmd-"));
   extractZipBytes(zipBytes, tmpDir);
-  const { readdirSync } = await import("node:fs");
-  const tifName = readdirSync(tmpDir).find((name) => name.toLowerCase().endsWith(".tif"));
-  if (!tifName) throw new Error("NMD zip did not contain a GeoTIFF.");
-  const tifBytes = readFileSync(path.join(tmpDir, tifName));
+  const { readdirSync, statSync } = await import("node:fs");
+  function findTif(dir) {
+    for (const name of readdirSync(dir)) {
+      const full = path.join(dir, name);
+      if (statSync(full).isDirectory()) {
+        const nested = findTif(full);
+        if (nested) return nested;
+      } else if (name.toLowerCase().endsWith(".tif")) {
+        return full;
+      }
+    }
+    return null;
+  }
+  const tifPath = findTif(tmpDir);
+  if (!tifPath) throw new Error("NMD zip did not contain a GeoTIFF.");
+  const tifBytes = readFileSync(tifPath);
   const tiff = await fromArrayBuffer(tifBytes.buffer.slice(tifBytes.byteOffset, tifBytes.byteOffset + tifBytes.byteLength));
   const image = await tiff.getImage();
   const fullWidth = image.getWidth();

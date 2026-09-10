@@ -44,6 +44,7 @@ export const LAND_COVER_PROVIDER_PRIORITY = {
 
 export const DISCOVERY_RESOLUTION_M = 1000;
 export const PRECISION_RESOLUTION_M = 100;
+export const NMD_2023_SOURCE_RESOLUTION_M = 10;
 export const MAX_REFINE_CANDIDATES = 5;
 
 export function isRefinementStatus(value: string): value is RefinementStatus {
@@ -92,14 +93,21 @@ export function terrainEvidenceLabel(input: {
 export function landCoverEvidenceLabel(input: {
   resolution: EvidenceResolution;
   providerKey: string | null;
+  sourceResolutionM?: number | null;
+  processingResolutionM?: number | null;
 }): string {
   if (input.resolution === "unavailable" || !input.providerKey) {
     return "Land cover: unavailable";
   }
   if (input.providerKey === LAND_COVER_PROVIDER_PRIORITY.current) {
-    return input.resolution === "detailed"
-      ? "Land cover: Detailed — NMD 2023"
-      : "Land cover: Coarse discovery — NMD 2023 (1 km majority class)";
+    if (input.resolution === "detailed") {
+      const sourceM = input.sourceResolutionM ?? NMD_2023_SOURCE_RESOLUTION_M;
+      if (input.processingResolutionM != null) {
+        return `Land cover: Detailed — NMD 2023 (source ${sourceM} m, processed at ${input.processingResolutionM} m class composition)`;
+      }
+      return `Land cover: Detailed — NMD 2023 (source ${sourceM} m, processed at ingested tile resolution ≤${PRECISION_RESOLUTION_M} m, not native ${sourceM} m cells)`;
+    }
+    return "Land cover: Coarse discovery — NMD 2023 (source 10 m, processed at 1 km majority class)";
   }
   if (input.providerKey === LAND_COVER_PROVIDER_PRIORITY.legacyFallback) {
     return "Land cover: Legacy fallback — NMD 2018 (not current Swedish land-cover evidence)";

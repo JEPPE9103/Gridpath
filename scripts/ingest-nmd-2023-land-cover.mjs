@@ -1,7 +1,8 @@
 /**
  * Ingest Naturvårdsverket NMD 2023 basskikt v0.3 as:
  * - discovery 1 km majority-class polygons (official_physical_summaries)
- * - precision 100 m composition tiles (official_precision_summaries)
+ * - precision composition tiles (official_precision_summaries), majority-class
+ *   from native 10 m cells, targeting 50 m inside a bbox (never labelled as 10 m)
  *
  * Publisher: Naturvårdsverket
  * Product: NMD2023 basskikt v0.3
@@ -17,10 +18,10 @@
  *   node scripts/ingest-nmd-2023-land-cover.mjs --tif=C:/data/NMD2023bas_v0_3.tif --bbox=14.9,59.1,15.4,59.4
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fromArrayBuffer } from "geotiff";
+import { fromFile } from "geotiff";
 import { extractZipBytes } from "./lib/extract-zip.mjs";
 import { queryIngestSql, resolveIngestTarget } from "./lib/ingest-target.mjs";
 import {
@@ -68,6 +69,86 @@ function parseBbox(argv) {
 
 function parseTif(argv) {
   return argv.find((item) => item.startsWith("--tif="))?.slice("--tif=".length) || process.env.NOXHEIM_NMD2023_TIF || "";
+}
+
+function bboxTo3006(query, bbox) {
+  const row = query(`
+    select
+      extensions.st_xmin(g) as xmin,
+      extensions.st_ymin(g) as ymin,
+      extensions.st_xmax(g) as xmax,
+      extensions.st_ymax(g) as ymax
+    from (
+      select extensions.st_transform(
+        extensions.st_setsrid(
+          extensions.st_makeenvelope(${bbox.west}, ${bbox.south}, ${bbox.east}, ${bbox.north}),
+          4326
+        ),
+        3006
+      ) as g
+    ) as transformed;
+  `)[0];
+  return {
+    xmin: Number(row.xmin),
+    ymin: Number(row.ymin),
+    xmax: Number(row.xmax),
+    ymax: Number(row.ymax),
+  };
+}
+
+function pixelWindow(originX, originY, resX, resY, width, height, extent) {
+  const col0 = Math.floor((extent.xmin - originX) / resX);
+  const col1 = Math.ceil((extent.xmax - originX) / resX);
+  const row0 = Math.floor((extent.ymax - originY) / resY);
+  const row1 = Math.ceil((extent.ymin - originY) / resY);
+  const left = Math.max(0, Math.min(width, Math.min(col0, col1)));
+  const right = Math.max(0, Math.min(width, Math.max(col0, col1)));
+  const top = Math.max(0, Math.min(height, Math.min(row0, row1)));
+  const bottom = Math.max(0, Math.min(height, Math.max(row0, row1)));
+  return { left, top, right, bottom };
+}
+
+function processingFactor(nativeM, windowWidth, windowHeight, maxCells, targetM, maxM) {
+  let factor = Math.max(1, Math.round(targetM / nativeM));
+  const cap = Math.max(factor, Math.round(maxM / nativeM));
+  while ((windowWidth / factor) * (windowHeight / factor) > maxCells && factor < cap) {
+    factor += 1;
+  }
+  while ((windowWidth / factor) * (windowHeight / factor) > maxCells) {
+    factor += 1;
+  }
+  return factor;
+}
+
+function majorityResample(samples, srcW, srcH, factor) {
+  const outW = Math.max(1, Math.floor(srcW / factor));
+  const outH = Math.max(1, Math.floor(srcH / factor));
+  const out = new Float64Array(outW * outH);
+  for (let y = 0; y < outH; y += 1) {
+    for (let x = 0; x < outW; x += 1) {
+      const counts = new Map();
+      let best = 0;
+      let bestN = -1;
+      for (let dy = 0; dy < factor; dy += 1) {
+        const sy = y * factor + dy;
+        if (sy >= srcH) continue;
+        for (let dx = 0; dx < factor; dx += 1) {
+          const sx = x * factor + dx;
+          if (sx >= srcW) continue;
+          const code = Number(samples[sy * srcW + sx]);
+          if (!Number.isFinite(code) || code <= 0) continue;
+          const n = (counts.get(code) ?? 0) + 1;
+          counts.set(code, n);
+          if (n > bestN) {
+            bestN = n;
+            best = code;
+          }
+        }
+      }
+      out[y * outW + x] = best;
+    }
+  }
+  return { samples: out, width: outW, height: outH };
 }
 
 function summarise(samples, width, height, originX, originY, cellW, cellH, prefix) {
@@ -128,7 +209,7 @@ on conflict (slug) do update set name = excluded.name, active = true;
 
   if (!tifPath && download) {
     tmpDir = mkdtempSync(path.join(os.tmpdir(), "noxheim-nmd2023-"));
-    const zipBytes = await fetchOpenGeodataBytes(`${LISTING}${ZIP_NAME}`, { timeoutMs: 600_000 });
+    const zipBytes = await fetchOpenGeodataBytes(`${LISTING}${ZIP_NAME}`, { timeoutMs: 1_200_000 });
     extractZipBytes(zipBytes, tmpDir);
     const { readdirSync } = await import("node:fs");
     const tifName = readdirSync(tmpDir).find((name) => name.toLowerCase().endsWith(".tif"));
@@ -153,44 +234,94 @@ on conflict (slug) do update set name = excluded.name, active = true;
     process.exit(0);
   }
 
-  const tifBytes = readFileSync(tifPath);
-  const tiff = await fromArrayBuffer(tifBytes.buffer.slice(tifBytes.byteOffset, tifBytes.byteOffset + tifBytes.byteLength));
+  const tiff = await fromFile(tifPath);
   const image = await tiff.getImage();
   const fullWidth = image.getWidth();
   const fullHeight = image.getHeight();
   const [originX, originY] = image.getOrigin();
   const [resX, resY] = image.getResolution();
+  const nativeM = Math.abs(resX);
+  const SOURCE_RESOLUTION_M = 10;
 
-  const discoveryWidth = Math.max(1, Math.round(fullWidth / 100));
-  const discoveryHeight = Math.max(1, Math.round(fullHeight / 100));
-  const wantPrecision = Boolean(bbox) && discoveryWidth * discoveryHeight < 80_000;
-  const precisionWidth = wantPrecision ? Math.max(1, Math.round(fullWidth / 10)) : 0;
-  const precisionHeight = wantPrecision ? Math.max(1, Math.round(fullHeight / 10)) : 0;
-  const discoveryRasters = await image.readRasters({ width: discoveryWidth, height: discoveryHeight, resampleMethod: "nearest" });
-  const precisionRasters = wantPrecision
-    ? await image.readRasters({ width: precisionWidth, height: precisionHeight, resampleMethod: "nearest" })
-    : null;
+  let window = { left: 0, top: 0, right: fullWidth, bottom: fullHeight };
+  if (bbox) {
+    window = pixelWindow(originX, originY, resX, resY, fullWidth, fullHeight, bboxTo3006(query, bbox));
+  }
+  const winW = Math.max(1, window.right - window.left);
+  const winH = Math.max(1, window.bottom - window.top);
+  const winOriginX = originX + window.left * resX;
+  const winOriginY = originY + window.top * resY;
+
+  const discoveryFactor = Math.max(1, Math.round(1000 / nativeM));
+  const precisionFactor = bbox
+    ? processingFactor(nativeM, winW, winH, 400_000, 50, 100)
+    : processingFactor(nativeM, winW, winH, 80_000, 100, 100);
+  const processingM = Math.round(nativeM * precisionFactor);
+  const wantPrecision = Boolean(bbox);
+  const nativeCellCount = winW * winH;
+  const rasterOpts = { window: [window.left, window.top, window.right, window.bottom], resampleMethod: "nearest" };
+
+  let discoverySamples;
+  let discoveryWidth;
+  let discoveryHeight;
+  let precisionSamples = null;
+  let precisionWidth = 0;
+  let precisionHeight = 0;
+
+  if (bbox && nativeCellCount <= 12_000_000) {
+    const nativeRasters = await image.readRasters(rasterOpts);
+    const nativeSamples = nativeRasters[0];
+    const discoveryAgg = majorityResample(nativeSamples, winW, winH, discoveryFactor);
+    discoverySamples = discoveryAgg.samples;
+    discoveryWidth = discoveryAgg.width;
+    discoveryHeight = discoveryAgg.height;
+    if (wantPrecision) {
+      const precisionAgg = majorityResample(nativeSamples, winW, winH, precisionFactor);
+      precisionSamples = precisionAgg.samples;
+      precisionWidth = precisionAgg.width;
+      precisionHeight = precisionAgg.height;
+    }
+  } else {
+    discoveryWidth = Math.max(1, Math.round(winW / discoveryFactor));
+    discoveryHeight = Math.max(1, Math.round(winH / discoveryFactor));
+    const discoveryRasters = await image.readRasters({
+      ...rasterOpts,
+      width: discoveryWidth,
+      height: discoveryHeight,
+    });
+    discoverySamples = discoveryRasters[0];
+    if (wantPrecision) {
+      precisionWidth = Math.max(1, Math.round(winW / precisionFactor));
+      precisionHeight = Math.max(1, Math.round(winH / precisionFactor));
+      const precisionRasters = await image.readRasters({
+        ...rasterOpts,
+        width: precisionWidth,
+        height: precisionHeight,
+      });
+      precisionSamples = precisionRasters[0];
+    }
+  }
 
   const discovery = summarise(
-    discoveryRasters[0],
+    discoverySamples,
     discoveryWidth,
     discoveryHeight,
-    originX,
-    originY,
-    Math.abs(resX) * (fullWidth / discoveryWidth),
-    Math.abs(resY) * (fullHeight / discoveryHeight),
+    winOriginX,
+    winOriginY,
+    Math.abs(resX) * (winW / discoveryWidth),
+    Math.abs(resY) * (winH / discoveryHeight),
     "nmd2023:1km",
   );
-  const precision = precisionRasters
+  const precision = precisionSamples
     ? summarise(
-        precisionRasters[0],
+        precisionSamples,
         precisionWidth,
         precisionHeight,
-        originX,
-        originY,
-        Math.abs(resX) * (fullWidth / precisionWidth),
-        Math.abs(resY) * (fullHeight / precisionHeight),
-        "nmd2023:100m",
+        winOriginX,
+        winOriginY,
+        Math.abs(resX) * (winW / precisionWidth),
+        Math.abs(resY) * (winH / precisionHeight),
+        `nmd2023:${processingM}m`,
       )
     : [];
 
@@ -214,6 +345,10 @@ insert into public.source_snapshots (
     license: "CC0",
     attribution: "NMD2023 v0.3, Naturvårdsverket",
     mapping_version: "nmd-group-v2",
+    source_resolution_m: SOURCE_RESOLUTION_M,
+    discovery_processing_resolution_m: 1000,
+    precision_processing_resolution_m: processingM,
+    precision_aggregation: nativeCellCount <= 12_000_000 && bbox ? "majority_from_10m" : "geotiff_nearest_resample",
     bbox,
     discovery_count: discovery.length,
     precision_count: precision.length,
@@ -234,7 +369,7 @@ where s.source_id = gs.id
 `);
   }
 
-  const BATCH = 25;
+  const BATCH = 100;
   let processed = 0;
   for (let i = 0; i < discovery.length; i += BATCH) {
     const chunk = discovery.slice(i, i + BATCH);
@@ -274,7 +409,7 @@ set snapshot_id = excluded.snapshot_id, geom = excluded.geom, nmd_class = exclud
         ${quoteSql(snapshotId)}::uuid,
         'land_cover',
         'nmd_2023_v0',
-        100,
+        ${processingM},
         ${quoteSql(row.externalId)},
         extensions.st_transform(extensions.st_setsrid(extensions.st_makeenvelope(${row.xmin}, ${row.ymin}, ${row.xmax}, ${row.ymax}), 3006), 4326),
         ${row.nmdClass},

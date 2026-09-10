@@ -43,18 +43,45 @@ function parseBbox(argv) {
   return { west, south, east, north };
 }
 
-function buildUrl(bbox, startIndex) {
+function buildUrl(bbox, startIndex, axis) {
   const url = new URL(WFS);
   url.searchParams.set("service", "WFS");
   url.searchParams.set("version", "2.0.0");
   url.searchParams.set("request", "GetFeature");
-  url.searchParams.set("typeNames", "TN_RoadTransportNetwork:RoadLink");
+  url.searchParams.set("typeNames", "tn-ro:RoadLink");
   url.searchParams.set("outputFormat", "application/json");
   url.searchParams.set("srsName", "EPSG:4326");
   url.searchParams.set("count", "100");
-  url.searchParams.set("startIndex", String(startIndex));
-  url.searchParams.set("bbox", `${bbox.west},${bbox.south},${bbox.east},${bbox.north},EPSG:4326`);
+  if (startIndex > 0) url.searchParams.set("startIndex", String(startIndex));
+  if (axis === "latlon") {
+    url.searchParams.set("bbox", `${bbox.south},${bbox.west},${bbox.north},${bbox.east},EPSG:4326`);
+  } else {
+    url.searchParams.set("bbox", `${bbox.west},${bbox.south},${bbox.east},${bbox.north},EPSG:4326`);
+  }
   return url.href;
+}
+
+function looksLatLon(pair) {
+  return (
+    Array.isArray(pair) &&
+    pair.length >= 2 &&
+    Number(pair[0]) > 40 &&
+    Number(pair[0]) < 80 &&
+    Number(pair[1]) > 0 &&
+    Number(pair[1]) < 40
+  );
+}
+
+function swapLatLonCoords(coords) {
+  if (!Array.isArray(coords) || coords.length === 0) return coords;
+  if (typeof coords[0] === "number") {
+    return looksLatLon(coords) ? [coords[1], coords[0], ...coords.slice(2)] : coords;
+  }
+  return coords.map(swapLatLonCoords);
+}
+
+function normalizeRoadGeometry(geom) {
+  return { ...geom, coordinates: swapLatLonCoords(geom.coordinates) };
 }
 
 const bbox = parseBbox(process.argv.slice(2));
@@ -89,10 +116,17 @@ on conflict (slug) do update set name = excluded.name, active = true;
   const features = [];
   let startIndex = 0;
   let transientFailures = 0;
+  let axis = "lonlat";
+  const firstLatlon = await fetchOpenGeodataText(buildUrl(bbox, 0, "latlon"), { timeoutMs: 90_000 }).catch(() => "");
+  if (firstLatlon && !firstLatlon.includes("ExceptionReport") && parseGeoJsonFeatureCollection(firstLatlon).features.length) {
+    axis = "latlon";
+    features.push(...parseGeoJsonFeatureCollection(firstLatlon).features);
+    startIndex = features.length;
+  }
   while (startIndex < 20_000) {
     let text;
     try {
-      text = await fetchOpenGeodataText(buildUrl(bbox, startIndex), { timeoutMs: 90_000 });
+      text = await fetchOpenGeodataText(buildUrl(bbox, startIndex, axis), { timeoutMs: 90_000 });
     } catch (error) {
       transientFailures += 1;
       if (transientFailures > 4) throw error;
@@ -113,6 +147,11 @@ on conflict (slug) do update set name = excluded.name, active = true;
     features.push(...collection.features);
     startIndex += collection.features.length;
     if (collection.features.length < 100) break;
+  }
+  if (features.length === 0) {
+    throw new Error(
+      "Trafikverket RoadLink WFS returned 0 features for the requested bbox. Treating the provider as unavailable.",
+    );
   }
   const retrievedAt = new Date().toISOString();
   const hash = createHash("sha256")
@@ -145,7 +184,7 @@ returning id;
   const snapshotId = inserted[0].id;
   let processed = 0;
   for (const feature of features) {
-    const geom = feature.geometry;
+    const geom = normalizeRoadGeometry(feature.geometry);
     if (!geom || (geom.type !== "LineString" && geom.type !== "MultiLineString")) continue;
     const props = feature.properties ?? {};
     const externalId = String(props.localId ?? props.inspireId ?? props.OBJECTID ?? `${processed}-${JSON.stringify(geom.coordinates[0])}`).slice(0, 200);

@@ -35,7 +35,15 @@ describe("precision screening architecture", () => {
     );
     assert.match(
       landCoverEvidenceLabel({ resolution: "detailed", providerKey: "nv-nmd-2023" }),
-      /Detailed — NMD 2023/,
+      /source 10 m, processed at ingested tile resolution ≤100 m/,
+    );
+    assert.match(
+      landCoverEvidenceLabel({
+        resolution: "detailed",
+        providerKey: "nv-nmd-2023",
+        processingResolutionM: 50,
+      }),
+      /source 10 m, processed at 50 m class composition/,
     );
     assert.match(
       landCoverEvidenceLabel({ resolution: "coarse", providerKey: "nv-nmd-2018" }),

@@ -4,7 +4,7 @@
  * Never points at Design Partner Cloud / production.
  * Requires Docker + `npx supabase start` (or an already-running local stack).
  */
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,12 +47,15 @@ if (docker.error || docker.status !== 0) {
   );
 }
 
+const dbContainer = spawnSync("docker", ["ps", "--format", "{{.Names}}"], { encoding: "utf8" });
+const hasLocalDb = (dbContainer.stdout ?? "").includes("supabase_db_Noxheim");
+
 const status = spawnSync("npx", ["supabase", "status"], {
   cwd: repoRoot,
   encoding: "utf8",
   shell: true,
 });
-if (status.status !== 0) {
+if (status.status !== 0 && !hasLocalDb) {
   skip(
     "test:integration skipped: local Supabase is not running. Run `npx supabase start` then retry.\n" +
       (status.stderr || status.stdout || ""),
@@ -64,11 +67,23 @@ if (!existsSync(smokeFile)) {
   fail("Missing tests/integration/smoke.sql");
 }
 
-const query = spawnSync(
+let query = spawnSync(
   "npx",
   ["supabase", "db", "query", "--local", "-f", smokeFile],
   { cwd: repoRoot, encoding: "utf8", shell: true },
 );
+
+if (query.status !== 0 && hasLocalDb) {
+  query = spawnSync(
+    "docker",
+    ["exec", "-i", "supabase_db_Noxheim", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1"],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+      input: readFileSync(smokeFile, "utf8"),
+    },
+  );
+}
 
 if (query.status !== 0) {
   fail("test:integration failed:\n" + (query.stderr || query.stdout || "query failed"));

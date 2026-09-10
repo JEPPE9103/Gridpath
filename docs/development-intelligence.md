@@ -45,7 +45,7 @@ A screening **search** stores customer criteria. A screening **run** is one exec
 
 **Stage A — Discovery screening** divides the box into square **analysis cells** in SWEREF 99 TM (EPSG:3006). Cell size is `clamp(2000, 10000, sqrt(area_m² / 200))` metres, targeting about 200 cells. Coarse (~1 km) physical summaries may be used. Official exclusion polygons are subtracted with `ST_Difference`. Remaining usable polygons that share a boundary are dissolved (`ST_UnaryUnion` + `ST_Dump`). The user-facing object is a **Candidate Area**.
 
-**Stage B — Detailed site screening** runs only on selected Candidate Areas (max 5). It uses 100 m land-cover composition and, when Geotorget is configured, on-demand Lantmäteriet 1 m DTM tiles. Pre-refinement geometry is retained. 1 km majority class is never presented as final site evidence.
+**Stage B — Detailed site screening** runs only on selected Candidate Areas (max 5). It uses ingested land-cover composition tiles (majority-class from native 10 m, targeting 50 m and capped at 100 m) and, when Geotorget is configured, on-demand Lantmäteriet 1 m DTM tiles. Pre-refinement geometry is retained. 1 km majority class is never presented as final site evidence. Processing resolution is labelled separately from the 10 m source.
 
 **Hard constraints** (exclude when the required data is present):
 
@@ -105,7 +105,7 @@ A failed provider must reduce confidence. Confidence is never project success pr
 | --- | --- | --- | --- | --- | --- | --- |
 | Naturvårdsregistret `SkyddadeOmraden` | Naturvårdsverket | WFS `https://geodata.naturvardsverket.se/naturvardsregistret/wfs` | CC0 | Yes | Preferred: “Källa: Naturvårdsverket” | NOXHEIM cadence 168h |
 | Natura 2000 `N2000` | Naturvårdsverket | WFS `https://geodata.naturvardsverket.se/n2000/wfs` | CC0 | Yes | Preferred: “Källa: Naturvårdsverket” | NOXHEIM cadence 168h |
-| NMD 2023 basskikt v0.3 | Naturvårdsverket | Nationwide GeoTIFF `https://geodata.naturvardsverket.se/nedladdning/marktacke/NMD2023/Basskikt_v0_x/` | CC0 | Yes | Preferred: “NMD2023 v0.3, Naturvårdsverket” | Operator/scheduled ingest from local GeoTIFF (`NOXHEIM_NMD2023_TIF`). Discovery: 1 km majority class. Precision: 100 m composition tiles for candidate refinement. Mapping `nmd-group-v2`. |
+| NMD 2023 basskikt v0.3 | Naturvårdsverket | Nationwide GeoTIFF `https://geodata.naturvardsverket.se/nedladdning/marktacke/NMD2023/Basskikt_v0_x/` | CC0 | Yes | Preferred: “NMD2023 v0.3, Naturvårdsverket” | Operator/scheduled ingest from local GeoTIFF (`NOXHEIM_NMD2023_TIF`). Discovery: 1 km majority class. Precision: majority-class tiles targeting 50 m (cap 100 m) for candidate refinement — not native 10 m. Mapping `nmd-group-v2`. |
 | NMD 2018 basskikt | Naturvårdsverket | County GeoTIFF `https://geodata.naturvardsverket.se/nedladdning/marktacke/nmd2018/bas_lan_ogen/` | CC0 | Yes | Preferred: “NMD, Naturvårdsverket” | Legacy fallback only. Must not be labelled current when NMD 2023 is ingested for the geography. |
 | Copernicus DEM GLO-90 | European Union / Copernicus | AWS public COG `https://copernicus-dem-90m.s3.amazonaws.com` | Copernicus WorldDEM-30 (free/open with attribution) | Yes | “Copernicus DEM, European Union” | Discovery / fallback DSM 90 m. **Not a DTM.** |
 | Lantmäteriet Markhöjdmodell 1 m | Lantmäteriet | STAC `https://api.lantmateriet.se/stac-hojd/v1` | Product terms via Geotorget | Requires authorised Geotorget access | Lantmäteriet | Preferred detailed terrain. Candidate-scoped tiles only. `AUTH_REQUIRED` / `FALLBACK_ACTIVE` until credentials exist. |
@@ -119,9 +119,9 @@ Lantmäteriet 1 m DTM is preferred for detailed screening when Geotorget is conf
 
 Terrain methodology: Discovery uses Horn slope on GLO-90 DSM samples (~1 km). Detailed screening uses Lantmäteriet 1 m DTM on candidate tiles when configured. Slope is Noxheim Derived. Do not label an area “buildable” solely from slope.
 
-Land-cover methodology: Current source is NMD 2023 basskikt v0.3 (`nmd-group-v2`). NMD 2018 remains fallback. Code 41 is forest in 2018 and open land in 2023 — taxonomy is explicit. Discovery may use 1 km majority class; detailed screening uses class composition inside the Candidate Area. Evaluation is against the organisation profile, never a universal good/bad ranking.
+Land-cover methodology: Current source is NMD 2023 basskikt v0.3 (`nmd-group-v2`), native **10 m**. Discovery downsamples to **1 km majority class**. Detailed screening majority-aggregates native 10 m cells into composition tiles targeting **50 m** (hard cap **100 m**, ~400 000 cells for a municipal bbox). Persisting nationwide 10 m polygons would be millions of rows per municipality (~9 million 10 m cells vs ~380 000 at 50 m for the Hallsberg example box). That processing resolution is **not** the source resolution and is labelled separately. NMD 2018 remains fallback. Code 41 is forest in 2018 and open land in 2023.
 
-Candidate-area methodology: analysis cells → ST_Difference of configured exclusions → ST_UnaryUnion of remaining usable polygons → ST_Dump contiguous parts → drop slivers < 0.5 ha. Decision metric is largest contiguous usable area. Detailed refinement may further subtract 100 m excluded land-cover / steep terrain and persist pre-refinement geometry.
+Candidate-area methodology: analysis cells → ST_Difference of configured exclusions → ST_UnaryUnion of remaining usable polygons → ST_Dump contiguous parts → drop slivers < 0.5 ha. Decision metric is largest contiguous usable area. Detailed refinement may further subtract ingested-tile excluded land-cover / steep terrain and persist pre-refinement geometry.
 
 Ingest: `npm run dev:ingest-nv-protected`, `dev:ingest-nv-natura`, `dev:ingest-copernicus-slope -- --bbox=14.9,59.1,15.4,59.4`, `dev:ingest-nmd-2023 -- --tif=... --bbox=...`, `dev:ingest-scb-admin`, `dev:ingest-trafikverket-roads -- --bbox=...`. Rasters are never stored in git. Scheduled official ingest runs Ei + Naturvårdsverket WFS and optionally SCB, roads, and NMD 2023 when configured. Lantmäteriet tiles remain on-demand.
 
@@ -156,7 +156,7 @@ Supported when ingested:
 - Naturvårdsverket Naturvårdsregistret protected areas (Sweden, CC0)
 - Naturvårdsverket Natura 2000 (Sweden, CC0)
 - Copernicus DEM GLO-90 derived 1 km slope summaries (DSM; discovery / fallback; Noxheim Derived slope)
-- Naturvårdsverket NMD 2023 basskikt (current land cover; 1 km discovery + 100 m precision when ingested)
+- Naturvårdsverket NMD 2023 basskikt (current land cover; 1 km discovery + ≤100 m precision tiles when ingested; source remains 10 m)
 - Naturvårdsverket NMD 2018 basskikt (legacy fallback only)
 - Trafikverket INSPIRE RoadLink when the ingest succeeds (CC0)
 - SCB Digitala gränser for naming and municipality/county attachment (not cadastral clip)
@@ -185,7 +185,7 @@ Provider keys live in `src/lib/opportunities/providers.ts`. Country expansion sh
 - Analysis cells are an internal discovery mechanism. User-facing geometry is the Candidate Area; detailed screening may further change that geometry.
 - Search results are not automatically saved as `development_opportunities`. The user saves chosen candidate areas; the save writes a decision-quality snapshot and assessment v1. Later ingest does not rewrite history.
 - Copernicus GLO-90 is a DSM. Vegetation and buildings inflate slope versus a bare-earth DTM.
-- NMD 2023 v0.3 is a 10 m landscape snapshot. Discovery coarsens to 1 km; detailed screening uses 100 m composition tiles when ingested — still not a parcel land-use map.
+- NMD 2023 v0.3 is a 10 m landscape snapshot. Discovery coarsens to 1 km; detailed screening uses majority-class tiles targeting 50 m (capped at 100 m) when ingested — still not a parcel land-use map.
 - Trafikverket WFS may fail; the dimension then stays insufficient evidence. Lastkajen is preferred when the operator has an account.
 - Official SvK county capacity is not ingested. The UI states that limitation rather than scraping the map.
 - Hybrid / hydrogen / data-centre opportunity types promote onto existing project technologies (`other` or `industrial`).

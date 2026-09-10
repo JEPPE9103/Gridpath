@@ -50,7 +50,7 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
     status: "supported",
     dimensions: ["land_suitability"],
     notes:
-      "Current Swedish land-cover evidence (CC0, 10 m). Discovery uses 1 km majority class. Detailed screening uses class composition inside Candidate Area geometry from 100 m precision summaries when ingested. Mapping version nmd-group-v2. NMD 2018 is legacy fallback only.",
+      "Current Swedish land-cover evidence (CC0, native 10 m). Discovery processes to 1 km majority class. Detailed screening processes majority-class composition inside Candidate Area geometry at ingested tiles targeting 50 m (capped at 100 m). Never labelled as native 10 m. Mapping version nmd-group-v2. NMD 2018 is legacy fallback only.",
   },
   {
     key: "nv-nmd-2018",

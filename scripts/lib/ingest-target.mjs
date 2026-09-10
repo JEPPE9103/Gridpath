@@ -9,7 +9,7 @@
  *
  * Never logs credentials.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -165,6 +165,16 @@ export function resolveIngestTarget() {
 }
 
 export function queryIngestSql(target, sql) {
+  if (target.mode === "local") {
+    try {
+      return queryLocalPsql(sql);
+    } catch (error) {
+      // Fall through to CLI; some environments still have a working supabase db query.
+      if (!/psql|docker|supabase_db/i.test(error.message)) {
+        throw error;
+      }
+    }
+  }
   const dir = mkdtempSync(path.join(tmpdir(), "noxheim-ei-ingest-"));
   const file = path.join(dir, "query.sql");
   writeFileSync(file, sql, "utf8");
@@ -182,4 +192,43 @@ export function queryIngestSql(target, sql) {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+function queryLocalPsql(sql) {
+  const trimmed = String(sql).replace(/;\s*$/, "").trim();
+  const returnsRows = /^\s*select\b/i.test(trimmed) || /\breturning\b/i.test(trimmed);
+  const wrapped = returnsRows
+    ? `with t as (${trimmed}) select coalesce(json_agg(t), '[]'::json)::text as payload from t;`
+    : trimmed;
+  const result = spawnSync(
+    "docker",
+    [
+      "exec",
+      "-i",
+      "supabase_db_Noxheim",
+      "psql",
+      "-U",
+      "postgres",
+      "-d",
+      "postgres",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-A",
+      "-t",
+      "-q",
+    ],
+    {
+      encoding: "utf8",
+      input: `${wrapped}\n`,
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
+  if (result.status !== 0) {
+    throw new Error((result.stderr || result.stdout || "local psql query failed").slice(0, 2000));
+  }
+  if (!returnsRows) return [];
+  const text = String(result.stdout ?? "").trim();
+  if (!text || text === "[]") return [];
+  const parsed = JSON.parse(text);
+  return Array.isArray(parsed) ? parsed : [];
 }

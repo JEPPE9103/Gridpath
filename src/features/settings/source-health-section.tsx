@@ -85,6 +85,13 @@ export function SourceHealthSection({
                 ) : null}
               </dl>
               <p className="mt-3 text-xs leading-5 text-muted">{source.changeLabel}</p>
+              {source.slug === "nv-nmd-2023" ? (
+                <p className="mt-2 text-xs leading-5 text-muted">
+                  NMD 2023 source resolution is 10 m. Discovery stores 1 km majority class. Detailed
+                  screening uses ingested composition tiles (target 50 m, cap 100 m) — not native 10 m
+                  cells.
+                </p>
+              ) : null}
               {source.slug === "lantmateriet-dtm-1m" && source.health === "never_ingested" ? (
                 <p className="mt-2 text-xs leading-5 text-muted">
                   Lantmäteriet detailed terrain provider not configured. Copernicus GLO-90 remains the

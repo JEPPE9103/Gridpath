@@ -278,6 +278,15 @@ export function OpportunitySearchResults({
                     ? `${landCoverEvidenceLabel({
                         resolution: (selected.landCoverResolution as EvidenceResolution | null) ?? "coarse",
                         providerKey: selected.landCoverProviderKey,
+                        sourceResolutionM:
+                          selected.landCoverProviderKey === "nv-nmd-2023" ? 10 : undefined,
+                        processingResolutionM:
+                          selected.landCoverProviderKey === "nv-nmd-2023" &&
+                          selected.landCoverResolution === "detailed"
+                            ? undefined
+                            : selected.landCoverProviderKey === "nv-nmd-2023"
+                              ? 1000
+                              : undefined,
                       })} · ${Object.entries(selected.landCover)
                         .sort((left, right) => Number(right[1]) - Number(left[1]))
                         .slice(0, 3)
