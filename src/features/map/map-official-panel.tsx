@@ -52,13 +52,16 @@ export function MapOfficialPanel({
       ) : null}
       <dl className="space-y-1.5">
         <MapFact label="Source" value="Energimarknadsinspektionen" />
-        <MapFact label="Official company" value={operator || "—"} />
+        <MapFact label="Official company" value={operator || (pendingDetails ? "Loading…" : "Not available")} />
         <MapFact
           label={layer === "local_network" ? "Concession / area" : "Planning area"}
-          value={pendingDetails ? "Loading…" : areaFact}
+          value={pendingDetails ? "Loading…" : areaFact && areaFact !== "—" ? areaFact : "Not available"}
         />
         {layer === "planning_area" ? (
-          <MapFact label="Accounting unit" value={pendingDetails ? "Loading…" : accountingUnit || "—"} />
+          <MapFact
+            label="Accounting unit"
+            value={pendingDetails ? "Loading…" : accountingUnit || "Not available"}
+          />
         ) : null}
         <MapFact
           label="Published"
@@ -67,7 +70,7 @@ export function MapOfficialPanel({
               ? "Loading…"
               : context?.provenance?.publishedAt
                 ? formatDate(context.provenance.publishedAt)
-                : "—"
+                : "Not available"
           }
         />
         <MapFact
@@ -77,7 +80,7 @@ export function MapOfficialPanel({
               ? "Loading…"
               : context?.provenance?.retrievedAt
                 ? formatDate(context.provenance.retrievedAt)
-                : "—"
+                : "Not available"
           }
         />
       </dl>

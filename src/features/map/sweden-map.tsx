@@ -7,9 +7,13 @@ import type { MapProject } from "@/lib/data/map-types";
 import type { OpportunityListItem } from "@/lib/data/opportunities";
 import type { OfficialCoveringGeojson } from "@/lib/data/official-map";
 import {
+  CANDIDATE_MAP_EXACT_PAD_PX,
+  CANDIDATE_MAP_HIT_PAD_PX,
   EMPTY_DISCOVERY_GEOJSON,
+  FOOTPRINT_MAP_HIT_PAD_PX,
   isPromotedMapOpportunity,
   opportunityFootprintFilter,
+  pickRankedMapFeatureId,
   screeningLayerFilter,
   searchAreaBboxCollection,
   type MapGeoJsonFeatureCollection,
@@ -49,7 +53,18 @@ const ZONES_SOURCE = "map-opportunity-zones";
 const SEARCH_AREA_SOURCE = "map-search-area";
 const CANDIDATES_SOURCE = "map-candidates";
 const OPP_FOOTPRINT_SOURCE = "map-opportunity-footprints";
-const DEVELOPMENT_FILL_LAYERS = ["map-candidates-fill", "map-opportunity-footprints-fill"] as const;
+const CANDIDATE_HIT_LAYERS = ["map-candidates-fill", "map-candidates-selected"] as const;
+const FOOTPRINT_HIT_LAYERS = [
+  "map-opportunity-footprints-fill",
+  "map-opportunity-footprints-selected",
+] as const;
+const OFFICIAL_HIT_LAYERS = [
+  "official-local-network-fill",
+  "official-nup-fill",
+  "official-covering-fill",
+  "official-local-network-line",
+  "official-nup-line",
+] as const;
 
 export const SwedenMap = memo(function SwedenMap({
   projects,
@@ -116,12 +131,16 @@ export const SwedenMap = memo(function SwedenMap({
   const lastSelectedMarkerRef = useRef<string | null>(null);
   const lastFittedSlugRef = useRef<string | null>(null);
   const coveringRef = useRef(covering);
+  const selectedCandidateIdRef = useRef(selectedCandidateId);
+  const selectedOpportunitySlugRef = useRef(selectedOpportunitySlug);
 
   onSelectProjectRef.current = onSelectProject;
   onSelectOpportunityRef.current = onSelectOpportunity;
   onSelectCandidateRef.current = onSelectCandidate;
   onSelectOfficialRef.current = onSelectOfficial;
   coveringRef.current = covering;
+  selectedCandidateIdRef.current = selectedCandidateId;
+  selectedOpportunitySlugRef.current = selectedOpportunitySlug;
 
   useEffect(() => {
     collectionsRef.current = { localNetwork, planningArea };
@@ -168,6 +187,7 @@ export const SwedenMap = memo(function SwedenMap({
     map.addControl(new NavigationControl({ showCompass: false }), "bottom-left");
     const unbindResize = bindMapResize(map, container);
     mapRef.current = map;
+    (container as HTMLDivElement & { __noxheimMap?: MapLibreMap }).__noxheimMap = map;
     map.once("load", () => {
       if (cancelled || !map) return;
       addMapLayers(map);
@@ -199,6 +219,7 @@ export const SwedenMap = memo(function SwedenMap({
       if (mapRef.current === map) {
         mapRef.current = null;
       }
+      delete (container as HTMLDivElement & { __noxheimMap?: MapLibreMap }).__noxheimMap;
     };
   }, []);
 
@@ -263,6 +284,25 @@ export const SwedenMap = memo(function SwedenMap({
         "map-candidates-selected",
         "visibility",
         layers.candidateSites ? "visible" : "none",
+      );
+    }
+    const discoveryContext = Boolean(searchArea && layers.candidateSites);
+    if (map.getLayer("official-local-network-fill")) {
+      map.setPaintProperty(
+        "official-local-network-fill",
+        "fill-opacity",
+        discoveryContext
+          ? (["interpolate", ["linear"], ["zoom"], 3.8, 0.01, 6, 0.018, 9, 0.028] as never)
+          : (["interpolate", ["linear"], ["zoom"], 3.8, 0.025, 6, 0.045, 9, 0.07] as never),
+      );
+    }
+    if (map.getLayer("official-nup-fill")) {
+      map.setPaintProperty(
+        "official-nup-fill",
+        "fill-opacity",
+        discoveryContext
+          ? (["interpolate", ["linear"], ["zoom"], 3.8, 0.008, 6, 0.014, 9, 0.022] as never)
+          : (["interpolate", ["linear"], ["zoom"], 3.8, 0.02, 6, 0.035, 9, 0.055] as never),
       );
     }
   }, [
@@ -367,41 +407,37 @@ export const SwedenMap = memo(function SwedenMap({
     const map = mapRef.current;
     if (!map || !mapReady) return;
     const handleClick = (event: MapMouseEvent) => {
-    const existingDevelopment = DEVELOPMENT_FILL_LAYERS.filter((id) => map.getLayer(id));
-    const pad = 5;
-    const hitBox: [PointLike, PointLike] = [
-      [event.point.x - pad, event.point.y - pad],
-      [event.point.x + pad, event.point.y + pad],
-    ];
-    const developmentHits = existingDevelopment.length
-      ? map.queryRenderedFeatures(hitBox, { layers: [...existingDevelopment] })
-      : [];
-      const development = developmentHits[0];
-      if (development?.layer?.id === "map-candidates-fill") {
-        const id = development.properties?.id;
-        if (typeof id === "string") {
-          onSelectCandidateRef.current?.(id);
-          return;
-        }
-      }
-      if (development?.layer?.id === "map-opportunity-footprints-fill") {
-        const slug = development.properties?.slug;
-        if (typeof slug === "string") {
-          onSelectOpportunityRef.current?.(slug);
-          return;
-        }
-      }
-      const hits = map.queryRenderedFeatures(event.point, {
-        layers: [
-          "official-local-network-fill",
-          "official-nup-fill",
-          "official-covering-fill",
-          "official-local-network-line",
-          "official-nup-line",
-        ],
+      const candidateHits = queryPreferExactHits(
+        map,
+        event.point,
+        CANDIDATE_MAP_EXACT_PAD_PX,
+        CANDIDATE_MAP_HIT_PAD_PX,
+        CANDIDATE_HIT_LAYERS,
+      );
+      const candidateId = pickRankedMapFeatureId(candidateHits, {
+        preferredId: selectedCandidateIdRef.current,
       });
-      const hit = hits[0];
-      const preview = previewFromFeature(hit);
+      if (candidateId) {
+        onSelectCandidateRef.current?.(candidateId);
+        return;
+      }
+      const footprintHits = queryPreferExactHits(
+        map,
+        event.point,
+        CANDIDATE_MAP_EXACT_PAD_PX,
+        FOOTPRINT_MAP_HIT_PAD_PX,
+        FOOTPRINT_HIT_LAYERS,
+      );
+      const opportunitySlug = pickRankedMapFeatureId(footprintHits, {
+        idKey: "slug",
+        preferredId: selectedOpportunitySlugRef.current,
+      });
+      if (opportunitySlug) {
+        onSelectOpportunityRef.current?.(opportunitySlug);
+        return;
+      }
+      const hits = queryRenderedLayerHits(map, event.point, 0, OFFICIAL_HIT_LAYERS);
+      const preview = previewFromFeature(hits[0]);
       if (!preview) return;
       selectedOfficialRef.current = { areaId: preview.areaId, layer: preview.layer };
       applyOfficialSelection(
@@ -412,16 +448,6 @@ export const SwedenMap = memo(function SwedenMap({
       );
       onSelectOfficialRef.current(preview);
     };
-    const interactiveLayers = [
-      "map-candidates-fill",
-      "map-opportunity-footprints-fill",
-      "official-local-network-fill",
-      "official-nup-fill",
-      "official-covering-fill",
-      "official-local-network-line",
-      "official-nup-line",
-    ];
-    const hoverLayers = ["map-candidates-fill", "map-opportunity-footprints-fill"];
     let hovered: { source: string; id: string | number } | null = null;
     const clearHover = () => {
       if (!hovered) return;
@@ -432,47 +458,55 @@ export const SwedenMap = memo(function SwedenMap({
       }
       hovered = null;
     };
-    const onEnter = () => {
-      map.getCanvas().style.cursor = "pointer";
-    };
-    const onLeave = () => {
-      map.getCanvas().style.cursor = "";
-      clearHover();
-    };
     const onHoverMove = (event: MapMouseEvent) => {
-      const existing = hoverLayers.filter((id) => map.getLayer(id));
-      const hits = existing.length ? map.queryRenderedFeatures(
-        [
-          [event.point.x - 4, event.point.y - 4],
-          [event.point.x + 4, event.point.y + 4],
-        ],
-        { layers: existing },
-      ) : [];
-      const hit = hits[0];
-      const nextId = hit?.id;
-      const nextSource = typeof hit?.source === "string" ? hit.source : null;
-      if (hovered && (nextId == null || !nextSource || hovered.id !== nextId || hovered.source !== nextSource)) {
-        clearHover();
-      }
-      if (hit && nextId != null && nextSource) {
-        hovered = { source: nextSource, id: nextId };
-        map.setFeatureState({ source: nextSource, id: nextId }, { hover: true });
+      const candidateHits = queryPreferExactHits(
+        map,
+        event.point,
+        CANDIDATE_MAP_EXACT_PAD_PX,
+        CANDIDATE_MAP_HIT_PAD_PX,
+        CANDIDATE_HIT_LAYERS,
+      );
+      const candidateId = pickRankedMapFeatureId(candidateHits, {
+        preferredId: selectedCandidateIdRef.current,
+      });
+      if (candidateId) {
+        if (!hovered || hovered.source !== CANDIDATES_SOURCE || hovered.id !== candidateId) {
+          clearHover();
+          hovered = { source: CANDIDATES_SOURCE, id: candidateId };
+          map.setFeatureState({ source: CANDIDATES_SOURCE, id: candidateId }, { hover: true });
+        }
         map.getCanvas().style.cursor = "pointer";
+        return;
       }
+      const footprintHits = queryPreferExactHits(
+        map,
+        event.point,
+        CANDIDATE_MAP_EXACT_PAD_PX,
+        FOOTPRINT_MAP_HIT_PAD_PX,
+        FOOTPRINT_HIT_LAYERS,
+      );
+      const opportunitySlug = pickRankedMapFeatureId(footprintHits, {
+        idKey: "slug",
+        preferredId: selectedOpportunitySlugRef.current,
+      });
+      if (opportunitySlug) {
+        if (!hovered || hovered.source !== OPP_FOOTPRINT_SOURCE || hovered.id !== opportunitySlug) {
+          clearHover();
+          hovered = { source: OPP_FOOTPRINT_SOURCE, id: opportunitySlug };
+          map.setFeatureState({ source: OPP_FOOTPRINT_SOURCE, id: opportunitySlug }, { hover: true });
+        }
+        map.getCanvas().style.cursor = "pointer";
+        return;
+      }
+      const officialHits = queryRenderedLayerHits(map, event.point, 0, OFFICIAL_HIT_LAYERS);
+      clearHover();
+      map.getCanvas().style.cursor = officialHits.length ? "pointer" : "";
     };
     map.on("click", handleClick);
     map.on("mousemove", onHoverMove);
-    for (const layerId of interactiveLayers) {
-      map.on("mouseenter", layerId, onEnter);
-      map.on("mouseleave", layerId, onLeave);
-    }
     return () => {
       map.off("click", handleClick);
       map.off("mousemove", onHoverMove);
-      for (const layerId of interactiveLayers) {
-        map.off("mouseenter", layerId, onEnter);
-        map.off("mouseleave", layerId, onLeave);
-      }
       clearHover();
     };
   }, [mapReady]);
@@ -880,6 +914,9 @@ function addMapLayers(map: MapLibreMap) {
     type: "fill",
     source: CANDIDATES_SOURCE,
     filter: ["==", ["get", "candidateKind"], "site"],
+    layout: {
+      "fill-sort-key": ["-", 1000, ["to-number", ["coalesce", ["get", "rank"], 500]]],
+    } as never,
     paint: {
       "fill-color": [
         "case",
@@ -893,7 +930,7 @@ function addMapLayers(map: MapLibreMap) {
         "#B54708",
         "#8B9098",
       ],
-      "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.7, 0.52],
+      "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.78, 0.58],
     },
   });
   map.addLayer({
@@ -903,8 +940,8 @@ function addMapLayers(map: MapLibreMap) {
     filter: ["==", ["get", "candidateKind"], "site"],
     paint: {
       "line-color": "#1A1E24",
-      "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 1.35, 0.95],
-      "line-opacity": 0.78,
+      "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 1.55, 1.05],
+      "line-opacity": 0.86,
     },
     layout: { "line-join": "round", "line-cap": "round" },
   });
@@ -1000,14 +1037,6 @@ function addMapLayers(map: MapLibreMap) {
     layout: { "line-join": "round", "line-cap": "round" },
   });
   map.addLayer({
-    id: "map-candidates-selected",
-    type: "line",
-    source: CANDIDATES_SOURCE,
-    filter: ["==", ["get", "id"], ""],
-    paint: { "line-color": "#0B3D2E", "line-width": 2.4 },
-    layout: { "line-join": "round", "line-cap": "round" },
-  });
-  map.addLayer({
     id: "map-opportunity-footprints-selected",
     type: "line",
     source: OPP_FOOTPRINT_SOURCE,
@@ -1015,6 +1044,61 @@ function addMapLayers(map: MapLibreMap) {
     paint: { "line-color": "#0B3D2E", "line-width": 2.5 },
     layout: { "line-join": "round", "line-cap": "round" },
   });
+  map.addLayer({
+    id: "map-candidates-selected",
+    type: "line",
+    source: CANDIDATES_SOURCE,
+    filter: ["==", ["get", "id"], ""],
+    paint: { "line-color": "#0B3D2E", "line-width": 2.4 },
+    layout: { "line-join": "round", "line-cap": "round" },
+  });
+  for (const layerId of [
+    "map-opportunity-footprints-fill",
+    "map-opportunity-footprints-line",
+    "official-covering-fill",
+    "official-covering-line",
+    "official-change-highlight-fill",
+    "official-change-highlight-line",
+    "map-candidates-fill",
+    "map-candidates-line",
+    "map-opportunity-footprints-selected",
+    "map-candidates-selected",
+  ]) {
+    if (map.getLayer(layerId)) map.moveLayer(layerId);
+  }
+}
+
+function queryRenderedLayerHits(
+  map: MapLibreMap,
+  point: { x: number; y: number },
+  pad: number,
+  layers: readonly string[],
+) {
+  const existing = layers.filter((id) => map.getLayer(id));
+  if (existing.length === 0) return [];
+  const origin: PointLike = [point.x, point.y];
+  if (pad <= 0) return map.queryRenderedFeatures(origin, { layers: existing });
+  const hitBox: [PointLike, PointLike] = [
+    [point.x - pad, point.y - pad],
+    [point.x + pad, point.y + pad],
+  ];
+  return map.queryRenderedFeatures(hitBox, { layers: existing });
+}
+
+function queryPreferExactHits(
+  map: MapLibreMap,
+  point: { x: number; y: number },
+  exactPad: number,
+  forgivePad: number,
+  layers: readonly string[],
+) {
+  const exact = queryRenderedLayerHits(map, point, 0, layers);
+  if (exact.length > 0) return exact;
+  if (exactPad > 0) {
+    const near = queryRenderedLayerHits(map, point, exactPad, layers);
+    if (near.length > 0) return near;
+  }
+  return queryRenderedLayerHits(map, point, forgivePad, layers);
 }
 
 function styleOpportunityMarker(el: HTMLElement, item: OpportunityListItem, selected = false, zoom = 4.35) {

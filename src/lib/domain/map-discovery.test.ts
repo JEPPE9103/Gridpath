@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   discoveryGeographyLabel,
+  discoveryRunOptionLabel,
   opportunityFootprintFilter,
   opportunityFootprintStyle,
   opportunityFootprintsCollection,
   isPromotedMapOpportunity,
   parseAreaGeometry,
   parseDiscoveryFeatureCollection,
+  pickRankedMapFeatureId,
   screeningLayerFilter,
   searchAreaBboxCollection,
 } from "@/lib/domain/map-discovery";
@@ -99,6 +101,38 @@ describe("map discovery helpers", () => {
     assert.equal(isPromotedMapOpportunity({ status: "promoted" }), true);
     assert.equal(isPromotedMapOpportunity({ status: "identified", promotedProjectId: "project-1" }), true);
     assert.equal(isPromotedMapOpportunity({ status: "identified" }), false);
+  });
+
+  it("picks Candidate hits by selected id, then lowest rank, then query order", () => {
+    const overlapping = [
+      { properties: { id: "b", rank: 4 } },
+      { properties: { id: "a", rank: 1 } },
+      { properties: { id: "c", rank: 2 } },
+    ];
+    assert.equal(pickRankedMapFeatureId(overlapping), "a");
+    assert.equal(pickRankedMapFeatureId(overlapping, { preferredId: "c" }), "c");
+    assert.equal(
+      pickRankedMapFeatureId([
+        { properties: { id: "first" } },
+        { properties: { id: "second", rank: 1 } },
+      ]),
+      "first",
+    );
+    assert.equal(
+      pickRankedMapFeatureId([{ properties: { slug: "opp-1", rank: 2 } }], { idKey: "slug" }),
+      "opp-1",
+    );
+    assert.equal(pickRankedMapFeatureId([{ properties: { name: "no-id" } }]), null);
+  });
+
+  it("distinguishes duplicate Discovery names with a short timestamp", () => {
+    assert.equal(
+      discoveryRunOptionLabel({ name: "Hallsberg BESS E2E", createdAt: "2026-09-11T12:32:00.000Z" }).startsWith(
+        "Hallsberg BESS E2E · ",
+      ),
+      true,
+    );
+    assert.equal(discoveryRunOptionLabel({ name: "Hallsberg BESS E2E", createdAt: "not-a-date" }), "Hallsberg BESS E2E");
   });
 
   it("labels stored search geography without implying a Candidate Site", () => {

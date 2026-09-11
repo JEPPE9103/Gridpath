@@ -70,6 +70,15 @@ test.describe("authenticated Map workspace", () => {
         await expect(page.getByTestId("map-canvas")).toBeVisible();
         await page.getByText(/loading selected screening run/i).waitFor({ timeout: 8_000 }).catch(() => {});
         await expect(page.getByTestId("map-discovery")).toBeVisible();
+        await page.getByText(/loading selected screening run/i).waitFor({ state: "hidden", timeout: 20_000 }).catch(() => {});
+        const candidateClick = await clickVisibleCandidateSite(page);
+        if (candidateClick.attempted) {
+          await expect(page.getByTestId("map-candidate-panel")).toBeVisible({ timeout: 8_000 });
+          await expect(page.getByTestId("map-candidate-panel")).toContainText(/Candidate Site/i);
+          await expect(page.getByTestId("map-candidate-panel")).toContainText(/Noxheim Derived/i);
+          await expect(page.getByTestId("map-official-panel")).toHaveCount(0);
+          await expect(page).toHaveURL(/\/map/);
+        }
       }
     } else {
       await expect(page.getByTestId("map-discovery").getByText(/no searches yet/i)).toBeVisible();
@@ -96,3 +105,106 @@ async function signIn(page: Page) {
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForURL(/\/(portfolio|overview|onboarding)/);
 }
+
+async function clickVisibleCandidateSite(page: Page): Promise<{ attempted: boolean }> {
+  const ready = await page
+    .waitForFunction(() => {
+      const canvas = document.querySelector("[data-testid=map-canvas]") as
+        | (HTMLDivElement & { __noxheimMap?: CandidateHitMap })
+        | null;
+      const map = canvas?.__noxheimMap;
+      if (!map) return false;
+      return map
+        .querySourceFeatures("map-candidates")
+        .some((feature) => feature.properties?.candidateKind === "site");
+    }, undefined, { timeout: 20_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!ready) return { attempted: false };
+
+  const target = await page.evaluate(() => {
+    const canvas = document.querySelector("[data-testid=map-canvas]") as
+      | (HTMLDivElement & { __noxheimMap?: CandidateHitMap })
+      | null;
+    const map = canvas?.__noxheimMap;
+    if (!map || !canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const projectMarkers = [...document.querySelectorAll('button[aria-label$=", project"]')].map((el) => {
+      const box = el.getBoundingClientRect();
+      return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    });
+    const features = map
+      .querySourceFeatures("map-candidates")
+      .filter((feature) => feature.properties?.candidateKind === "site");
+    const points: Array<{ x: number; y: number; rank: number }> = [];
+    for (const feature of features) {
+      const id = feature.properties?.id;
+      if (typeof id !== "string") continue;
+      for (const sample of sampleLngLats(feature.geometry)) {
+        const projected = map.project(sample);
+        if (
+          projected.x < 8 ||
+          projected.y < 8 ||
+          projected.x > rect.width - 8 ||
+          projected.y > rect.height - 8
+        ) {
+          continue;
+        }
+        const hits = map.queryRenderedFeatures(projected, { layers: ["map-candidates-fill"] });
+        if (!hits.some((hit) => hit.properties?.id === id)) continue;
+        const x = rect.left + projected.x;
+        const y = rect.top + projected.y;
+        if (projectMarkers.some((marker) => Math.hypot(marker.x - x, marker.y - y) < 18)) continue;
+        const rank = feature.properties?.rank;
+        points.push({
+          x,
+          y,
+          rank: typeof rank === "number" ? rank : 999,
+        });
+        break;
+      }
+    }
+    points.sort((left, right) => left.rank - right.rank);
+    return points[0] ?? null;
+
+    function sampleLngLats(geometry: { type?: string; coordinates?: unknown } | undefined): Array<[number, number]> {
+      if (!geometry) return [];
+      if (geometry.type === "Point" && Array.isArray(geometry.coordinates)) {
+        const pair = geometry.coordinates as number[];
+        return [[pair[0], pair[1]]];
+      }
+      const ring =
+        geometry.type === "Polygon"
+          ? (geometry.coordinates as number[][][] | undefined)?.[0]
+          : geometry.type === "MultiPolygon"
+            ? (geometry.coordinates as number[][][][] | undefined)?.[0]?.[0]
+            : null;
+      if (!ring?.length) return [];
+      let x = 0;
+      let y = 0;
+      for (const pair of ring) {
+        x += pair[0];
+        y += pair[1];
+      }
+      const centroid: [number, number] = [x / ring.length, y / ring.length];
+      const mid = ring[Math.floor(ring.length / 2)] as [number, number];
+      return [centroid, ring[0] as [number, number], mid];
+    }
+  });
+
+  if (!target) return { attempted: false };
+  await page.mouse.click(target.x, target.y);
+  return { attempted: true };
+}
+
+type CandidateHitMap = {
+  project: (lngLat: [number, number]) => { x: number; y: number };
+  queryRenderedFeatures: (
+    point: { x: number; y: number },
+    options: { layers: string[] },
+  ) => Array<{ properties?: Record<string, unknown> }>;
+  querySourceFeatures: (source: string) => Array<{
+    geometry?: { type?: string; coordinates?: unknown };
+    properties?: Record<string, unknown>;
+  }>;
+};

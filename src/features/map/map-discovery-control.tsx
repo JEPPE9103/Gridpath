@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  discoveryRunOptionLabel,
   discoveryRunStatusLabel,
   isCompletedDiscoveryRun,
   type MapDiscoverySearch,
@@ -47,7 +48,7 @@ export function MapDiscoveryControl({
               const search = searches.find((item) => item.searchId === value);
               if (search) onSelect(search);
             }}
-            className="max-w-[14rem] bg-transparent text-ink lg:max-w-[18rem]"
+            className="max-w-[16rem] bg-transparent text-ink lg:max-w-[22rem]"
           >
             <option value="">Select a run</option>
             {searches.map((search) => (
@@ -56,7 +57,7 @@ export function MapDiscoveryControl({
                 value={search.searchId}
                 disabled={!isCompletedDiscoveryRun(search.latestRunStatus) || !search.latestRunId}
               >
-                {search.name}
+                {discoveryRunOptionLabel(search)}
               </option>
             ))}
           </select>

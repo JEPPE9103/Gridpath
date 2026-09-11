@@ -201,3 +201,51 @@ export function opportunityFootprintStyle(status: string): "saved" | "shortliste
 export function isPromotedMapOpportunity(item: { status: string; promotedProjectId?: string | null }): boolean {
   return item.status === "promoted" || Boolean(item.promotedProjectId);
 }
+
+export const CANDIDATE_MAP_EXACT_PAD_PX = 2;
+export const CANDIDATE_MAP_HIT_PAD_PX = 20;
+export const FOOTPRINT_MAP_HIT_PAD_PX = 12;
+
+type RankedMapHit = {
+  id: string;
+  rank: number | null;
+};
+
+function rankedHitsFromFeatures(
+  features: Array<{ properties?: Record<string, unknown> | null }>,
+  idKey: string,
+): RankedMapHit[] {
+  const items: RankedMapHit[] = [];
+  const seen = new Set<string>();
+  for (const feature of features) {
+    const id = feature.properties?.[idKey];
+    if (typeof id !== "string" || !id || seen.has(id)) continue;
+    seen.add(id);
+    const raw = feature.properties?.rank;
+    const numeric = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : Number.NaN;
+    items.push({ id, rank: Number.isFinite(numeric) ? numeric : null });
+  }
+  return items;
+}
+
+export function pickRankedMapFeatureId(
+  features: Array<{ properties?: Record<string, unknown> | null }>,
+  options?: { idKey?: string; preferredId?: string | null },
+): string | null {
+  const idKey = options?.idKey ?? "id";
+  const items = rankedHitsFromFeatures(features, idKey);
+  if (items.length === 0) return null;
+  const preferred = options?.preferredId;
+  if (preferred && items.some((item) => item.id === preferred)) return preferred;
+  if (items.every((item) => item.rank != null)) {
+    return [...items].sort((left, right) => (left.rank as number) - (right.rank as number))[0]?.id ?? null;
+  }
+  return items[0]?.id ?? null;
+}
+
+export function discoveryRunOptionLabel(search: { name: string; createdAt: string }): string {
+  const date = new Date(search.createdAt);
+  if (Number.isNaN(date.getTime())) return search.name;
+  const stamp = `${date.getDate()} ${date.toLocaleString("en-GB", { month: "short" })} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  return `${search.name} · ${stamp}`;
+}

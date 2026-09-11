@@ -459,14 +459,19 @@ function LoadedMapPage({
       }
       setOfficialContext(null);
       setOfficialLoading(true);
-      loadOfficialMapAreaContextAction(input.areaId).then((result) => {
-        if (generation !== officialFetchGenRef.current) return;
-        setOfficialLoading(false);
-        if (result.ok) {
-          setCachedValue("area", input.areaId, result.context);
-          setOfficialContext(result.context);
-        }
-      });
+      loadOfficialMapAreaContextAction(input.areaId)
+        .then((result) => {
+          if (generation !== officialFetchGenRef.current) return;
+          setOfficialLoading(false);
+          if (result.ok) {
+            setCachedValue("area", input.areaId, result.context);
+            setOfficialContext(result.context);
+          }
+        })
+        .catch(() => {
+          if (generation !== officialFetchGenRef.current) return;
+          setOfficialLoading(false);
+        });
     },
     [persistMapUrl],
   );
