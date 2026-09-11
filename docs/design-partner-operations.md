@@ -93,7 +93,14 @@ Safety rules enforced in `scripts/lib/ingest-target.mjs`:
 
 ## Sales demo workspace reset
 
-Internal **NOXHEIM Demo Development** workspace only (`noxheim-demo-development` / fixed org id). Sample customer data. Does **not** write official grid tables, `external_changes`, or alerts.
+Internal **Northfield Energy Development AB** workspace only (`noxheim-demo-development` / fixed org id). Sample customer data. Does **not** write official grid tables, `external_changes`, or alerts.
+
+```bash
+npm run demo:plan
+npm run demo:preflight
+```
+
+Destructive remote reset (Design Partner Cloud only). Also requires `NOXHEIM_CONFIRM_DEMO_RESET=noxheim-demo-development`:
 
 ```bash
 npm run demo:reset
@@ -104,7 +111,8 @@ Equivalent:
 ```bash
 $env:NOXHEIM_ALLOW_REMOTE_DEMO_SEED = "true"
 $env:NOXHEIM_REMOTE_PROJECT_REF = "krgzpgqmnzljwlwptmcn"
-node scripts/seed-sales-demo.mjs
+$env:NOXHEIM_CONFIRM_DEMO_RESET = "noxheim-demo-development"
+node --import tsx scripts/seed-sales-demo.mjs
 ```
 
 Safety:
@@ -112,8 +120,11 @@ Safety:
 - Remote off unless `NOXHEIM_ALLOW_REMOTE_DEMO_SEED=true`
 - Project ref must be `krgzpgqmnzljwlwptmcn`
 - Organization id + slug allowlist only
-- Prints the demo org/project IDs that will be affected, then resets **that org only**
-- Never `db reset`, never `supabase/seed.sql` on cloud
+- Remote reset refused without `NOXHEIM_CONFIRM_DEMO_RESET=noxheim-demo-development`
+- Prints demo searches/runs/candidates/opportunities/projects and other-org project counts before delete
+- Resets **that org only**; never `db reset`, never `supabase/seed.sql` on cloud
+- Discovery leftovers in the demo org are deleted, then Örebro East BESS is re-run as the demo org
+- Official GI / cache / `external_changes` / alerts are never written
 
 Demo script: `docs/design-partner-demo.md`  
 Cheat sheet: `docs/noxheim-demo-cheat-sheet.md`
