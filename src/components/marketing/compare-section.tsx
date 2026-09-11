@@ -13,9 +13,8 @@ export function CompareSection() {
           Compare sites on the same evidence. Then decide what to keep.
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-          See differences in evidence, covering geography and remaining uncertainty. Shortlist,
-          reject, reopen, or save a Candidate Site as an Opportunity. Noxheim does not make the
-          investment decision.
+          See differences in Evidence Coverage, covering geography and remaining uncertainty.
+          Shortlist, reject, reopen, or save a Candidate Site as an Opportunity.
         </p>
       </Reveal>
 
@@ -32,8 +31,7 @@ export function CompareSection() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <caption className="sr-only">
-                Sample comparison of three Candidate Sites. Relative investigation priority from
-                stored evidence, not a success score.
+                Sample comparison of three Candidate Sites on stored Evidence Coverage.
               </caption>
               <thead>
                 <tr className="border-b border-line bg-surface text-[11px] uppercase tracking-wide text-muted">
@@ -56,7 +54,7 @@ export function CompareSection() {
                 />
                 <CompareRow
                   label="Network area"
-                  values={SAMPLE_CANDIDATE_SITES.map(() => "Official covering, not capacity")}
+                  values={SAMPLE_CANDIDATE_SITES.map(() => "Ei covering")}
                 />
                 <CompareRow
                   label="Evidence"
@@ -70,7 +68,7 @@ export function CompareSection() {
             </table>
           </div>
           <p className="border-t border-line px-4 py-3 text-[11px] leading-5 text-muted">
-            Relative investigation priority from stored evidence — not a success score.
+            Investigation priority from stored evidence.
           </p>
         </div>
       </Reveal>

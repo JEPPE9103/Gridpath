@@ -44,7 +44,7 @@ export function EvidenceSection() {
             <div className="bg-canvas p-4 sm:p-5">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <p className="text-[11px] uppercase tracking-wide text-muted">
-                  Evidence coverage · {SAMPLE_SELECTED_CANDIDATE.name}
+                  Evidence Coverage · {SAMPLE_SELECTED_CANDIDATE.name}
                 </p>
                 <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
                   Sample
@@ -74,7 +74,7 @@ function MarketingEvidenceCoverage() {
   return (
     <div className="rounded-md border border-line bg-surface p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm font-semibold">Evidence coverage</p>
+        <p className="text-sm font-semibold">Evidence Coverage</p>
         <p className="text-xs text-muted">{SAMPLE_EVIDENCE_COVERAGE.summary}</p>
       </div>
       <ul className="mt-3 space-y-2">

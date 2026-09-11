@@ -16,8 +16,8 @@ export function DesignPartnerSection() {
             validate Noxheim on real geographies, real evidence gaps and real connection workflows.
           </p>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-            Design partners get a guided workspace, close support, and a say in which evidence layers
-            Noxheim develops next. This is not instant national self-service.
+            Design partners get guided onboarding, close support, screening on real development
+            geographies, and a say in which evidence layers Noxheim develops next.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <CtaLink href="/#demo" className="w-full px-5 sm:w-auto">

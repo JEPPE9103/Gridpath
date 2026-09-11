@@ -65,7 +65,7 @@ function SelectedCandidateCard() {
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-muted">Network area</dt>
-          <dd className="text-right font-medium">Covering, not capacity</dd>
+          <dd className="text-right font-medium">Ei covering</dd>
         </div>
       </dl>
     </article>

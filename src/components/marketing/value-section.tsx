@@ -22,7 +22,7 @@ export function ValueSection() {
           should have been stopped — is easy to lose between first look and project development.
         </p>
         <p className="mt-4 max-w-2xl text-base leading-7 text-ink">
-          Noxheim keeps geographic screening, evidence coverage and the development record in one
+          Noxheim keeps geographic screening, Evidence Coverage and the development record in one
           workspace, so teams spend diligence on sites that still deserve it.
         </p>
       </Reveal>

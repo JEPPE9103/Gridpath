@@ -6,10 +6,10 @@ import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 const LAYERS = [
   "Search Areas",
   "Candidate Sites",
-  "Official Ei network geography",
-  "Environmental / land-cover evidence",
   "Opportunities",
   "Projects",
+  "Official Ei covering geography",
+  "Environmental / land-cover evidence",
 ];
 
 export function MapWorkspaceSection() {
@@ -18,12 +18,15 @@ export function MapWorkspaceSection() {
       <Reveal>
         <Eyebrow>Map</Eyebrow>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-          The Map is a working intelligence surface — not a pin gallery.
+          One spatial workspace from screening to development.
         </h2>
         <p className="mt-4 max-w-xl text-base leading-7 text-muted">
-          Search Areas, Candidate Sites, official covering geography, evidence context, Opportunities
-          and Projects sit together. Not every layer is available nationally. This is not a capacity
-          map.
+          Search Areas, Candidate Sites, Opportunities, Projects, official Ei covering geography and
+          environmental context sit together on the Map.
+        </p>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-muted">
+          Covering geography is not available capacity. Layer availability depends on the geography
+          you search.
         </p>
       </Reveal>
 
@@ -44,10 +47,10 @@ export function MapWorkspaceSection() {
         <div className="mt-6">
           <AppFrame path="/map">
             <div className="bg-canvas">
-              <DeferredDiscoveryMap size="full" />
+              <DeferredDiscoveryMap size="full" variant="workspace" />
               <p className="border-t border-line px-4 py-3 text-[11px] leading-5 text-muted">
-                Sample Search Area on the Map. Official network geography is covering, not available
-                capacity. Layer availability depends on the geography you search.
+                Sample Map. Official Ei covering is geographic context. Candidate Sites, Opportunities
+                and Projects share the same workspace.
               </p>
             </div>
           </AppFrame>

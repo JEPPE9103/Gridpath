@@ -17,14 +17,14 @@ export default function PrivacyPage() {
           up. We do not sell contact details to third parties.
         </p>
         <p>
-          When you create a workspace, project data, connection workflow, documents and team
+          When you create a workspace, project data, connection process tracking, documents and team
           activity are stored in your organisation&apos;s tenant. Official published grid information
           is shared source context. Project-specific records stay scoped to your organisation.
         </p>
         <p>
-          Official grid context in the product is published source information and geographic match
-          for team review. It is not available grid capacity, connection probability or a substitute
-          for formal network-operator assessment.
+          Official context in the product is published source information and geographic covering
+          for team review. Network covering is not available grid capacity, and it is not a
+          substitute for formal network-operator assessment.
         </p>
       </div>
     </MarketingSection>

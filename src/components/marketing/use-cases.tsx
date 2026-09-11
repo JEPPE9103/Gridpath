@@ -18,7 +18,7 @@ const CASES = [
     label: "Candidate Site screening",
     title: "Screen and compare on the same evidence",
     copy: "See evaluated versus missing evidence, compare Candidate Sites, then shortlist, reject, reopen or save an Opportunity.",
-    outputs: ["Evidence coverage", "Compare", "Save as Opportunity"],
+    outputs: ["Evidence Coverage", "Compare", "Save as Opportunity"],
   },
   {
     id: "lifecycle",
@@ -31,8 +31,8 @@ const CASES = [
     id: "connect",
     label: "Connection and monitoring",
     title: "Track connection work and official-source change",
-    copy: "After promotion, keep connection stages, requirements and documents on the project, and review official-source changes with a geographic match. That match is not a technical verdict.",
-    outputs: ["Connection tracking", "Portfolio Attention", "Official Source"],
+    copy: "After promotion, keep connection stages, requirements and documents on the Project, and review official-source changes with a geographic match.",
+    outputs: ["Connection process tracking", "Portfolio Attention", "Official Source"],
   },
 ];
 
@@ -48,9 +48,8 @@ export function UseCases() {
           Built for BESS and renewable development teams.
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-          For Swedish battery, solar, wind and hybrid development — including consultants working
-          those same projects. Not positioned today for data centres, industry, hydrogen or
-          municipalities.
+          For Swedish BESS, solar, wind and hybrid development teams — and consultants working those
+          same projects.
         </p>
       </Reveal>
       <Reveal delay={70}>

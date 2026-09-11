@@ -1,6 +1,12 @@
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 
+const FENCES = [
+  "Screening ≠ engineering feasibility",
+  "Ranking ≠ official verdict",
+  "Network covering ≠ available capacity",
+];
+
 export function DecisionSupportSection() {
   return (
     <MarketingSection>
@@ -10,12 +16,14 @@ export function DecisionSupportSection() {
           Decision support, not a grid connection guarantee.
         </h2>
         <p className="mt-5 max-w-2xl text-base leading-7 text-muted">
-          Noxheim helps development teams find sites worth investigating, see missing evidence, and
-          keep that context through connection tracking and official-source review. It does not
-          replace formal network-operator assessments, connection studies or binding capacity offers.
-          It does not estimate available MW, connection probability, planning approval, or which
-          sites deserve capital.
+          Noxheim helps teams find sites worth investigating, see missing evidence, and keep that
+          context through connection process tracking and official-source review.
         </p>
+        <ul className="mt-6 max-w-xl space-y-2 text-sm leading-6 text-ink">
+          {FENCES.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </Reveal>
     </MarketingSection>
   );

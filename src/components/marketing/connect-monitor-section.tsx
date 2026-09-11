@@ -2,8 +2,8 @@ import { AppFrame } from "@/components/marketing/app-frame";
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 import { StageBadge, StatusBadge } from "@/components/ui/badges";
+import { OVERVIEW_PIPELINE_STAGES } from "@/lib/data/overview-types";
 import { SAMPLE_SELECTED_PROJECT } from "@/lib/demo/sample-portfolio-preview";
-import { CONNECTION_STAGES } from "@/types";
 
 export function ConnectMonitorSection() {
   return (
@@ -16,7 +16,7 @@ export function ConnectMonitorSection() {
 
 function ConnectBlock() {
   const project = SAMPLE_SELECTED_PROJECT;
-  const currentIndex = CONNECTION_STAGES.indexOf("Grid Study");
+  const currentIndex = OVERVIEW_PIPELINE_STAGES.indexOf("Grid Study");
   const readiness = Math.round((project.readinessComplete / project.readinessRequired) * 100);
 
   return (
@@ -30,7 +30,7 @@ function ConnectBlock() {
                   <div>
                     <p className="text-base font-semibold">{project.name}</p>
                     <p className="mt-1 text-[12px] text-muted">
-                      Connection process tracking · sample workspace
+                      Connection case on a Project · sample workspace
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -39,7 +39,7 @@ function ConnectBlock() {
                   </div>
                 </div>
                 <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
-                  {CONNECTION_STAGES.map((stage, index) => (
+                  {OVERVIEW_PIPELINE_STAGES.map((stage, index) => (
                     <div
                       key={stage}
                       className={
@@ -77,9 +77,7 @@ function ConnectBlock() {
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-canvas">
                 <div className="h-full bg-teal" style={{ width: `${readiness}%` }} />
               </div>
-              <p className="mt-2 text-[11px] text-muted">
-                Workflow readiness — not connection feasibility.
-              </p>
+              <p className="mt-2 text-[11px] text-muted">Workflow readiness.</p>
             </article>
           </div>
         </Reveal>
@@ -89,9 +87,11 @@ function ConnectBlock() {
             Track the connection process after the site becomes a Project.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Stages, requirements, deadlines, documents and next actions stay on the same record.
-            This is connection process tracking — not a DSO portal, operator submission, or a
-            feasibility assessment.
+            Keep stages, requirements, deadlines, documents and next actions on the same Project
+            record. Connection process tracking starts after an Opportunity is promoted.
+          </p>
+          <p className="mt-4 max-w-md text-sm leading-6 text-muted">
+            Workflow readiness measures recorded requirements on the connection case.
           </p>
         </Reveal>
       </div>
@@ -110,13 +110,12 @@ function MonitorBlock() {
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
             Noxheim stores official source snapshots, identifies published changes with a geographic
-            match, and lists them on matched projects for review. Review is team relevance, not a
-            technical impact verdict.
+            match, and lists them on matched projects for review. Overview shows which active
+            projects need action and the next recorded workflow step.
           </p>
           <p className="mt-4 max-w-md text-sm leading-6 text-muted">
-            Overview shows which active projects need action and the next recorded workflow step.
-            During the design-partner phase, official sources are refreshed by Noxheim operations.
-            A delayed source update is not the same as “no changes”.
+            During the design-partner phase, official sources are refreshed by Noxheim operations. A
+            delayed source update is not the same as “no changes”.
           </p>
         </Reveal>
         <Reveal delay={80} fade>
@@ -148,11 +147,11 @@ function MonitorBlock() {
                 <FlowCard
                   step="Matched project"
                   title="2 portfolio projects"
-                  detail="Sample workspace — not a live official event"
+                  detail="Sample workspace"
                 />
               </div>
               <p className="mt-4 text-[11px] leading-5 text-muted">
-                Official Source match, not a capacity or impact verdict.
+                Official Source match for team review.
               </p>
             </div>
           </AppFrame>

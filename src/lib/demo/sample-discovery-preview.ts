@@ -198,33 +198,95 @@ const SEARCH_RING: Ring = [
   [SAMPLE_SEARCH_BOUNDS.west, SAMPLE_SEARCH_BOUNDS.north],
 ];
 
+/** Broader remaining geography after exclusions — context, not a Candidate Site. */
 const ZONE_RING: Ring = [
-  [15.00, 59.02],
-  [15.24, 59.03],
-  [15.25, 59.13],
-  [15.02, 59.14],
+  [14.995, 59.026],
+  [15.055, 59.018],
+  [15.132, 59.022],
+  [15.198, 59.038],
+  [15.246, 59.062],
+  [15.258, 59.108],
+  [15.232, 59.138],
+  [15.168, 59.148],
+  [15.092, 59.146],
+  [15.028, 59.136],
+  [14.988, 59.108],
+  [14.982, 59.068],
 ];
 
+/**
+ * Land-grown investigation footprints.
+ * Stepped like dissolved 150 m screening cells — compact, irregular, not parcels or blobs.
+ */
 const SITE_RINGS: Record<(typeof SAMPLE_CANDIDATE_SITES)[number]["id"], Ring> = {
   "site-a": [
-    [15.108, 59.040],
+    [15.108, 59.041],
+    [15.114, 59.041],
+    [15.114, 59.038],
+    [15.122, 59.038],
+    [15.122, 59.041],
     [15.128, 59.041],
-    [15.129, 59.056],
-    [15.107, 59.055],
+    [15.128, 59.047],
+    [15.131, 59.047],
+    [15.131, 59.053],
+    [15.125, 59.053],
+    [15.125, 59.057],
+    [15.116, 59.057],
+    [15.116, 59.053],
+    [15.111, 59.053],
+    [15.111, 59.047],
+    [15.108, 59.047],
   ],
   "site-b": [
-    [15.194, 59.094],
-    [15.216, 59.095],
-    [15.217, 59.110],
-    [15.193, 59.109],
+    [15.191, 59.096],
+    [15.198, 59.096],
+    [15.198, 59.092],
+    [15.208, 59.092],
+    [15.208, 59.096],
+    [15.218, 59.096],
+    [15.218, 59.103],
+    [15.214, 59.103],
+    [15.214, 59.110],
+    [15.206, 59.110],
+    [15.206, 59.114],
+    [15.198, 59.114],
+    [15.198, 59.108],
+    [15.191, 59.108],
   ],
   "site-c": [
-    [15.031, 59.110],
-    [15.055, 59.111],
-    [15.054, 59.126],
-    [15.030, 59.125],
+    [15.032, 59.112],
+    [15.040, 59.112],
+    [15.040, 59.108],
+    [15.048, 59.108],
+    [15.048, 59.112],
+    [15.054, 59.112],
+    [15.054, 59.118],
+    [15.057, 59.118],
+    [15.057, 59.126],
+    [15.050, 59.126],
+    [15.050, 59.131],
+    [15.041, 59.131],
+    [15.041, 59.126],
+    [15.035, 59.126],
+    [15.035, 59.120],
+    [15.032, 59.120],
   ],
 };
+
+/** Sample Ei local-network covering geography — covering, not capacity. */
+const COVERING_RING: Ring = [
+  [14.93, 58.978],
+  [15.04, 58.968],
+  [15.18, 58.976],
+  [15.29, 59.012],
+  [15.34, 59.068],
+  [15.33, 59.128],
+  [15.27, 59.178],
+  [15.14, 59.198],
+  [15.00, 59.176],
+  [14.91, 59.118],
+  [14.90, 59.042],
+];
 
 export const SAMPLE_DISCOVERY_GEOJSON = {
   type: "FeatureCollection" as const,
@@ -257,3 +319,31 @@ export const SAMPLE_SEARCH_BOUNDARY_GEOJSON = {
     },
   ],
 };
+
+export const SAMPLE_COVERING_GEOJSON = {
+  type: "FeatureCollection" as const,
+  features: [
+    {
+      type: "Feature" as const,
+      properties: { kind: "ei-covering" },
+      geometry: polygon(COVERING_RING),
+    },
+  ],
+};
+
+export const SAMPLE_MAP_RECORDS = [
+  {
+    id: "opportunity-a",
+    kind: "opportunity" as const,
+    name: "Opportunity",
+    longitude: 15.118,
+    latitude: 59.048,
+  },
+  {
+    id: "project-north",
+    kind: "project" as const,
+    name: "Project",
+    longitude: 15.162,
+    latitude: 59.078,
+  },
+] as const;

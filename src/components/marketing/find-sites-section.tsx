@@ -10,11 +10,11 @@ const STEPS = [
   },
   {
     title: "Opportunity Zones",
-    copy: "Broader qualifying geography after supported exclusions — context, not a proposed site.",
+    copy: "Broader qualifying geography after supported exclusions — context for Candidate Sites.",
   },
   {
     title: "Candidate Sites",
-    copy: "Bounded investigation targets grown from qualifying land. Recommendations prioritise further look, not engineering feasibility.",
+    copy: "Bounded investigation targets grown from qualifying land. Rankings prioritise further investigation.",
   },
 ];
 
@@ -28,8 +28,8 @@ export function FindSitesSection() {
             Search a geography. Identify Candidate Sites worth investigating.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Sites are derived from qualifying geography inside the Search Area. They are not land
-            parcels, approved projects, or a constructability finding.
+            Candidate Sites are grown from qualifying land inside the Search Area. Opportunity Zones
+            stay in the background as broader remaining geography.
           </p>
           <ol className="mt-6 max-w-md space-y-4">
             {STEPS.map((step, index) => (
@@ -48,8 +48,8 @@ export function FindSitesSection() {
             <div className="bg-canvas">
               <DeferredDiscoveryMap size="full" />
               <p className="border-t border-line px-4 py-3 text-[11px] leading-5 text-muted">
-                Sample illustration of Search Area, Opportunity Zones and Candidate Sites. Opportunity
-                Zones are broader remaining geography — not a proposed development footprint.
+                Sample screening. Opportunity Zones recede as context. Candidate Sites are the
+                investigation layer.
               </p>
             </div>
           </AppFrame>

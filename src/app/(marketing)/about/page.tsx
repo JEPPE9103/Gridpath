@@ -20,13 +20,12 @@ export default function AboutPage() {
           NOXHEIM is a Development Intelligence platform for Swedish BESS and renewable development
           teams. It helps teams search real geography, identify Candidate Sites worth investigating,
           see evaluated versus missing evidence, and carry kept opportunities into project
-          development and connection tracking.
+          development and connection process tracking.
         </p>
         <p>
-          Official grid information in the product is covering geography and published source
-          context — not available capacity. Ranking is Noxheim derived, not an official verdict.
-          Screening is not engineering feasibility. Noxheim does not estimate connection
-          probability or replace network-operator assessments.
+          Official grid information is covering geography and published source context. Ranking is
+          Noxheim derived. Screening supports investigation — it is not engineering feasibility,
+          available capacity, or a connection offer.
         </p>
         <p>
           We work with a small number of Swedish BESS and renewable development teams. Book a demo

@@ -4,7 +4,7 @@ import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 const STAGES = [
   {
     title: "Candidate Site",
-    copy: "A bounded investigation target from geographic screening, with evidence coverage attached.",
+    copy: "A bounded investigation target from geographic screening, with Evidence Coverage attached.",
   },
   {
     title: "Opportunity",
@@ -25,8 +25,8 @@ export function LifecycleSection() {
           The same site, from Candidate Site to Project.
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-          Evidence and origin stay on the development decision. You do not start again in a
-          disconnected project-management system.
+          Evidence and origin stay attached when a Candidate Site becomes an Opportunity and then a
+          Project.
         </p>
       </Reveal>
 

@@ -6,11 +6,11 @@ import { useEffect, useRef, useState } from "react";
 export function DeferredDiscoveryMap({
   size = "full",
   eager = false,
-  showZones = true,
+  variant = "discovery",
 }: {
   size?: "hero" | "full";
   eager?: boolean;
-  showZones?: boolean;
+  variant?: "discovery" | "workspace";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [intersected, setIntersected] = useState(false);
@@ -44,7 +44,7 @@ export function DeferredDiscoveryMap({
   return (
     <div ref={ref}>
       {ready ? (
-        <DiscoveryMap showZones={showZones} size={size} />
+        <DiscoveryMap size={size} variant={variant} />
       ) : (
         <div className={placeholderClass} aria-hidden />
       )}
