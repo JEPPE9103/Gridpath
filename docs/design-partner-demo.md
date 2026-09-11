@@ -2,11 +2,14 @@
 
 Canonical host: `https://www.noxheim.com`
 
-Workspace: **NOXHEIM Demo Development** (internal sales demo).  
-Hero: **Stockholm North BESS** → `/projects/stockholm-north-bess`  
-Compare: **Uppsala Storage**, **Stockholm North BESS**, **Gävle BESS**
+Workspace: **Northfield Energy Development AB** (internal sales demo, slug `noxheim-demo-development`).  
+Primary Discovery: **Örebro East BESS**  
+Promoted Project: **Örebro East Storage** → `/projects/orebro-east-storage`  
+Connection hero: **Stockholm North BESS** → `/projects/stockholm-north-bess`
 
-The project/workflow portfolio is **sample data**. Official Grid Intelligence is the **current NOXHEIM official Ei baseline**.
+Customer-entered portfolio/workflow rows are **sample data**. Official Grid Intelligence is the **current NOXHEIM official Ei baseline**. Candidate Sites come from a **real demo-org screening run**, not hand-drawn polygons.
+
+This script assumes a completed sales-demo reset, including the post-transaction screening phase.
 
 ---
 
@@ -21,105 +24,87 @@ The project/workflow portfolio is **sample data**. Official Grid Intelligence is
 
 ---
 
-## 00:00–01:30 — Landing / positioning
+## 00:00–02:00 — Map / portfolio orientation
 
-**SHOW:** `https://www.noxheim.com` — Screen / Manage / Monitor. Sample-labelled product preview.
+**SHOW:** `/map` after login. National Sweden. Projects visible. No Discovery run selected.
 
-**SAY:** We help development teams screen, manage and monitor grid-connected projects.
-
-**DO NOT SAY:** We tell you where capacity is available.
-
----
-
-## 01:30–03:00 — Overview
-
-**SHOW:** `/overview` after login. Ten-site sample portfolio, MW, pipeline, attention.
-
-**SAY:** This is the development portfolio in one workspace.
-
-**DO NOT SAY:** That KPI colours are official capacity.
-
----
-
-## 03:00–05:00 — Map
-
-**SHOW:** `/map` — portfolio geographically. Marker colour is **team outlook**.
-
-**SAY:** This is your development portfolio on a map — not a capacity map. Network operators publish their own information; NOXHEIM is centred on the developer’s projects across operators.
+**SAY:** This is the development portfolio in one workspace — not a capacity map.
 
 **DO NOT SAY:** Recommended locations / available MW.
 
 ---
 
-## 05:00–08:00 — Hero / Grid Intelligence
+## 02:00–05:00 — Select Örebro East BESS
 
-**SHOW:** `/projects/stockholm-north-bess` then **Grid Intelligence**. Official local-network context, NUP, provenance, freshness.
+**SHOW:** Discovery run **Örebro East BESS**. Search Area, Candidate Sites, official local-network covering.
 
-**SAY:** The project itself is sample data. This official context is sourced from the current NOXHEIM official dataset.
+**SAY:** These Candidate Sites are generated from official geography for this search. Ranking is for investigation, not constructability.
 
-**DO NOT SAY:** This tells us 40 MW can connect.
-
----
-
-## 08:00–10:00 — Connection workflow
-
-**SHOW:** Connection Process tab / case `DEMO-STO-001`. Stage, reference, status, dates.
-
-**SAY:** This is customer-entered workflow beside external intelligence. It is not an operator filing.
-
-**DO NOT SAY:** That Ei supplied the case.
+**DO NOT SAY:** Best places to build / guaranteed sites.
 
 ---
 
-## 10:00–11:30 — Requirements
+## 05:00–08:00 — Candidate, Evidence, Compare
 
-**SHOW:** Application readiness on the hero project (~50% of required items).
+**SHOW:** One Candidate Site panel, Evidence Coverage, then Compare 2–3 real Örebro East sites.
 
-**SAY:** This is workflow completeness, not site feasibility.
-
-**DO NOT SAY:** That readiness is NOXHEIM’s assessment of whether the site can connect.
-
----
-
-## 11:30–13:00 — Compare
-
-**SHOW:** `/map` — add Uppsala Storage, Stockholm North BESS, Gävle BESS. Development Profile breakdown.
-
-**SAY:** Portfolio triage using team and workflow factors. Not a NOXHEIM AI recommendation.
+**SAY:** Coverage and missing categories are Noxheim-derived. We do not invent a score when evidence is missing.
 
 **DO NOT SAY:** Official grid score, capacity score, or feasibility score.
 
 ---
 
-## 13:00–14:00 — Changes
+## 08:00–11:00 — Opportunity → Örebro East Storage
 
-**SHOW:** `/changes`. Expect an empty truthful official baseline.
+**SHOW:** Saved Opportunities, then the promoted project `/projects/orebro-east-storage`.
 
-**SAY:** Official baseline is established. New official snapshots can be compared and relevant changes mapped to projects. Empty is correct until a later source version differs.
+**SAY:** The team saved a Candidate, then promoted it. The Project is a point. The Opportunity footprint stays as the historic development envelope.
 
-**DO NOT SAY:** Invented alerts or Gävle fixture stories.
+**DO NOT SAY:** That the Project polygon is official.
 
 ---
 
-## 14:00–15:00 — Close
+## 11:00–15:00 — Connection + Overview
 
-**SAY:** Network operators can show information about their own networks. NOXHEIM is designed around your development portfolio — combining project workflow with relevant external intelligence.
+**SHOW:** `/projects/stockholm-north-bess` Connection Process (`NF-STO-001`), then `/overview`.
+
+**SAY:** Connection workflow is customer-entered beside official covering. Overview Attention is derived from that workflow. Empty Changes is the honest official baseline.
+
+**DO NOT SAY:** That Ei supplied the case, or invent alerts.
+
+---
+
+## 5-minute version
+
+Map → Örebro East Candidates → Evidence → Compare → Overview.
+
+The three moments most likely to earn “show me that”:
+
+1. Candidate Sites on the Map with official covering
+2. Evidence Coverage / missing categories
+3. Compare two real sites and say why one is worth investigating
 
 ---
 
 ## Customer questions
 
 **Is this a capacity map?**  
-No. The map represents your project portfolio. Official grid context is attached to each relevant project.
+No. The map represents your project portfolio and Discovery search. Official grid context is attached where it covers the geography.
 
 **Can you tell me whether 40 MW can connect?**  
-No. Formal connection capacity still requires the relevant network operator. NOXHEIM brings published context and development workflow together so the team can make better development decisions and manage the process.
+No. Formal connection capacity still requires the relevant network operator.
 
 **Why not Vattenfall’s map?**  
-A network operator’s tool describes its network. Your portfolio can span multiple operators. NOXHEIM is centred on the developer’s portfolio and connects external information with project workflow.
+A network operator’s tool describes its network. Your portfolio can span multiple operators. NOXHEIM is centred on the developer’s portfolio.
 
-**Why not Excel?**  
-Excel can hold project rows. It does not automatically connect every project coordinate to structured official context, provenance, connection workflow, readiness and future source-change impacts in one model.
+---
 
-**What is sample?**  
-The project/workflow portfolio used in this demo is sample data. Official Grid Intelligence is sourced from NOXHEIM’s real official-data baseline.
+## Reset commands (do not run against cloud without a separate approved task)
+
+```bash
+npm run demo:plan
+npm run demo:preflight
+# Remote destructive reset also requires:
+# NOXHEIM_CONFIRM_DEMO_RESET=noxheim-demo-development
+npm run demo:reset
+```

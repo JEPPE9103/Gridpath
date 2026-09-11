@@ -100,7 +100,12 @@ export function resolveDemoSeedTarget() {
   }
 
   const linkedRef = linkedProjectRefSync();
-  if (linkedRef && linkedRef !== expectedRef) {
+  if (!linkedRef) {
+    throw new Error(
+      `Remote demo seed refused: Supabase CLI is not linked. Link the Design Partner Cloud project ${expectedRef} before running a remote demo command.`,
+    );
+  }
+  if (linkedRef !== expectedRef) {
     throw new Error(
       `Remote demo seed refused: CLI linked project (${linkedRef}) does not match NOXHEIM_REMOTE_PROJECT_REF (${expectedRef}).`,
     );

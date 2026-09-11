@@ -1,22 +1,78 @@
 /**
  * Canonical sales-demo portfolio (SAMPLE CUSTOMER DATA only).
  * Official Grid Intelligence is never written here.
+ * Örebro East Storage is created later by promote_opportunity_to_project.
  */
 
 export const DEMO_ORG_ID = "ea5096a9-8da3-42e6-9dbd-64097414cb03";
 export const DEMO_ORG_SLUG = "noxheim-demo-development";
-export const DEMO_ORG_NAME = "NOXHEIM Demo Development";
+export const DEMO_ORG_NAME = "Northfield Energy Development AB";
 export const DEMO_ALLOWED_SLUGS = ["jeppebattery", "noxheim-demo-development"];
 
-export const OPERATORS = {
-  vattenfall: "a0000000-0000-4000-8000-000000000011",
-  ellevio: "a0000000-0000-4000-8000-000000000012",
-  eon: "a0000000-0000-4000-8000-000000000013",
-  goteborg: "a0000000-0000-4000-8000-000000000015",
+export const SAMPLE_NOTE =
+  "SAMPLE CUSTOMER DATA. Fictional development project for internal NOXHEIM sales demonstration. Not a real customer site. Not Official Source.";
+
+export const STANDALONE_PROJECT_COUNT = 6;
+export const PROMOTED_PROJECT_COUNT = 1;
+export const FINAL_PROJECT_COUNT = STANDALONE_PROJECT_COUNT + PROMOTED_PROJECT_COUNT;
+export const TARGET_CONNECTION_CASES = 4;
+export const TARGET_SAVED_OPPORTUNITIES = 5;
+export const TARGET_DOCUMENTS = 4;
+
+export const PROMOTED_PROJECT = {
+  name: "Örebro East Storage",
+  slug: "orebro-east-storage",
+  mw: 25,
 };
 
-const SAMPLE_NOTE =
-  "SAMPLE CUSTOMER DATA. Fictional development project for internal NOXHEIM sales demonstration. Not a real customer site.";
+export const PRIMARY_SEARCH = {
+  key: "orebro-east-bess",
+  name: "Örebro East BESS",
+  technology: "battery_storage",
+  country: "SE",
+  region: "Örebro",
+  municipality: null,
+  enabled: true,
+  bbox: { west: 14.9, south: 59.1, east: 15.4, north: 59.4 },
+  minSiteAreaHa: 8,
+  targetSiteAreaHa: 15,
+  maxCandidateAreaHa: 30,
+  maxReturnedCandidates: 25,
+  excludeProtected: true,
+  excludeNatura: true,
+  maxSlopeDegrees: 5,
+  slopeMode: "preference",
+  maxRoadDistanceM: 1000,
+  roadMode: "preference",
+  rankingVersion: "suitability-v4",
+  methodologyVersion: "site-generation-v2.1",
+};
+
+export const SECONDARY_SEARCH = {
+  key: "vasteras-storage",
+  name: "Västerås Storage screening",
+  technology: "battery_storage",
+  country: "SE",
+  region: "Västmanland",
+  municipality: "Västerås",
+  enabled: false,
+  bbox: null,
+  status: "SECONDARY_SEARCH_NEEDS_VERIFIED_BBOX",
+  reason:
+    "No proven Västerås screening bbox exists in repo tooling. Only a project coordinate (16.5448, 59.6099) is available. Honesty wins: do not guess a search envelope.",
+};
+
+export const ENABLED_SEARCHES = [PRIMARY_SEARCH];
+
+export const LAND_COVER_RULES = {
+  water: "excluded",
+  wetland: "excluded",
+  forest: "neutral",
+  agriculture: "deprioritised",
+  open: "preferred",
+  developed: "deprioritised",
+  unclassified: "neutral",
+};
 
 export const PROJECTS = [
   {
@@ -36,16 +92,18 @@ export const PROJECTS = [
     confidence: "high",
     targetCod: "Q3 2028",
     voltageLevel: "20 kV",
-    operatorId: OPERATORS.ellevio,
-    description: `${SAMPLE_NOTE} Primary demo project: later-stage workflow beside official Ei context.`,
+    operatorKey: "ellevio",
+    description: `${SAMPLE_NOTE} Connection-workflow hero beside official Ei context.`,
     story: "hero-advanced-at-risk",
+    updatedOffsetDays: -1,
+    createdOffsetDays: -40,
     case: {
-      reference: "DEMO-STO-001",
+      reference: "NF-STO-001",
       stage: "grid_study",
       status: "at_risk",
-      submittedAt: "2026-02-18",
+      submittedOffsetDays: -120,
       nextMilestone: "Study workshop / signed study agreement",
-      deadline: "2026-10-31",
+      deadlineOffsetDays: 6,
       notes:
         "SAMPLE CUSTOMER-ENTERED case. Fictional reference only. Not an operator filing or official status.",
     },
@@ -54,16 +112,12 @@ export const PROJECTS = [
       { id: "d0e00000-0000-4000-8000-000000000402", label: "Site layout completed", status: "complete", required: true, category: "technical" },
       { id: "d0e00000-0000-4000-8000-000000000403", label: "Connection enquiry prepared", status: "complete", required: true, category: "grid" },
       { id: "d0e00000-0000-4000-8000-000000000404", label: "Connection application submitted", status: "complete", required: true, category: "grid" },
-      { id: "d0e00000-0000-4000-8000-000000000405", label: "Single-line diagram available", status: "in_progress", required: true, category: "technical" },
-      { id: "d0e00000-0000-4000-8000-000000000406", label: "Internal investment review", status: "incomplete", required: true, category: "commercial" },
-      { id: "d0e00000-0000-4000-8000-000000000407", label: "Grid study response reviewed", status: "missing", required: true, category: "grid" },
-      { id: "d0e00000-0000-4000-8000-000000000408", label: "Site access memo", status: "not_started", required: true, category: "land" },
-      { id: "d0e00000-0000-4000-8000-000000000409", label: "Internal photo log", status: "not_started", required: false, category: "other" },
+      { id: "d0e00000-0000-4000-8000-000000000405", label: "Single-line diagram available", status: "in_progress", required: true, category: "technical", dueOffsetDays: 6 },
+      { id: "d0e00000-0000-4000-8000-000000000407", label: "Grid study response reviewed", status: "incomplete", required: true, category: "grid" },
     ],
     documents: [
       { id: "d0e00000-0000-4000-8000-000000000601", name: "Connection enquiry", category: "grid", status: "complete" },
-      { id: "d0e00000-0000-4000-8000-000000000602", name: "Site layout", status: "complete", category: "technical" },
-      { id: "d0e00000-0000-4000-8000-000000000603", name: "Single-line diagram", category: "technical", status: "draft" },
+      { id: "d0e00000-0000-4000-8000-000000000602", name: "Site layout", category: "technical", status: "complete" },
     ],
   },
   {
@@ -83,16 +137,18 @@ export const PROJECTS = [
     confidence: "high",
     targetCod: "Q2 2028",
     voltageLevel: "20 kV",
-    operatorId: OPERATORS.vattenfall,
+    operatorKey: "vattenfall",
     description: `${SAMPLE_NOTE} Stronger workflow profile for comparison.`,
     story: "strong-high-readiness",
+    updatedOffsetDays: -2,
+    createdOffsetDays: -55,
     case: {
-      reference: "DEMO-UPP-002",
+      reference: "NF-UPP-002",
       stage: "application",
       status: "on_track",
-      submittedAt: "2026-03-04",
+      submittedOffsetDays: -90,
       nextMilestone: "Completeness confirmation",
-      deadline: "2026-11-15",
+      deadlineOffsetDays: 45,
       notes: "SAMPLE CUSTOMER-ENTERED case. Fictional reference only.",
     },
     requirements: [
@@ -108,7 +164,7 @@ export const PROJECTS = [
   {
     id: "d0e00000-0000-4000-8000-000000000103",
     siteId: "d0e00000-0000-4000-8000-000000000203",
-    caseId: "d0e00000-0000-4000-8000-000000000303",
+    caseId: null,
     slug: "vasteras-bess",
     name: "Västerås BESS",
     location: "Västerås",
@@ -122,48 +178,16 @@ export const PROJECTS = [
     confidence: "medium",
     targetCod: "Q4 2029",
     voltageLevel: "20 kV",
-    operatorId: OPERATORS.ellevio,
-    description: `${SAMPLE_NOTE} Early enquiry with mostly complete customer workflow.`,
-    story: "enquiry-high-readiness",
-    case: {
-      reference: "DEMO-VAS-003",
-      stage: "enquiry",
-      status: "on_track",
-      submittedAt: "2026-05-12",
-      nextMilestone: "Operator enquiry response",
-      deadline: "2026-12-01",
-      notes: "SAMPLE CUSTOMER-ENTERED case. Fictional reference only.",
-    },
+    operatorKey: "ellevio",
+    description: `${SAMPLE_NOTE} Early enquiry. No connection case opened yet.`,
+    story: "enquiry",
+    updatedOffsetDays: -3,
+    createdOffsetDays: -30,
+    case: null,
     requirements: [
       { id: "d0e00000-0000-4000-8000-000000000414", label: "Land control confirmed", status: "complete", required: true, category: "land" },
-      { id: "d0e00000-0000-4000-8000-000000000415", label: "Connection enquiry prepared", status: "complete", required: true, category: "grid" },
-      { id: "d0e00000-0000-4000-8000-000000000416", label: "Site layout completed", status: "complete", required: true, category: "technical" },
-      { id: "d0e00000-0000-4000-8000-000000000417", label: "Single-line diagram available", status: "in_progress", required: true, category: "technical" },
+      { id: "d0e00000-0000-4000-8000-000000000415", label: "Connection enquiry prepared", status: "in_progress", required: true, category: "grid" },
     ],
-    documents: [],
-  },
-  {
-    id: "d0e00000-0000-4000-8000-000000000104",
-    siteId: "d0e00000-0000-4000-8000-000000000204",
-    caseId: null,
-    slug: "orebro-storage",
-    name: "Örebro Storage",
-    location: "Örebro",
-    region: "Örebro",
-    latitude: 59.2753,
-    longitude: 15.2134,
-    mw: 25,
-    technology: "battery_storage",
-    stage: "prospect",
-    outlook: "unknown",
-    confidence: "low",
-    targetCod: "Q4 2030",
-    voltageLevel: null,
-    operatorId: OPERATORS.eon,
-    description: `${SAMPLE_NOTE} Early prospect with limited customer-entered workflow.`,
-    story: "prospect-limited",
-    case: null,
-    requirements: [],
     documents: [],
   },
   {
@@ -183,126 +207,26 @@ export const PROJECTS = [
     confidence: "medium",
     targetCod: "Q3 2029",
     voltageLevel: "20 kV",
-    operatorId: OPERATORS.vattenfall,
-    description: `${SAMPLE_NOTE} Application-stage site with several incomplete required actions.`,
-    story: "application-low-readiness",
+    operatorKey: "vattenfall",
+    description: `${SAMPLE_NOTE} Application-stage site with outstanding customer attachments.`,
+    story: "application-attention",
+    updatedOffsetDays: -1,
+    createdOffsetDays: -50,
     case: {
-      reference: "DEMO-GAV-004",
+      reference: "NF-GAV-004",
       stage: "application",
       status: "waiting",
-      submittedAt: "2026-06-02",
+      submittedOffsetDays: -60,
       nextMilestone: "Outstanding customer attachments",
-      deadline: "2026-10-15",
+      deadlineOffsetDays: 21,
       notes: "SAMPLE CUSTOMER-ENTERED case. Fictional reference only.",
     },
     requirements: [
       { id: "d0e00000-0000-4000-8000-000000000418", label: "Land control confirmed", status: "complete", required: true, category: "land" },
       { id: "d0e00000-0000-4000-8000-000000000419", label: "Connection enquiry prepared", status: "incomplete", required: true, category: "grid" },
       { id: "d0e00000-0000-4000-8000-000000000420", label: "Site layout completed", status: "not_started", required: true, category: "technical" },
-      { id: "d0e00000-0000-4000-8000-000000000421", label: "Single-line diagram available", status: "missing", required: true, category: "technical" },
-    ],
-    documents: [],
-  },
-  {
-    id: "d0e00000-0000-4000-8000-000000000106",
-    siteId: "d0e00000-0000-4000-8000-000000000206",
-    caseId: "d0e00000-0000-4000-8000-000000000306",
-    slug: "norrkoping-bess",
-    name: "Norrköping BESS",
-    location: "Norrköping",
-    region: "Östergötland",
-    latitude: 58.5877,
-    longitude: 16.1924,
-    mw: 45,
-    technology: "battery_storage",
-    stage: "grid_study",
-    outlook: "at_risk",
-    confidence: "medium",
-    targetCod: "Q2 2028",
-    voltageLevel: "130 kV",
-    operatorId: OPERATORS.eon,
-    description: `${SAMPLE_NOTE} Later-stage case with at-risk customer-entered status.`,
-    story: "grid-study-at-risk",
-    case: {
-      reference: "DEMO-NOR-005",
-      stage: "grid_study",
-      status: "at_risk",
-      submittedAt: "2025-11-20",
-      nextMilestone: "Study scope confirmation",
-      deadline: "2026-09-30",
-      notes: "SAMPLE CUSTOMER-ENTERED case. Fictional reference only.",
-    },
-    requirements: [
-      { id: "d0e00000-0000-4000-8000-000000000422", label: "Land control confirmed", status: "complete", required: true, category: "land" },
-      { id: "d0e00000-0000-4000-8000-000000000423", label: "Connection application submitted", status: "complete", required: true, category: "grid" },
-      { id: "d0e00000-0000-4000-8000-000000000424", label: "Internal investment review", status: "incomplete", required: true, category: "commercial" },
-      { id: "d0e00000-0000-4000-8000-000000000425", label: "Grid study response reviewed", status: "missing", required: true, category: "grid" },
-    ],
-    documents: [],
-  },
-  {
-    id: "d0e00000-0000-4000-8000-000000000107",
-    siteId: "d0e00000-0000-4000-8000-000000000207",
-    caseId: "d0e00000-0000-4000-8000-000000000307",
-    slug: "linkoping-storage",
-    name: "Linköping Storage",
-    location: "Linköping",
-    region: "Östergötland",
-    latitude: 58.4108,
-    longitude: 15.6214,
-    mw: 40,
-    technology: "battery_storage",
-    stage: "enquiry",
-    outlook: "favourable",
-    confidence: "high",
-    targetCod: "Q1 2030",
-    voltageLevel: "20 kV",
-    operatorId: OPERATORS.eon,
-    description: `${SAMPLE_NOTE} Early enquiry with a strong team outlook.`,
-    story: "enquiry-strong-outlook",
-    case: {
-      reference: "DEMO-LIN-006",
-      stage: "enquiry",
-      status: "on_track",
-      submittedAt: "2026-04-21",
-      nextMilestone: "Enquiry completeness check",
-      deadline: "2026-11-30",
-      notes: "SAMPLE CUSTOMER-ENTERED case. Fictional reference only.",
-    },
-    requirements: [
-      { id: "d0e00000-0000-4000-8000-000000000426", label: "Land control confirmed", status: "complete", required: true, category: "land" },
-      { id: "d0e00000-0000-4000-8000-000000000427", label: "Connection enquiry prepared", status: "complete", required: true, category: "grid" },
-      { id: "d0e00000-0000-4000-8000-000000000428", label: "Site layout completed", status: "complete", required: true, category: "technical" },
-      { id: "d0e00000-0000-4000-8000-000000000429", label: "Internal investment review", status: "in_progress", required: true, category: "commercial" },
-    ],
-    documents: [],
-  },
-  {
-    id: "d0e00000-0000-4000-8000-000000000108",
-    siteId: "d0e00000-0000-4000-8000-000000000208",
-    caseId: null,
-    slug: "jonkoping-bess",
-    name: "Jönköping BESS",
-    location: "Jönköping",
-    region: "Jönköping",
-    latitude: 57.7826,
-    longitude: 14.1618,
-    mw: 30,
-    technology: "battery_storage",
-    stage: "prospect",
-    outlook: "possible",
-    confidence: "unknown",
-    targetCod: "Q2 2031",
-    voltageLevel: null,
-    operatorId: null,
-    description: `${SAMPLE_NOTE} Early opportunity. No connection case opened yet.`,
-    story: "prospect-no-case",
-    case: null,
-    requirements: [
-      { id: "d0e00000-0000-4000-8000-000000000430", label: "Land control confirmed", status: "complete", required: true, category: "land" },
-      { id: "d0e00000-0000-4000-8000-000000000431", label: "Connection enquiry prepared", status: "incomplete", required: true, category: "grid" },
-      { id: "d0e00000-0000-4000-8000-000000000432", label: "Site layout completed", status: "not_started", required: true, category: "technical" },
-      { id: "d0e00000-0000-4000-8000-000000000433", label: "Single-line diagram available", status: "missing", required: true, category: "technical" },
+      { id: "d0e00000-0000-4000-8000-000000000421", label: "Single-line diagram available", status: "missing", required: true, category: "technical", dueOffsetDays: -3 },
+      { id: "d0e00000-0000-4000-8000-000000000442", label: "Internal investment review", status: "not_started", required: true, category: "commercial" },
     ],
     documents: [],
   },
@@ -323,16 +247,18 @@ export const PROJECTS = [
     confidence: "high",
     targetCod: "Q2 2029",
     voltageLevel: "130 kV",
-    operatorId: OPERATORS.goteborg,
+    operatorKey: "goteborg",
     description: `${SAMPLE_NOTE} Larger west-coast application with complete required workflow.`,
     story: "application-complete",
+    updatedOffsetDays: -4,
+    createdOffsetDays: -80,
     case: {
-      reference: "DEMO-GOT-007",
+      reference: "NF-GOT-007",
       stage: "application",
       status: "on_track",
-      submittedAt: "2026-01-16",
+      submittedOffsetDays: -90,
       nextMilestone: "Application review meeting",
-      deadline: "2026-12-18",
+      deadlineOffsetDays: 60,
       notes: "SAMPLE CUSTOMER-ENTERED case. Fictional reference only.",
     },
     requirements: [
@@ -346,40 +272,41 @@ export const PROJECTS = [
     ],
   },
   {
-    id: "d0e00000-0000-4000-8000-000000000110",
-    siteId: "d0e00000-0000-4000-8000-000000000210",
-    caseId: "d0e00000-0000-4000-8000-000000000310",
-    slug: "malmo-south-storage",
-    name: "Malmö South Storage",
-    location: "Malmö",
-    region: "Skåne",
-    latitude: 55.605,
-    longitude: 13.0038,
-    mw: 55,
-    technology: "battery_storage",
-    stage: "enquiry",
+    id: "d0e00000-0000-4000-8000-000000000111",
+    siteId: "d0e00000-0000-4000-8000-000000000211",
+    caseId: null,
+    slug: "kalmar-south-solar",
+    name: "Kalmar South Solar",
+    location: "Kalmar",
+    region: "Kalmar",
+    latitude: 56.6634,
+    longitude: 16.3567,
+    mw: 40,
+    technology: "solar",
+    stage: "prospect",
     outlook: "possible",
     confidence: "medium",
-    targetCod: "Q4 2029",
-    voltageLevel: "20 kV",
-    operatorId: OPERATORS.eon,
-    description: `${SAMPLE_NOTE} Southern enquiry used to show geographic spread.`,
-    story: "enquiry-south",
-    case: {
-      reference: "DEMO-MAL-008",
-      stage: "enquiry",
-      status: "waiting",
-      submittedAt: "2026-07-08",
-      nextMilestone: "Customer data pack",
-      deadline: "2026-11-07",
-      notes: "SAMPLE CUSTOMER-ENTERED case. Fictional reference only.",
-    },
-    requirements: [
-      { id: "d0e00000-0000-4000-8000-000000000438", label: "Land control confirmed", status: "complete", required: true, category: "land" },
-      { id: "d0e00000-0000-4000-8000-000000000439", label: "Connection enquiry prepared", status: "complete", required: true, category: "grid" },
-      { id: "d0e00000-0000-4000-8000-000000000440", label: "Site layout completed", status: "incomplete", required: true, category: "technical" },
-      { id: "d0e00000-0000-4000-8000-000000000441", label: "Single-line diagram available", status: "missing", required: true, category: "technical" },
-    ],
+    targetCod: "Q2 2031",
+    voltageLevel: null,
+    operatorKey: "eon",
+    description: `${SAMPLE_NOTE} Early solar prospect. No connection case opened yet.`,
+    story: "prospect-solar",
+    updatedOffsetDays: -5,
+    createdOffsetDays: -20,
+    case: null,
+    requirements: [],
     documents: [],
   },
 ];
+
+export function countSeededRequirements(projects = PROJECTS) {
+  return projects.reduce((sum, project) => sum + project.requirements.length, 0);
+}
+
+export function countSeededDocuments(projects = PROJECTS) {
+  return projects.reduce((sum, project) => sum + project.documents.length, 0);
+}
+
+export function countSeededCases(projects = PROJECTS) {
+  return projects.filter((project) => project.case && project.caseId).length;
+}
