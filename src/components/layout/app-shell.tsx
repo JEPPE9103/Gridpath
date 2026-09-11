@@ -130,7 +130,13 @@ function ShellFrame({
         />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-auto">
+      <div
+        className={
+          pathname === "/map"
+            ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+            : "flex min-w-0 flex-1 flex-col overflow-auto"
+        }
+      >
         <div className="flex items-center gap-3 border-b border-line bg-sidebar px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-white md:hidden">
           <button
             type="button"

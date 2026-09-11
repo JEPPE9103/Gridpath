@@ -1,44 +1,51 @@
 "use client";
 
 export const LOCAL_NETWORK_FILL = "#2A7A6F";
-export const NUP_FILL = "#5B6B8C";
+export const NUP_FILL = "#3D5278";
 
 export function MapLegend({
   hasDiscoveryRun = false,
   showZones = false,
   showNup = false,
+  showProjects = true,
+  showOpportunities = true,
 }: {
   hasDiscoveryRun?: boolean;
   showZones?: boolean;
   showNup?: boolean;
+  showProjects?: boolean;
+  showOpportunities?: boolean;
 }) {
   return (
-    <section className="rounded-md border border-line bg-surface/95 p-3 text-xs backdrop-blur-sm">
+    <section className="w-[16.5rem] rounded-md border border-line bg-surface p-2.5 text-xs">
       <p className="font-medium">Legend</p>
-      <div className="mt-2 space-y-2">
-        <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Your development</p>
-        <LegendSwatch shape="ring" color="#176C4A" label="Project · circle · team outlook on the ring" />
-        <LegendSwatch shape="square" color="#2A7A6F" label="Opportunity · footprint + square" />
+      <div className="mt-2 space-y-1.5">
+        {showProjects || showOpportunities ? (
+          <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Your development</p>
+        ) : null}
+        {showProjects ? (
+          <LegendSwatch shape="ring" color="#3F6E5A" label="Project · circle, outlook on the ring" />
+        ) : null}
+        {showOpportunities ? (
+          <LegendSwatch shape="square" color="#2A7A6F" label="Opportunity · footprint + square" />
+        ) : null}
         {hasDiscoveryRun ? (
           <>
             <p className="pt-1 text-[10px] uppercase tracking-[0.12em] text-muted">Discovery</p>
-            <LegendSwatch shape="patch" color="#176C4A" label="Candidate Site · screening geometry" />
-            <LegendSwatch shape="line" color="#1A1E24" label="Search Area · contextual boundary" />
+            <LegendSwatch shape="patch" color="#176C4A" label="Candidate Site" />
+            <LegendSwatch shape="line" color="#1A1E24" label="Search Area" />
             {showZones ? (
-              <LegendSwatch shape="patch" color="#C5CCD6" label="Opportunity Zone · remaining context" />
+              <LegendSwatch shape="patch" color="#C5CCD6" label="Opportunity Zone" />
             ) : null}
           </>
         ) : null}
-        <p className="pt-1 text-[10px] uppercase tracking-[0.12em] text-muted">Official source</p>
-        <LegendSwatch shape="patch" color={LOCAL_NETWORK_FILL} label="Local network area · geographic covering" />
+        <p className="pt-1 text-[10px] uppercase tracking-[0.12em] text-muted">Official grid</p>
+        <LegendSwatch shape="patch" color={LOCAL_NETWORK_FILL} label="Local network · covering" />
         {showNup ? (
-          <LegendSwatch shape="patch" color={NUP_FILL} label="Network development plan · planning context" />
+          <LegendSwatch shape="patch" color={NUP_FILL} label="NUP · planning context" />
         ) : null}
       </div>
-      <p className="mt-2 text-[11px] leading-4 text-muted">
-        Official geographic covering is not available connection capacity. Team outlook is customer-entered
-        triage, not an official site or capacity score.
-      </p>
+      <p className="mt-2 text-[11px] leading-4 text-muted">Covering ≠ capacity. Outlook is team triage.</p>
     </section>
   );
 }

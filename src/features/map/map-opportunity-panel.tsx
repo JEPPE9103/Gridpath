@@ -1,11 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { MapFact, MapObjectPanel, MapPanelNote } from "@/features/map/map-object-panel";
 import type { OpportunityListItem } from "@/lib/data/opportunities";
 import { opportunityRecommendationLabel, opportunityStatusLabel } from "@/lib/opportunities/catalog";
-import { X } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 
 export function MapOpportunityPanel({
   item,
@@ -15,43 +14,34 @@ export function MapOpportunityPanel({
   onClose: () => void;
 }) {
   const location = [item.municipality, item.region].filter(Boolean).join(", ") || item.country;
+  const origin = item.originatingSearchId ? "Saved from a screening run" : "Customer entered";
   return (
-    <aside
-      className="absolute inset-x-3 bottom-3 max-h-[58%] overflow-auto rounded-md border border-line bg-surface p-4 md:inset-x-auto md:bottom-auto md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-[320px]"
-      data-testid="map-opportunity-panel"
+    <MapObjectPanel
+      kind="Opportunity"
+      provenance="Customer entered"
+      title={item.name}
+      subtitle={location}
+      testId="map-opportunity-panel"
+      onClose={onClose}
+      action={
+        <Link href={`/opportunities/${item.slug}`} data-testid="map-open-opportunity">
+          <Button className="w-full">Open Opportunity</Button>
+        </Link>
+      }
     >
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Opportunity · Customer entered</p>
-          <h2 className="text-base font-semibold">{item.name}</h2>
-          <p className="text-sm text-muted">{location}</p>
-        </div>
-        <button type="button" onClick={onClose} className="text-muted hover:text-ink" aria-label="Close opportunity panel">
-          <X size={14} />
-        </button>
-      </div>
-      <dl className="mt-3 space-y-1.5 text-sm">
-        <Line label="Status" value={opportunityStatusLabel(item.status)} />
-        <Line label="Recommendation" value={opportunityRecommendationLabel(item.recommendation)} />
-        <Line label="Target MW" value={item.targetMw != null ? String(item.targetMw) : "—"} />
-        <Line label="Area" value={item.contiguousAreaHa != null ? `${Math.round(item.contiguousAreaHa)} ha` : "Saved footprint where stored"} />
+      <dl className="space-y-1.5">
+        <MapFact label="Status" value={opportunityStatusLabel(item.status)} />
+        <MapFact label="Recommendation" value={opportunityRecommendationLabel(item.recommendation)} />
+        <MapFact
+          label="Area"
+          value={item.contiguousAreaHa != null ? `${Math.round(item.contiguousAreaHa)} ha` : "Footprint where stored"}
+        />
+        <MapFact label="Origin" value={origin} />
       </dl>
-      <p className="mt-3 text-[11px] leading-4 text-muted">
-        Saved development object. The polygon is the stored Opportunity footprint, not an official site boundary
+      <MapPanelNote>
+        The polygon is the saved development footprint. The square marks identity. Not an official site boundary
         or available connection capacity.
-      </p>
-      <Link href={`/opportunities/${item.slug}`} className="mt-4 block" data-testid="map-open-opportunity">
-        <Button className="w-full">Open Opportunity</Button>
-      </Link>
-    </aside>
-  );
-}
-
-function Line({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-right">{value}</dd>
-    </div>
+      </MapPanelNote>
+    </MapObjectPanel>
   );
 }

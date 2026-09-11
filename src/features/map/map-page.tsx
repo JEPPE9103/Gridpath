@@ -2,20 +2,19 @@
 
 import { DevelopmentCompareTable } from "@/features/compare/development-compare-table";
 import { SaveComparisonForm } from "@/features/compare/save-comparison-form";
-import { SavedComparisonsList } from "@/features/compare/saved-comparisons-list";
 import { BellButton } from "@/components/layout/app-shell";
-import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
 import { EmptyState, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { MapCandidatePanel } from "@/features/map/map-candidate-panel";
 import { MapDiscoveryControl } from "@/features/map/map-discovery-control";
-import { MapGridContextCard } from "@/features/map/map-grid-context";
 import { MapLayerControl } from "@/features/map/map-layer-control";
 import { MapLegend } from "@/features/map/map-legend";
 import { MapOfficialPanel } from "@/features/map/map-official-panel";
 import { MapOpportunityPanel } from "@/features/map/map-opportunity-panel";
+import { MapProjectPanel } from "@/features/map/map-project-panel";
 import { MapSpatialSummary } from "@/features/map/map-spatial-summary";
+import { MapToolbarToggle } from "@/features/map/map-object-panel";
 import { SwedenMap } from "@/features/map/sweden-map";
 import { markerColor } from "@/features/map/mini-map";
 import { cn } from "@/lib/cn";
@@ -57,10 +56,10 @@ import {
   type Outlook,
   type Technology,
 } from "@/types";
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from "lucide-react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const CONFIDENCES: Confidence[] = ["High", "Medium", "Low", "Unknown"];
 
@@ -86,6 +85,8 @@ export function MapPage({
   initialProjectSlug,
   initialChangeArea,
   initialRunId,
+  initialOpportunitySlug,
+  initialCandidateId,
 }: {
   result: MapProjectsResult;
   opportunities?: OpportunityListItem[];
@@ -102,6 +103,8 @@ export function MapPage({
   initialProjectSlug?: string | null;
   initialChangeArea?: { areaId: string; layer: OfficialMapLayer } | null;
   initialRunId?: string | null;
+  initialOpportunitySlug?: string | null;
+  initialCandidateId?: string | null;
 }) {
   if (result.kind === "no_organization") {
     return (
@@ -145,6 +148,8 @@ export function MapPage({
       initialProjectSlug={initialProjectSlug ?? null}
       initialChangeArea={initialChangeArea ?? null}
       initialRunId={initialRunId ?? null}
+      initialOpportunitySlug={initialOpportunitySlug ?? null}
+      initialCandidateId={initialCandidateId ?? null}
     />
   );
 }
@@ -161,6 +166,8 @@ function LoadedMapPage({
   initialProjectSlug,
   initialChangeArea,
   initialRunId,
+  initialOpportunitySlug,
+  initialCandidateId,
 }: {
   projects: MapProject[];
   opportunities: OpportunityListItem[];
@@ -177,17 +184,17 @@ function LoadedMapPage({
   initialProjectSlug: string | null;
   initialChangeArea: { areaId: string; layer: OfficialMapLayer } | null;
   initialRunId: string | null;
+  initialOpportunitySlug: string | null;
+  initialCandidateId: string | null;
 }) {
   const router = useRouter();
   const { compareIds, addToCompare, removeFromCompare, clearCompare } = useWorkspace();
   const [selectedSlug, setSelectedSlug] = useState<string | null>(initialProjectSlug);
-  const [selectedOpportunitySlug, setSelectedOpportunitySlug] = useState<string | null>(null);
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+  const [selectedOpportunitySlug, setSelectedOpportunitySlug] = useState<string | null>(initialOpportunitySlug);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(initialCandidateId);
   const [compareOpen, setCompareOpen] = useState(false);
-  const [listCollapsed, setListCollapsed] = useState(false);
-  const [layersCollapsed, setLayersCollapsed] = useState(false);
+  const [chromePanel, setChromePanel] = useState<null | "filters" | "layers" | "legend" | "projects">(null);
   const [panelsHidden, setPanelsHidden] = useState(false);
-  const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [layers, setLayers] = useState(DEFAULT_OFFICIAL_MAP_LAYERS);
   const [unmatchedOnly, setUnmatchedOnly] = useState(false);
@@ -230,10 +237,6 @@ function LoadedMapPage({
     [projects, filters, unmatchedOnly, matchByProjectId],
   );
   const mapped = useMemo(() => filtered.filter(isPlottable), [filtered]);
-  const ungeocoded = useMemo(
-    () => filtered.filter((project) => !isPlottable(project)),
-    [filtered],
-  );
   const spatialSummary = useMemo(
     () =>
       summarizeOfficialSpatialMatches({
@@ -313,45 +316,81 @@ function LoadedMapPage({
     };
   }, [selected?.id]);
 
-  const selectProject = useCallback((slug: string) => {
-    setSelectedSlug(slug);
-    setSelectedOpportunitySlug(null);
-    setSelectedCandidateId(null);
-    setOfficialAreaId(null);
-    setOfficialContext(null);
-    setOfficialPreview(null);
-    setDetailCollapsed(false);
-  }, []);
+  const originOpportunity = selected
+    ? (opportunities.find((item) => item.promotedProjectId === selected.id) ?? null)
+    : null;
 
-  const selectOpportunity = useCallback((slug: string) => {
-    setSelectedOpportunitySlug(slug);
-    setSelectedSlug(null);
-    setSelectedCandidateId(null);
-    setOfficialAreaId(null);
-    setOfficialContext(null);
-    setOfficialPreview(null);
-    setDetailCollapsed(false);
-  }, []);
-
-  const selectCandidate = useCallback((id: string) => {
-    setSelectedCandidateId(id);
-    setSelectedSlug(null);
-    setSelectedOpportunitySlug(null);
-    setOfficialAreaId(null);
-    setOfficialContext(null);
-    setOfficialPreview(null);
-    setDetailCollapsed(false);
-  }, []);
-
-  const persistRun = useCallback(
-    (runId: string | null) => {
+  const persistMapUrl = useCallback(
+    (next: {
+      run?: string | null;
+      project?: string | null;
+      opportunity?: string | null;
+      candidate?: string | null;
+    }) => {
       const params = new URLSearchParams(window.location.search);
-      if (runId) params.set("run", runId);
-      else params.delete("run");
-      const query = params.toString();
-      router.replace(query ? `/map?${query}` : "/map", { scroll: false });
+      const change = params.get("change");
+      const merged = {
+        run: next.run === undefined ? selectedRunId : next.run,
+        project: next.project === undefined ? selectedSlug : next.project,
+        opportunity: next.opportunity === undefined ? selectedOpportunitySlug : next.opportunity,
+        candidate: next.candidate === undefined ? selectedCandidateId : next.candidate,
+      };
+      const nextParams = new URLSearchParams();
+      if (change) nextParams.set("change", change);
+      if (merged.run) nextParams.set("run", merged.run);
+      if (merged.project) nextParams.set("project", merged.project);
+      if (merged.opportunity) nextParams.set("opportunity", merged.opportunity);
+      if (merged.candidate) nextParams.set("candidate", merged.candidate);
+      const query = nextParams.toString();
+      const target = query ? `/map?${query}` : "/map";
+      const current = `${window.location.pathname}${window.location.search}`;
+      if (current === target) return;
+      router.replace(target, { scroll: false });
     },
-    [router],
+    [router, selectedRunId, selectedSlug, selectedOpportunitySlug, selectedCandidateId],
+  );
+
+  const toggleChrome = useCallback((panel: "filters" | "layers" | "legend" | "projects") => {
+    setChromePanel((current) => (current === panel ? null : panel));
+  }, []);
+
+  const selectProject = useCallback(
+    (slug: string) => {
+      setSelectedSlug(slug);
+      setSelectedOpportunitySlug(null);
+      setSelectedCandidateId(null);
+      setOfficialAreaId(null);
+      setOfficialContext(null);
+      setOfficialPreview(null);
+      persistMapUrl({ project: slug, opportunity: null, candidate: null });
+    },
+    [persistMapUrl],
+  );
+
+  const selectOpportunity = useCallback(
+    (slug: string) => {
+      setSelectedOpportunitySlug(slug);
+      setSelectedSlug(null);
+      setSelectedCandidateId(null);
+      setOfficialAreaId(null);
+      setOfficialContext(null);
+      setOfficialPreview(null);
+      persistMapUrl({ opportunity: slug, project: null, candidate: null });
+    },
+    [persistMapUrl],
+  );
+
+  const selectCandidate = useCallback(
+    (id: string) => {
+      setSelectedCandidateId(id);
+      setSelectedSlug(null);
+      setSelectedOpportunitySlug(null);
+      setOfficialAreaId(null);
+      setOfficialContext(null);
+      setOfficialPreview(null);
+      persistMapUrl({ candidate: id, project: null, opportunity: null });
+    },
+    [persistMapUrl],
   );
 
   const loadDiscovery = useCallback(
@@ -362,10 +401,25 @@ function LoadedMapPage({
       }
       setDiscoveryError(null);
       setSelectedRunId(search.latestRunId);
-      persistRun(search.latestRunId);
+      setSelectedCandidateId(null);
+      setSelectedSlug(null);
+      setSelectedOpportunitySlug(null);
+      persistMapUrl({
+        run: search.latestRunId,
+        candidate: null,
+        project: null,
+        opportunity: null,
+      });
     },
-    [persistRun],
+    [persistMapUrl],
   );
+
+  const clearDiscovery = useCallback(() => {
+    setSelectedRunId(null);
+    setDiscovery(null);
+    setSelectedCandidateId(null);
+    persistMapUrl({ run: null, candidate: null });
+  }, [persistMapUrl]);
 
   useEffect(() => {
     if (!selectedRunId) return;
@@ -388,31 +442,34 @@ function LoadedMapPage({
     };
   }, [selectedRunId, discoverySearches]);
 
-  const selectOfficial = useCallback((input: OfficialMapAreaPreview) => {
-    const generation = (officialFetchGenRef.current += 1);
-    setOfficialPreview(input);
-    setOfficialAreaId(input.areaId);
-    setSelectedSlug(null);
-    setSelectedOpportunitySlug(null);
-    setSelectedCandidateId(null);
-    setDetailCollapsed(false);
-    const cached = getCachedValue<OfficialMapAreaContext>("area", input.areaId);
-    if (cached) {
-      setOfficialContext(cached);
-      setOfficialLoading(false);
-      return;
-    }
-    setOfficialContext(null);
-    setOfficialLoading(true);
-    loadOfficialMapAreaContextAction(input.areaId).then((result) => {
-      if (generation !== officialFetchGenRef.current) return;
-      setOfficialLoading(false);
-      if (result.ok) {
-        setCachedValue("area", input.areaId, result.context);
-        setOfficialContext(result.context);
+  const selectOfficial = useCallback(
+    (input: OfficialMapAreaPreview) => {
+      const generation = (officialFetchGenRef.current += 1);
+      setOfficialPreview(input);
+      setOfficialAreaId(input.areaId);
+      setSelectedSlug(null);
+      setSelectedOpportunitySlug(null);
+      setSelectedCandidateId(null);
+      persistMapUrl({ project: null, opportunity: null, candidate: null });
+      const cached = getCachedValue<OfficialMapAreaContext>("area", input.areaId);
+      if (cached) {
+        setOfficialContext(cached);
+        setOfficialLoading(false);
+        return;
       }
-    });
-  }, []);
+      setOfficialContext(null);
+      setOfficialLoading(true);
+      loadOfficialMapAreaContextAction(input.areaId).then((result) => {
+        if (generation !== officialFetchGenRef.current) return;
+        setOfficialLoading(false);
+        if (result.ok) {
+          setCachedValue("area", input.areaId, result.context);
+          setOfficialContext(result.context);
+        }
+      });
+    },
+    [persistMapUrl],
+  );
 
   useEffect(() => {
     if (appliedChangeRef.current || !initialChangeArea?.areaId) return;
@@ -425,32 +482,21 @@ function LoadedMapPage({
     selectOfficial(officialMapAreaPreviewShell(initialChangeArea));
   }, [initialChangeArea, selectOfficial]);
 
+  const emptyPortfolio = projects.length === 0 && opportunities.length === 0 && !activeDiscovery;
+  const showDetail = !panelsHidden;
+
   return (
-    <>
-      <PageHeader
-        title="Map"
-        eyebrow="Discover"
-        subtitle="One spatial workspace from screening to development · covering geography, not connection capacity"
-        actions={
-          <>
-            <Link href="/opportunities/new" data-testid="map-new-search">
-              <Button>New search</Button>
-            </Link>
-            <Button variant="secondary" onClick={() => setCompareOpen(true)} disabled={compared.length === 0}>
-              Temporary compare ({compared.length}/4)
-            </Button>
-            <Link href="/compare">
-              <Button variant="secondary">Saved comparisons</Button>
-            </Link>
-            <BellButton />
-          </>
-        }
-      />
-      <div className="relative min-h-0 flex-1 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
-        {panelsHidden ? null : (
-        <div className="mb-3 space-y-1">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Project filters</p>
-          <div className="flex flex-wrap items-center gap-2">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      {panelsHidden ? null : (
+        <div className="flex min-h-[2.75rem] shrink-0 items-center gap-2 border-b border-line bg-canvas px-3 py-1.5">
+          <div className="min-w-0 shrink-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">Discover</p>
+            <h1 className="text-base font-semibold leading-5">Map</h1>
+          </div>
+          <Link href="/opportunities/new" data-testid="map-new-search" className="shrink-0">
+            <Button className="h-8 px-3 text-xs">New search</Button>
+          </Link>
+          <div className="min-w-0 flex-1 overflow-hidden">
           <MapDiscoveryControl
             searches={discoverySearches}
             selectedRunId={selectedRunId}
@@ -461,416 +507,333 @@ function LoadedMapPage({
                 : discoveryError
             }
             onSelect={loadDiscovery}
-            onClear={() => {
-              setSelectedRunId(null);
-              setDiscovery(null);
-              setSelectedCandidateId(null);
-              persistRun(null);
-            }}
+            onClear={clearDiscovery}
           />
-          <Select
-            label="Technology"
-            value={filters.technology}
-            options={["All", ...TECHNOLOGIES]}
-            onChange={(value) =>
-              setFilters((current) => ({ ...current, technology: value as Technology | "All" }))
-            }
-          />
-          <Select
-            label="Grid operator"
-            value={filters.operator}
-            options={operators}
-            onChange={(value) => setFilters((current) => ({ ...current, operator: value }))}
-          />
-          <Select
-            label="Stage"
-            value={filters.stage}
-            options={["All", ...OVERVIEW_PIPELINE_STAGES]}
-            onChange={(value) =>
-              setFilters((current) => ({
-                ...current,
-                stage: value as OverviewPipelineStage | "All",
-              }))
-            }
-          />
-          <Select
-            label="Team outlook"
-            value={filters.outlook}
-            options={["All", ...OUTLOOKS]}
-            labels={{
-              All: "All",
-              ...Object.fromEntries(OUTLOOKS.map((outlook) => [outlook, formatOutlookLabel(outlook)])),
-            }}
-            onChange={(value) =>
-              setFilters((current) => ({ ...current, outlook: value as Outlook | "All" }))
-            }
-          />
-          <Select
-            label="Team confidence"
-            value={filters.confidence}
-            options={["All", ...CONFIDENCES]}
-            onChange={(value) =>
-              setFilters((current) => ({ ...current, confidence: value as Confidence | "All" }))
-            }
-          />
-          <MwInput
-            label="Import ≥"
-            value={filters.minImport}
-            onChange={(value) => setFilters((current) => ({ ...current, minImport: value }))}
-          />
-          <MwInput
-            label="Export ≥"
-            value={filters.minExport}
-            onChange={(value) => setFilters((current) => ({ ...current, minExport: value }))}
-          />
-          <Button variant="ghost" onClick={() => { setFilters(EMPTY_FILTERS); setUnmatchedOnly(false); }} disabled={!filtersActive}>
-            Reset filters
-          </Button>
-          <Button variant="secondary" onClick={() => setPanelsHidden(true)} aria-pressed={false} data-testid="map-hide-panels">
-            <Maximize2 size={14} />
-            Hide panels
-          </Button>
           </div>
-        </div>
-        )}
-
-        <div
-          className={cn(
-            "relative overflow-hidden rounded-md border border-line bg-surface",
-            panelsHidden
-              ? "h-[calc(100dvh-8rem)] min-h-[420px] sm:h-[calc(100vh-9rem)] sm:min-h-[560px]"
-              : "h-[calc(100dvh-14.5rem)] min-h-[360px] sm:h-[calc(100vh-220px)] sm:min-h-[520px]",
-          )}
-        >
-          <SwedenMap
-            projects={mapped}
-            opportunities={opportunities}
-            selectedId={visibleSelectedSlug}
-            selectedOpportunitySlug={selectedOpportunitySlug}
-            selectedCandidateId={selectedCandidateId}
-            layers={layers}
-            localNetwork={localNetwork}
-            planningArea={planningArea}
-            covering={selected ? covering : null}
-            highlightAreaId={officialAreaId}
-            highlightLayer={officialPreview?.layer ?? initialChangeArea?.layer}
-            discoveryGeojson={activeDiscovery?.geojson ?? EMPTY_DISCOVERY_GEOJSON}
-            searchArea={searchArea}
-            opportunityFootprints={opportunityFootprints}
-            discoveryFitKey={activeDiscovery?.runId ?? null}
-            discoveryLoading={discoveryPending}
-            fitPadding={
-              panelsHidden
-                ? 48
-                : { top: 48, right: 360, bottom: 48, left: 300 }
-            }
-            onSelectProject={selectProject}
-            onSelectOpportunity={selectOpportunity}
-            onSelectCandidate={selectCandidate}
-            onSelectOfficial={selectOfficial}
-          />
-
-          {panelsHidden ? (
-            <button
-              type="button"
-              onClick={() => setPanelsHidden(false)}
-              aria-pressed={true}
-              className="absolute left-3 top-3 z-20 flex items-center gap-1 rounded-md border border-line bg-surface/95 px-2 py-2 text-xs text-muted shadow-sm backdrop-blur-sm hover:text-ink"
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <MapToolbarToggle
+              pressed={chromePanel === "filters"}
+              onClick={() => toggleChrome("filters")}
+              testId="map-filters-toggle"
             >
-              <Minimize2 size={14} />
-              Show panels
-            </button>
-          ) : (
-          <div
-            className={cn(
-              "absolute top-3 z-10 flex max-h-[42%] max-w-[min(100%-1.5rem,20rem)] flex-col gap-2 overflow-auto sm:max-h-[calc(100%-1.5rem)] sm:max-w-[16rem]",
-              listCollapsed ? "left-3 sm:left-[4.75rem]" : "left-3 sm:left-[16.5rem]",
-            )}
-          >
-            {layersCollapsed ? (
-              <button
-                type="button"
-                onClick={() => setLayersCollapsed(false)}
-                className="flex items-center gap-1 rounded-md border border-line bg-surface px-2 py-2 text-xs text-muted hover:text-ink"
-              >
-                <ChevronRight size={14} />
-                Layers
-              </button>
-            ) : (
-              <>
-                <MapLayerControl
-                  layers={layers}
-                  onChange={setLayers}
-                  onCollapse={() => setLayersCollapsed(true)}
-                  hasDiscoveryRun={Boolean(activeDiscovery)}
-                />
-                <MapLegend
-                  hasDiscoveryRun={Boolean(activeDiscovery)}
-                  showZones={layers.opportunityZones}
-                  showNup={layers.planningArea}
-                />
-                <MapSpatialSummary
-                  summary={spatialSummary}
-                  unmatchedActive={unmatchedOnly}
-                  onToggleUnmatched={() => setUnmatchedOnly((current) => !current)}
-                  matchesStatus={officialStatus.matches}
-                  localNetworkStatus={officialStatus.localNetwork}
-                />
-              </>
-            )}
-          </div>
-          )}
-
-          {mapped.length === 0 && filtersActive ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-              <div className="pointer-events-auto max-w-sm rounded-md border border-line bg-surface px-4 py-3 text-sm shadow-sm">
-                <p className="font-medium">No projects match these project filters</p>
-                <p className="mt-1 text-muted">
-                  {ungeocoded.length > 0
-                    ? `${ungeocoded.length} listed project${ungeocoded.length === 1 ? "" : "s"} ${ungeocoded.length === 1 ? "has" : "have"} no map coordinates.`
-                    : "Opportunities and discovery layers remain visible. Reset project filters to see portfolio sites."}
-                </p>
-              </div>
-            </div>
-          ) : projects.length === 0 && opportunities.length === 0 && !activeDiscovery ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-              <div className="pointer-events-auto max-w-sm rounded-md border border-line bg-surface px-4 py-3 text-sm shadow-sm">
-                <p className="font-medium">Start by searching a development area</p>
-                <p className="mt-1 text-muted">
-                  {discoverySearches.length === 0
-                    ? "The Map stays usable without a portfolio. Run a search, then select the completed run here to load Candidate Sites."
-                    : "Searches exist. Select a completed run in Discovery, or save a Candidate Site as an Opportunity."}
-                </p>
-                <Link href="/opportunities/new" className="pointer-events-auto mt-3 inline-block">
-                  <Button className="h-8 px-3 text-xs">New search</Button>
-                </Link>
-              </div>
-            </div>
-          ) : activeDiscovery && activeDiscovery.candidateCount === 0 ? (
-            <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 p-3">
-              <div className="rounded-md border border-line bg-surface px-3 py-2 text-xs text-muted shadow-sm">
-                This screening run has no Candidate Sites.
-              </div>
-            </div>
-          ) : officialStatus.localNetwork === "unavailable" ? (
-            <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 p-3">
-              <div className="rounded-md border border-line bg-surface px-3 py-2 text-xs text-muted shadow-sm" data-testid="map-official-empty">
-                Official local-network layer is currently unavailable. This is not a no-match result.
-              </div>
-            </div>
-          ) : null}
-
-          {panelsHidden ? null : (
-          <div
-            className={cn(
-              "absolute left-3 top-3 hidden max-h-[calc(100%-1.5rem)] w-[240px] flex-col overflow-hidden rounded-md border border-line bg-surface sm:flex",
-              listCollapsed && "w-auto",
-            )}
-          >
-            {listCollapsed ? (
-              <button
-                type="button"
-                onClick={() => setListCollapsed(false)}
-                className="flex items-center gap-1 px-2 py-2 text-xs text-muted hover:text-ink"
-              >
-                <ChevronRight size={14} />
-                List
-              </button>
-            ) : (
-              <>
-                <div className="flex items-start justify-between gap-2 border-b border-line px-3 py-2">
-                  <div>
-                    <p className="text-xs font-medium">Projects</p>
-                    <p className="mt-0.5 text-[11px] leading-4 text-muted">
-                      Circle markers. Ring colour is customer-entered team outlook, not official capacity.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setListCollapsed(true)}
-                    className="text-muted hover:text-ink"
-                    aria-label="Collapse project list"
-                  >
-                    <ChevronLeft size={14} />
-                  </button>
-                </div>
-                <div className="border-b border-line px-3 py-2 text-xs">
-                  <LegendDot color="#176C4A" label="Favourable" />
-                  <LegendDot color="#B54708" label="Possible" />
-                  <LegendDot color="#B42318" label="At Risk / Weak" />
-                  <LegendDot color="#8B9098" label="Unknown" />
-                </div>
-                <div className="min-h-0 flex-1 overflow-auto px-1 py-1">
-                  {filtered.length === 0 ? (
-                    <p className="px-2 py-2 text-xs text-muted">No projects match these filters.</p>
-                  ) : (
-                    filtered.map((project) => (
-                      <button
-                        key={project.slug}
-                        type="button"
-                        onClick={() => selectProject(project.slug)}
-                        className={cn(
-                          "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-canvas",
-                          visibleSelectedSlug === project.slug && "bg-canvas",
-                        )}
-                      >
-                        <span
-                          className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
-                          style={{ background: markerColor(project.outlook) }}
-                        />
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium">{project.name}</span>
-                          <span className="block truncate text-muted">
-                            {isPlottable(project) ? project.location || "—" : "Location unavailable"}
-                          </span>
-                        </span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-          )}
-
-          {panelsHidden ? null : officialPreview && officialAreaId ? (
-            <MapOfficialPanel
-              preview={officialPreview}
-              context={officialContext}
-              loading={officialLoading}
-              fromPublishedChange={Boolean(initialChangeArea?.areaId && officialAreaId === initialChangeArea.areaId)}
-              onClose={() => {
-                setOfficialAreaId(null);
-                setOfficialContext(null);
-                setOfficialPreview(null);
+              Filters
+            </MapToolbarToggle>
+            <MapToolbarToggle
+              pressed={chromePanel === "layers"}
+              onClick={() => toggleChrome("layers")}
+            >
+              Layers
+            </MapToolbarToggle>
+            <MapToolbarToggle
+              pressed={chromePanel === "legend"}
+              onClick={() => toggleChrome("legend")}
+            >
+              Legend
+            </MapToolbarToggle>
+            <MapToolbarToggle
+              pressed={chromePanel === "projects"}
+              onClick={() => toggleChrome("projects")}
+            >
+              Projects
+            </MapToolbarToggle>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setChromePanel(null);
+                setPanelsHidden(true);
               }}
-            />
-          ) : selectedCandidate && activeDiscovery && !detailCollapsed ? (
-            <MapCandidatePanel
-              candidate={selectedCandidate}
-              searchId={activeDiscovery.searchId}
-              runId={activeDiscovery.runId}
-              providerAvailability={activeDiscovery.providerAvailability}
-              onClose={() => setSelectedCandidateId(null)}
-            />
-          ) : selectedOpportunity && !detailCollapsed ? (
-            <MapOpportunityPanel item={selectedOpportunity} onClose={() => setSelectedOpportunitySlug(null)} />
-          ) : selected && !detailCollapsed ? (
-            <aside className="absolute inset-x-3 bottom-3 max-h-[58%] overflow-auto rounded-md border border-line bg-surface p-4 md:inset-x-auto md:bottom-auto md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-[320px]" data-testid="map-project-panel">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Project · Customer entered</p>
-                  <h2 className="text-base font-semibold">{selected.name}</h2>
-                  <p className="text-sm text-muted">{locationLabel(selected)}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setDetailCollapsed(true)}
-                    className="hidden text-muted hover:text-ink md:inline-flex"
-                    aria-label="Collapse project panel"
-                  >
-                    <ChevronRight size={14} />
-                  </button>
-                  <button type="button" onClick={() => setSelectedSlug(null)} className="text-muted hover:text-ink">
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-              <dl className="mt-3 space-y-1.5 text-sm">
-                <Line label="Technology" value={selected.technology} />
-                <Line label="Import / Export MW" value={importExportLabel(selected)} />
-                <Line label="Grid operator" value={selected.gridOperator || "—"} />
-                <Line label="Team outlook" value={<OutlookBadge outlook={selected.outlook} />} />
-                <Line label="Team confidence" value={<ConfidenceBadge confidence={selected.confidence} />} />
-                <Line label="Current stage" value={<StageBadge stage={selected.stage} />} />
-                <Line label="Target COD" value={selected.targetCOD || "—"} />
-                <Line label="Application readiness" value={readinessLabel(selected.readinessPercent)} />
-                <Line
-                  label="Next action"
-                  value={
-                    selected.connectionCase?.nextMilestone ||
-                    selected.openAlerts[0]?.title ||
-                    "None recorded"
-                  }
-                />
-              </dl>
-              <MapGridContextCard
-                project={selected}
-                match={matchByProjectId.get(selected.id)}
-                covering={covering}
-                coveringStatus={coveringStatusResolved === "loading" ? "available" : coveringStatusResolved}
-                matchesStatus={officialStatus.matches}
-                coveringLoading={coveringStatusResolved === "loading"}
-              />
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <Link href={`/projects/${selected.slug}`} className="flex-1">
-                  <Button className="w-full">Open Project</Button>
-                </Link>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    addToCompare(selected.slug, selected.name);
-                    setCompareOpen(true);
-                  }}
-                  disabled={compareIds.includes(selected.slug)}
-                >
-                  Add to Compare
-                </Button>
-              </div>
-            </aside>
-          ) : selected && detailCollapsed ? (
-            <button
-              type="button"
-              onClick={() => setDetailCollapsed(false)}
-              className="absolute right-3 top-3 hidden rounded-md border border-line bg-surface px-2 py-2 text-xs text-muted hover:text-ink md:flex"
+              data-testid="map-hide-panels"
+              className="h-8 px-2.5 text-xs"
             >
-              <ChevronLeft size={14} />
-              <span className="ml-1 max-w-[9rem] truncate">{selected.name}</span>
-            </button>
-          ) : selectedOpportunity && detailCollapsed ? (
-            <button
-              type="button"
-              onClick={() => setDetailCollapsed(false)}
-              className="absolute right-3 top-3 hidden rounded-md border border-line bg-surface px-2 py-2 text-xs text-muted hover:text-ink md:flex"
+              <Maximize2 size={14} />
+              Hide panels
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setCompareOpen(true)}
+              disabled={compared.length === 0}
+              className="h-8 px-2.5 text-xs"
             >
-              <ChevronLeft size={14} />
-              <span className="ml-1 max-w-[9rem] truncate">{selectedOpportunity.name}</span>
-            </button>
-          ) : null}
+              Compare ({compared.length}/4)
+            </Button>
+            <BellButton />
+          </div>
+        </div>
+      )}
+
+      <div className="relative min-h-0 flex-1">
+        <div className="absolute inset-0">
+        <SwedenMap
+          projects={mapped}
+          opportunities={opportunities}
+          selectedId={visibleSelectedSlug}
+          selectedOpportunitySlug={selectedOpportunitySlug}
+          selectedCandidateId={selectedCandidateId}
+          layers={layers}
+          localNetwork={localNetwork}
+          planningArea={planningArea}
+          covering={selected ? covering : null}
+          highlightAreaId={officialAreaId}
+          highlightLayer={officialPreview?.layer ?? initialChangeArea?.layer}
+          discoveryGeojson={activeDiscovery?.geojson ?? EMPTY_DISCOVERY_GEOJSON}
+          searchArea={searchArea}
+          opportunityFootprints={opportunityFootprints}
+          discoveryFitKey={activeDiscovery?.runId ?? null}
+          discoveryLoading={discoveryPending}
+          fitPadding={
+            panelsHidden
+              ? 40
+              : {
+                  top: 16,
+                  right: showDetail && (selected || selectedOpportunity || selectedCandidate || officialPreview) ? 320 : 48,
+                  bottom: 40,
+                  left: chromePanel ? 280 : 48,
+                }
+          }
+          onSelectProject={selectProject}
+          onSelectOpportunity={selectOpportunity}
+          onSelectCandidate={selectCandidate}
+          onSelectOfficial={selectOfficial}
+        />
         </div>
 
-        {panelsHidden ? null : (
-        <div className="mt-3 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.12em] text-muted">
-            Customer entered
-            <span className="mx-2 text-muted">|</span>
-            Official Source · Ei covering geography
-            <span className="mx-2 text-muted">|</span>
-            Noxheim Derived · Candidate Sites
-          </p>
-          <p className="text-xs leading-5 text-muted">
-            Projects and Opportunities are saved development objects. Candidate Sites are screening geometry from
-            a selected run. Official polygons are Ei local-network concession areas and NUP planning geography.
-            Covering official area is geographic context, not a connection point and not available connection
-            capacity. NUP is planning context when enabled. Team outlook is customer-entered triage.
-          </p>
-          {savedComparisons && savedComparisons.comparisons.length > 0 ? (
+        {panelsHidden ? (
+          <button
+            type="button"
+            onClick={() => setPanelsHidden(false)}
+            className="absolute left-3 top-3 z-20 flex items-center gap-1 rounded-md border border-line bg-surface px-2 py-2 text-xs text-muted hover:text-ink"
+          >
+            <Minimize2 size={14} />
+            Show panels
+          </button>
+        ) : chromePanel === "layers" ? (
+          <div className="absolute left-3 top-3 z-10">
+            <MapLayerControl
+              layers={layers}
+              onChange={setLayers}
+              onCollapse={() => setChromePanel(null)}
+              hasDiscoveryRun={Boolean(activeDiscovery)}
+            />
+          </div>
+        ) : chromePanel === "legend" ? (
+          <div className="absolute left-3 top-3 z-10">
+            <MapLegend
+              hasDiscoveryRun={Boolean(activeDiscovery)}
+              showZones={layers.opportunityZones}
+              showNup={layers.planningArea}
+              showProjects={layers.projects}
+              showOpportunities={layers.opportunities}
+            />
+          </div>
+        ) : chromePanel === "filters" ? (
+          <section className="absolute left-3 top-3 z-10 max-h-[calc(100%-1.5rem)] w-[18rem] overflow-auto rounded-md border border-line bg-surface p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium">Project filters</p>
+              <button type="button" onClick={() => setChromePanel(null)} className="text-xs text-muted hover:text-ink">
+                Close
+              </button>
+            </div>
+            <div className="mt-2 flex flex-col gap-2">
+              <Select
+                label="Technology"
+                value={filters.technology}
+                options={["All", ...TECHNOLOGIES]}
+                onChange={(value) =>
+                  setFilters((current) => ({ ...current, technology: value as Technology | "All" }))
+                }
+              />
+              <Select
+                label="Grid operator"
+                value={filters.operator}
+                options={operators}
+                onChange={(value) => setFilters((current) => ({ ...current, operator: value }))}
+              />
+              <Select
+                label="Stage"
+                value={filters.stage}
+                options={["All", ...OVERVIEW_PIPELINE_STAGES]}
+                onChange={(value) =>
+                  setFilters((current) => ({
+                    ...current,
+                    stage: value as OverviewPipelineStage | "All",
+                  }))
+                }
+              />
+              <Select
+                label="Team outlook"
+                value={filters.outlook}
+                options={["All", ...OUTLOOKS]}
+                labels={{
+                  All: "All",
+                  ...Object.fromEntries(OUTLOOKS.map((outlook) => [outlook, formatOutlookLabel(outlook)])),
+                }}
+                onChange={(value) =>
+                  setFilters((current) => ({ ...current, outlook: value as Outlook | "All" }))
+                }
+              />
+              <Select
+                label="Team confidence"
+                value={filters.confidence}
+                options={["All", ...CONFIDENCES]}
+                onChange={(value) =>
+                  setFilters((current) => ({ ...current, confidence: value as Confidence | "All" }))
+                }
+              />
+              <MwInput
+                label="Import ≥"
+                value={filters.minImport}
+                onChange={(value) => setFilters((current) => ({ ...current, minImport: value }))}
+              />
+              <MwInput
+                label="Export ≥"
+                value={filters.minExport}
+                onChange={(value) => setFilters((current) => ({ ...current, minExport: value }))}
+              />
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setFilters(EMPTY_FILTERS);
+                  setUnmatchedOnly(false);
+                }}
+                disabled={!filtersActive}
+                className="h-8 text-xs"
+              >
+                Reset filters
+              </Button>
+            </div>
             <div className="mt-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Saved team comparisons</h3>
-                <Link href="/compare" className="text-xs text-teal hover:text-teal-dark">
-                  View all
-                </Link>
-              </div>
-              <SavedComparisonsList
-                comparisons={savedComparisons.comparisons.slice(0, 5)}
-                canWrite={savedComparisons.canWrite}
+              <MapSpatialSummary
+                summary={spatialSummary}
+                unmatchedActive={unmatchedOnly}
+                onToggleUnmatched={() => setUnmatchedOnly((current) => !current)}
+                matchesStatus={officialStatus.matches}
+                localNetworkStatus={officialStatus.localNetwork}
               />
             </div>
-          ) : null}
-        </div>
-        )}
+          </section>
+        ) : chromePanel === "projects" ? (
+          <section className="absolute left-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-[16.5rem] flex-col overflow-hidden rounded-md border border-line bg-surface">
+            <div className="flex items-start justify-between gap-2 border-b border-line px-3 py-2">
+              <div>
+                <p className="text-xs font-medium">Projects</p>
+                <p className="mt-0.5 text-[11px] leading-4 text-muted">
+                  Circles. Ring colour is team outlook, not capacity.
+                </p>
+              </div>
+              <button type="button" onClick={() => setChromePanel(null)} className="text-xs text-muted hover:text-ink">
+                Close
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto px-1 py-1">
+              {filtered.length === 0 ? (
+                <p className="px-2 py-2 text-xs text-muted">No projects match these filters.</p>
+              ) : (
+                filtered.map((project) => (
+                  <button
+                    key={project.slug}
+                    type="button"
+                    onClick={() => selectProject(project.slug)}
+                    className={cn(
+                      "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-canvas",
+                      visibleSelectedSlug === project.slug && "bg-canvas",
+                    )}
+                  >
+                    <span
+                      className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full border-2 bg-canvas"
+                      style={{ borderColor: markerColor(project.outlook) }}
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{project.name}</span>
+                      <span className="block truncate text-muted">
+                        {isPlottable(project) ? project.location || "—" : "Location unavailable"}
+                      </span>
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+        ) : null}
+
+        {mapped.length === 0 && filtersActive ? (
+          <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2">
+            <div className="pointer-events-auto rounded-md border border-line bg-surface px-3 py-2 text-xs text-muted">
+              No projects match these project filters.
+            </div>
+          </div>
+        ) : emptyPortfolio ? (
+          <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2 rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs">
+            <span className="text-muted">Search a development area</span>
+            <Link href="/opportunities/new">
+              <Button className="h-7 px-2 text-xs">New search</Button>
+            </Link>
+          </div>
+        ) : activeDiscovery && activeDiscovery.candidateCount === 0 ? (
+          <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2">
+            <div className="rounded-md border border-line bg-surface px-3 py-2 text-xs text-muted">
+              This screening run has no Candidate Sites.
+            </div>
+          </div>
+        ) : officialStatus.localNetwork === "unavailable" ? (
+          <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2">
+            <div className="rounded-md border border-line bg-surface px-3 py-2 text-xs text-muted" data-testid="map-official-empty">
+              Official local-network layer is currently unavailable. This is not a no-match result.
+            </div>
+          </div>
+        ) : null}
+
+        {showDetail && officialPreview && officialAreaId ? (
+          <MapOfficialPanel
+            preview={officialPreview}
+            context={officialContext}
+            loading={officialLoading}
+            fromPublishedChange={Boolean(initialChangeArea?.areaId && officialAreaId === initialChangeArea.areaId)}
+            onClose={() => {
+              setOfficialAreaId(null);
+              setOfficialContext(null);
+              setOfficialPreview(null);
+            }}
+          />
+        ) : showDetail && selectedCandidate && activeDiscovery ? (
+          <MapCandidatePanel
+            candidate={selectedCandidate}
+            searchId={activeDiscovery.searchId}
+            runId={activeDiscovery.runId}
+            providerAvailability={activeDiscovery.providerAvailability}
+            onClose={() => {
+              setSelectedCandidateId(null);
+              persistMapUrl({ candidate: null });
+            }}
+          />
+        ) : showDetail && selectedOpportunity ? (
+          <MapOpportunityPanel
+            item={selectedOpportunity}
+            onClose={() => {
+              setSelectedOpportunitySlug(null);
+              persistMapUrl({ opportunity: null });
+            }}
+          />
+        ) : showDetail && selected ? (
+          <MapProjectPanel
+            project={selected}
+            originOpportunity={originOpportunity}
+            location={locationLabel(selected)}
+            match={matchByProjectId.get(selected.id)}
+            covering={covering}
+            coveringStatus={coveringStatusResolved === "loading" ? "available" : coveringStatusResolved}
+            matchesStatus={officialStatus.matches}
+            coveringLoading={coveringStatusResolved === "loading"}
+            onClose={() => {
+              setSelectedSlug(null);
+              persistMapUrl({ project: null });
+            }}
+            onAddToCompare={() => {
+              addToCompare(selected.slug, selected.name);
+              setCompareOpen(true);
+            }}
+            compareDisabled={compareIds.includes(selected.slug)}
+          />
+        ) : null}
       </div>
 
       {compareOpen ? (
@@ -915,7 +878,7 @@ function LoadedMapPage({
           )}
         </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -969,32 +932,6 @@ function locationLabel(project: MapProject): string {
     return project.location ? `${project.location} — Location unavailable` : "Location unavailable";
   }
   return project.location || "—";
-}
-
-function importExportLabel(project: MapProject): string {
-  return `${project.importMW} / ${project.exportMW} MW`;
-}
-
-function readinessLabel(percent: number | null): string {
-  return percent == null ? "Not available" : `${percent}%`;
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <p className="mt-1 flex items-center gap-2">
-      <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
-      {label}
-    </p>
-  );
-}
-
-function Line({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-right">{value}</dd>
-    </div>
-  );
 }
 
 function Select({

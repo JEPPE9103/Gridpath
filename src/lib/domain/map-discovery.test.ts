@@ -5,6 +5,7 @@ import {
   opportunityFootprintFilter,
   opportunityFootprintStyle,
   opportunityFootprintsCollection,
+  isPromotedMapOpportunity,
   parseAreaGeometry,
   parseDiscoveryFeatureCollection,
   screeningLayerFilter,
@@ -69,6 +70,35 @@ describe("map discovery helpers", () => {
   it("hides rejected opportunity footprints unless that layer is on", () => {
     assert.deepEqual(opportunityFootprintFilter(true, false), ["!=", ["get", "footprintStyle"], "rejected"]);
     assert.deepEqual(opportunityFootprintFilter(false, true), ["==", ["get", "footprintStyle"], "rejected"]);
+  });
+
+  it("omits promoted Opportunity footprints so the Project is the map object", () => {
+    const collection = opportunityFootprintsCollection([
+      {
+        slug: "saved",
+        name: "A",
+        status: "identified",
+        areaGeometry: { type: "Polygon", coordinates: [] },
+      },
+      {
+        slug: "promoted-status",
+        name: "B",
+        status: "promoted",
+        areaGeometry: { type: "Polygon", coordinates: [] },
+      },
+      {
+        slug: "promoted-link",
+        name: "C",
+        status: "identified",
+        promotedProjectId: "project-1",
+        areaGeometry: { type: "Polygon", coordinates: [] },
+      },
+    ]);
+    assert.equal(collection.features.length, 1);
+    assert.equal(collection.features[0]?.properties.slug, "saved");
+    assert.equal(isPromotedMapOpportunity({ status: "promoted" }), true);
+    assert.equal(isPromotedMapOpportunity({ status: "identified", promotedProjectId: "project-1" }), true);
+    assert.equal(isPromotedMapOpportunity({ status: "identified" }), false);
   });
 
   it("labels stored search geography without implying a Candidate Site", () => {

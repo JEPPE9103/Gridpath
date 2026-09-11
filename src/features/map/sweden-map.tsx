@@ -2,18 +2,21 @@
 
 import { LOCAL_NETWORK_FILL, NUP_FILL } from "@/features/map/map-legend";
 import { bindMapResize, ensureMapLibreWorker } from "@/features/map/maplibre-setup";
-import { markerColor, STYLE } from "@/features/map/mini-map";
+import { STYLE } from "@/features/map/mini-map";
 import type { MapProject } from "@/lib/data/map-types";
 import type { OpportunityListItem } from "@/lib/data/opportunities";
 import type { OfficialCoveringGeojson } from "@/lib/data/official-map";
 import {
   EMPTY_DISCOVERY_GEOJSON,
+  isPromotedMapOpportunity,
   opportunityFootprintFilter,
   screeningLayerFilter,
   searchAreaBboxCollection,
   type MapGeoJsonFeatureCollection,
   type MapSearchArea,
 } from "@/lib/domain/map-discovery";
+import { outlookTone } from "@/lib/format";
+import type { Outlook } from "@/types";
 import type {
   OfficialMapAreaPreview,
   OfficialMapCachedViewport,
@@ -35,7 +38,7 @@ import {
   setCachedOfficialGeometry,
 } from "@/lib/map/official-geometry-cache";
 import { loadOfficialMapLayerAction } from "@/lib/map/actions";
-import { Map as MapLibreMap, Marker, NavigationControl, type GeoJSONSource, type MapGeoJSONFeature, type MapMouseEvent } from "maplibre-gl";
+import { Map as MapLibreMap, Marker, NavigationControl, type GeoJSONSource, type MapGeoJSONFeature, type MapMouseEvent, type PointLike } from "maplibre-gl";
 import { memo, useEffect, useRef, useState } from "react";
 
 const LOCAL_SOURCE = "official-local-network";
@@ -170,7 +173,14 @@ export const SwedenMap = memo(function SwedenMap({
       addMapLayers(map);
       setSourceData(map, LOCAL_SOURCE, collectionsRef.current.localNetwork);
       setSourceData(map, NUP_SOURCE, collectionsRef.current.planningArea);
+      map.resize();
       setMapReady(true);
+      window.setTimeout(() => {
+        if (mapRef.current === map) map.resize();
+      }, 80);
+      window.setTimeout(() => {
+        if (mapRef.current === map) map.resize();
+      }, 320);
     });
 
     return () => {
@@ -328,7 +338,7 @@ export const SwedenMap = memo(function SwedenMap({
         [searchArea.west, searchArea.south],
         [searchArea.east, searchArea.north],
       ],
-      { padding: fitPadding, maxZoom: 10, duration: 420 },
+      { padding: fitPadding, maxZoom: 10, duration: 280 },
     );
   }, [discoveryFitKey, searchArea, mapReady, fitPadding]);
 
@@ -358,8 +368,13 @@ export const SwedenMap = memo(function SwedenMap({
     if (!map || !mapReady) return;
     const handleClick = (event: MapMouseEvent) => {
     const existingDevelopment = DEVELOPMENT_FILL_LAYERS.filter((id) => map.getLayer(id));
+    const pad = 5;
+    const hitBox: [PointLike, PointLike] = [
+      [event.point.x - pad, event.point.y - pad],
+      [event.point.x + pad, event.point.y + pad],
+    ];
     const developmentHits = existingDevelopment.length
-      ? map.queryRenderedFeatures(event.point, { layers: [...existingDevelopment] })
+      ? map.queryRenderedFeatures(hitBox, { layers: [...existingDevelopment] })
       : [];
       const development = developmentHits[0];
       if (development?.layer?.id === "map-candidates-fill") {
@@ -406,23 +421,59 @@ export const SwedenMap = memo(function SwedenMap({
       "official-local-network-line",
       "official-nup-line",
     ];
+    const hoverLayers = ["map-candidates-fill", "map-opportunity-footprints-fill"];
+    let hovered: { source: string; id: string | number } | null = null;
+    const clearHover = () => {
+      if (!hovered) return;
+      try {
+        map.setFeatureState({ source: hovered.source, id: hovered.id }, { hover: false });
+      } catch {
+        // Source may have been replaced during a viewport fetch.
+      }
+      hovered = null;
+    };
     const onEnter = () => {
       map.getCanvas().style.cursor = "pointer";
     };
     const onLeave = () => {
       map.getCanvas().style.cursor = "";
+      clearHover();
+    };
+    const onHoverMove = (event: MapMouseEvent) => {
+      const existing = hoverLayers.filter((id) => map.getLayer(id));
+      const hits = existing.length ? map.queryRenderedFeatures(
+        [
+          [event.point.x - 4, event.point.y - 4],
+          [event.point.x + 4, event.point.y + 4],
+        ],
+        { layers: existing },
+      ) : [];
+      const hit = hits[0];
+      const nextId = hit?.id;
+      const nextSource = typeof hit?.source === "string" ? hit.source : null;
+      if (hovered && (nextId == null || !nextSource || hovered.id !== nextId || hovered.source !== nextSource)) {
+        clearHover();
+      }
+      if (hit && nextId != null && nextSource) {
+        hovered = { source: nextSource, id: nextId };
+        map.setFeatureState({ source: nextSource, id: nextId }, { hover: true });
+        map.getCanvas().style.cursor = "pointer";
+      }
     };
     map.on("click", handleClick);
+    map.on("mousemove", onHoverMove);
     for (const layerId of interactiveLayers) {
       map.on("mouseenter", layerId, onEnter);
       map.on("mouseleave", layerId, onLeave);
     }
     return () => {
       map.off("click", handleClick);
+      map.off("mousemove", onHoverMove);
       for (const layerId of interactiveLayers) {
         map.off("mouseenter", layerId, onEnter);
         map.off("mouseleave", layerId, onLeave);
       }
+      clearHover();
     };
   }, [mapReady]);
 
@@ -650,6 +701,7 @@ export const SwedenMap = memo(function SwedenMap({
       return;
     }
     const plottable = opportunities.filter((item) => {
+      if (isPromotedMapOpportunity(item)) return false;
       if (item.latitude == null || item.longitude == null) return false;
       if (item.status === "rejected") return layers.rejectedOpportunities;
       return layers.opportunities;
@@ -663,14 +715,15 @@ export const SwedenMap = memo(function SwedenMap({
     });
     for (const item of plottable) {
       const existing = markers.get(item.slug);
+      const zoom = map.getZoom();
       if (existing) {
         existing.setLngLat([item.longitude as number, item.latitude as number]);
-        styleOpportunityMarker(existing.getElement(), item, selectedOpportunitySlug === item.slug);
+        styleOpportunityMarker(existing.getElement(), item, selectedOpportunitySlug === item.slug, zoom);
         continue;
       }
       const el = document.createElement("button");
       el.type = "button";
-      styleOpportunityMarker(el, item, selectedOpportunitySlug === item.slug);
+      styleOpportunityMarker(el, item, selectedOpportunitySlug === item.slug, zoom);
       el.onclick = (event) => {
         event.stopPropagation();
         onSelectOpportunityRef.current?.(item.slug);
@@ -697,9 +750,32 @@ export const SwedenMap = memo(function SwedenMap({
     map.easeTo({
       center: [selectedProject.longitude, selectedProject.latitude],
       zoom: Math.max(map.getZoom(), 7.2),
-      duration: 220,
+      duration: 240,
     });
   }, [selectedId, mapReady, projects]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const restyle = () => {
+      const zoom = map.getZoom();
+      for (const item of opportunities) {
+        const marker = opportunityMarkersRef.current.get(item.slug);
+        if (!marker) continue;
+        styleOpportunityMarker(
+          marker.getElement(),
+          item,
+          selectedOpportunitySlug === item.slug,
+          zoom,
+        );
+      }
+    };
+    restyle();
+    map.on("zoomend", restyle);
+    return () => {
+      map.off("zoomend", restyle);
+    };
+  }, [mapReady, opportunities, selectedOpportunitySlug]);
 
   return (
     <div className="relative h-full w-full">
@@ -757,7 +833,7 @@ function addMapLayers(map: MapLibreMap) {
     source: NUP_SOURCE,
     paint: {
       "fill-color": NUP_FILL,
-      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.03, 6, 0.05, 9, 0.08],
+      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.02, 6, 0.035, 9, 0.055],
     },
   });
   map.addLayer({
@@ -766,8 +842,9 @@ function addMapLayers(map: MapLibreMap) {
     source: NUP_SOURCE,
     paint: {
       "line-color": NUP_FILL,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 3.8, 0.6, 6, 0.85, 9, 1.15],
-      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.45, 6, 0.58],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 3.8, 0.7, 6, 1.05, 9, 1.35],
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.42, 6, 0.55],
+      "line-dasharray": [2.4, 1.6],
     },
     layout: { "line-join": "round", "line-cap": "round" },
   });
@@ -777,7 +854,7 @@ function addMapLayers(map: MapLibreMap) {
     source: LOCAL_SOURCE,
     paint: {
       "fill-color": LOCAL_NETWORK_FILL,
-      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.04, 6, 0.07, 9, 0.1],
+      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.025, 6, 0.045, 9, 0.07],
     },
   });
   map.addLayer({
@@ -786,8 +863,8 @@ function addMapLayers(map: MapLibreMap) {
     source: LOCAL_SOURCE,
     paint: {
       "line-color": LOCAL_NETWORK_FILL,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 3.8, 0.7, 6, 0.95, 9, 1.25],
-      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.5, 6, 0.62],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 3.8, 0.55, 6, 0.8, 9, 1.05],
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.38, 6, 0.5],
     },
     layout: { "line-join": "round", "line-cap": "round" },
   });
@@ -795,7 +872,7 @@ function addMapLayers(map: MapLibreMap) {
     id: "map-search-area-line",
     type: "line",
     source: SEARCH_AREA_SOURCE,
-    paint: { "line-color": "#1A1E24", "line-width": 1.15, "line-dasharray": [2, 1.4], "line-opacity": 0.55 },
+    paint: { "line-color": "#1A1E24", "line-width": 1.05, "line-dasharray": [2.2, 1.8], "line-opacity": 0.48 },
     layout: { "line-join": "round", "line-cap": "round" },
   });
   map.addLayer({
@@ -816,7 +893,7 @@ function addMapLayers(map: MapLibreMap) {
         "#B54708",
         "#8B9098",
       ],
-      "fill-opacity": 0.5,
+      "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.7, 0.52],
     },
   });
   map.addLayer({
@@ -824,7 +901,11 @@ function addMapLayers(map: MapLibreMap) {
     type: "line",
     source: CANDIDATES_SOURCE,
     filter: ["==", ["get", "candidateKind"], "site"],
-    paint: { "line-color": "#1A1E24", "line-width": 0.9, "line-opacity": 0.75 },
+    paint: {
+      "line-color": "#1A1E24",
+      "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 1.35, 0.95],
+      "line-opacity": 0.78,
+    },
     layout: { "line-join": "round", "line-cap": "round" },
   });
   map.addLayer({
@@ -841,7 +922,22 @@ function addMapLayers(map: MapLibreMap) {
         "#8A8F98",
         "#2A7A6F",
       ],
-      "fill-opacity": ["match", ["get", "footprintStyle"], "rejected", 0.1, "shortlisted", 0.28, 0.2],
+      "fill-opacity": [
+        "case",
+        ["boolean", ["feature-state", "hover"], false],
+        ["interpolate", ["linear"], ["zoom"], 5, 0.16, 8.5, 0.34, 11, 0.4],
+        [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          5,
+          ["match", ["get", "footprintStyle"], "rejected", 0.05, 0.07],
+          8.5,
+          ["match", ["get", "footprintStyle"], "rejected", 0.1, "shortlisted", 0.26, 0.2],
+          11,
+          ["match", ["get", "footprintStyle"], "rejected", 0.14, "shortlisted", 0.34, 0.28],
+        ],
+      ],
     },
   });
   map.addLayer({
@@ -858,8 +954,16 @@ function addMapLayers(map: MapLibreMap) {
         "#8A8F98",
         "#2A7A6F",
       ],
-      "line-width": ["match", ["get", "footprintStyle"], "shortlisted", 1.7, "rejected", 0.9, 1.35],
-      "line-opacity": 0.85,
+      "line-width": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        5,
+        ["match", ["get", "footprintStyle"], "shortlisted", 0.7, "rejected", 0.5, 0.6],
+        8.5,
+        ["match", ["get", "footprintStyle"], "shortlisted", 1.7, "rejected", 0.9, 1.35],
+      ],
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0.35, 8.5, 0.85],
     },
     layout: { "line-join": "round", "line-cap": "round" },
   });
@@ -869,14 +973,14 @@ function addMapLayers(map: MapLibreMap) {
     source: COVER_SOURCE,
     paint: {
       "fill-color": ["match", ["get", "layer"], "planning_area", NUP_FILL, LOCAL_NETWORK_FILL],
-      "fill-opacity": 0.28,
+      "fill-opacity": 0.16,
     },
   });
   map.addLayer({
     id: "official-covering-line",
     type: "line",
     source: COVER_SOURCE,
-    paint: { "line-color": "#163A34", "line-width": 2.2 },
+    paint: { "line-color": "#163A34", "line-width": 1.8, "line-opacity": 0.7 },
     layout: { "line-join": "round", "line-cap": "round" },
   });
   map.addLayer({
@@ -885,14 +989,14 @@ function addMapLayers(map: MapLibreMap) {
     source: CHANGE_HIGHLIGHT_SOURCE,
     paint: {
       "fill-color": ["match", ["get", "layer"], "planning_area", NUP_FILL, LOCAL_NETWORK_FILL],
-      "fill-opacity": 0.12,
+      "fill-opacity": 0.2,
     },
   });
   map.addLayer({
     id: "official-change-highlight-line",
     type: "line",
     source: CHANGE_HIGHLIGHT_SOURCE,
-    paint: { "line-color": "#163A34", "line-width": 3.4 },
+    paint: { "line-color": "#163A34", "line-width": 2.8 },
     layout: { "line-join": "round", "line-cap": "round" },
   });
   map.addLayer({
@@ -900,7 +1004,7 @@ function addMapLayers(map: MapLibreMap) {
     type: "line",
     source: CANDIDATES_SOURCE,
     filter: ["==", ["get", "id"], ""],
-    paint: { "line-color": "#0B3D2E", "line-width": 2.6 },
+    paint: { "line-color": "#0B3D2E", "line-width": 2.4 },
     layout: { "line-join": "round", "line-cap": "round" },
   });
   map.addLayer({
@@ -908,35 +1012,45 @@ function addMapLayers(map: MapLibreMap) {
     type: "line",
     source: OPP_FOOTPRINT_SOURCE,
     filter: ["==", ["get", "slug"], ""],
-    paint: { "line-color": "#0B3D2E", "line-width": 2.8 },
+    paint: { "line-color": "#0B3D2E", "line-width": 2.5 },
     layout: { "line-join": "round", "line-cap": "round" },
   });
 }
 
-function styleOpportunityMarker(el: HTMLElement, item: OpportunityListItem, selected = false) {
+function styleOpportunityMarker(el: HTMLElement, item: OpportunityListItem, selected = false, zoom = 4.35) {
   const rejected = item.status === "rejected";
   const shortlisted = item.status === "shortlisted" || item.status === "strong_candidate";
-  el.style.width = selected ? "15px" : shortlisted ? "13px" : "12px";
-  el.style.height = selected ? "15px" : shortlisted ? "13px" : "12px";
+  const close = zoom >= 8;
+  const size = selected ? (close ? 10 : 14) : close ? 8 : 12;
+  el.style.width = `${size}px`;
+  el.style.height = `${size}px`;
   el.style.borderRadius = "2px";
   el.style.background = "#F7F8F9";
-  el.style.border = `${selected ? "3px" : "2px"} solid ${rejected ? "#8A8F98" : shortlisted ? "#163A34" : "#2A7A6F"}`;
-  el.style.boxShadow = selected ? "0 0 0 3px rgba(42,122,111,0.28)" : "0 0 0 1px rgba(26,30,36,0.2)";
+  el.style.border = `${selected ? "2px" : "1.5px"} solid ${rejected ? "#8A8F98" : shortlisted ? "#163A34" : "#2A7A6F"}`;
+  el.style.boxShadow = selected ? "0 0 0 2px rgba(42,122,111,0.22)" : "0 0 0 1px rgba(26,30,36,0.16)";
   el.style.cursor = "pointer";
-  el.style.opacity = rejected ? "0.7" : "1";
-  el.style.zIndex = selected ? "3" : "2";
+  el.style.opacity = close && !selected ? "0.55" : rejected ? "0.7" : "1";
+  el.style.zIndex = selected ? "3" : close ? "1" : "2";
   el.title = `${item.name} · Opportunity`;
   el.setAttribute("aria-label", `${item.name}, opportunity`);
 }
 
+function projectRingColor(outlook: Outlook): string {
+  const tone = outlookTone(outlook);
+  if (tone === "success") return "#3F6E5A";
+  if (tone === "warning") return "#8A6A3E";
+  if (tone === "critical") return "#8A5552";
+  return "#7A7F86";
+}
+
 function styleMarkerElement(el: HTMLElement, selected: boolean, project: MapProject) {
-  const outlook = markerColor(project.outlook);
-  el.style.width = selected ? "16px" : "13px";
-  el.style.height = selected ? "16px" : "13px";
+  const outlook = projectRingColor(project.outlook);
+  el.style.width = selected ? "15px" : "12px";
+  el.style.height = selected ? "15px" : "12px";
   el.style.borderRadius = "999px";
   el.style.background = "#F7F8F9";
-  el.style.border = `${selected ? "3px" : "2px"} solid ${outlook}`;
-  el.style.boxShadow = selected ? "0 0 0 3px rgba(42,122,111,0.32)" : "0 0 0 1px rgba(26,30,36,0.18)";
+  el.style.border = `${selected ? "2.5px" : "2px"} solid ${outlook}`;
+  el.style.boxShadow = selected ? "0 0 0 2px rgba(26,30,36,0.16)" : "0 0 0 1px rgba(26,30,36,0.14)";
   el.style.cursor = "pointer";
   el.style.zIndex = selected ? "4" : "3";
   el.title = `${project.name} · Project · team outlook ${project.outlook}`;

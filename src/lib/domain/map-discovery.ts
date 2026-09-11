@@ -130,12 +130,13 @@ export function opportunityFootprintsCollection(
     name: string;
     status: string;
     areaGeometry: MapGeoJsonGeometry | null;
+    promotedProjectId?: string | null;
   }>,
 ): MapGeoJsonFeatureCollection {
   return {
     type: "FeatureCollection",
     features: items.flatMap((item) => {
-      if (!item.areaGeometry) return [];
+      if (!item.areaGeometry || isPromotedMapOpportunity(item)) return [];
       return [
         {
           type: "Feature" as const,
@@ -147,6 +148,7 @@ export function opportunityFootprintsCollection(
             status: item.status,
             footprintStyle: opportunityFootprintStyle(item.status),
             kind: "opportunity-footprint",
+            id: item.slug,
           },
         },
       ];
@@ -194,4 +196,8 @@ export function opportunityFootprintStyle(status: string): "saved" | "shortliste
   if (status === "promoted") return "promoted";
   if (status === "shortlisted" || status === "strong_candidate") return "shortlisted";
   return "saved";
+}
+
+export function isPromotedMapOpportunity(item: { status: string; promotedProjectId?: string | null }): boolean {
+  return item.status === "promoted" || Boolean(item.promotedProjectId);
 }

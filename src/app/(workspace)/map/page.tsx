@@ -17,11 +17,18 @@ export const dynamic = "force-dynamic";
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ project?: string; change?: string; run?: string }>;
+  searchParams: Promise<{ project?: string; change?: string; run?: string; opportunity?: string; candidate?: string }>;
 }) {
   const params = await searchParams;
-  const [result, savedComparisons, localNetwork, planningArea, spatialMatches, changeTarget, opportunities, discoverySearches] =
-    await Promise.all([
+  const [
+    result,
+    savedComparisons,
+    localNetwork,
+    planningArea,
+    spatialMatches,
+    changeTarget,
+    opportunities,
+  ] = await Promise.all([
       getMapProjectsForCurrentOrganization(),
       getSavedComparisonsForCurrentOrganization(),
       getOfficialMapLayerLoad("local_network", SWEDEN_MAP_BOUNDS, 4.35),
@@ -29,8 +36,8 @@ export default async function Page({
       getOrganizationOfficialSpatialMatchesLoad(),
       params.change ? getOfficialChangeMapTarget(params.change) : Promise.resolve(null),
       listOpportunitiesForCurrentOrganization(),
-      listMapDiscoverySearches(),
     ]);
+  const discoverySearches = await listMapDiscoverySearches();
   return (
     <MapPage
       result={result}
@@ -52,6 +59,8 @@ export default async function Page({
           : null
       }
       initialRunId={params.run ?? null}
+      initialOpportunitySlug={params.opportunity ?? null}
+      initialCandidateId={params.candidate ?? null}
     />
   );
 }

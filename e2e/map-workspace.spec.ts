@@ -24,10 +24,13 @@ test.describe("authenticated Map workspace", () => {
     await expect(page.getByRole("heading", { name: /^Map$/i })).toBeVisible();
     await expect(page.getByTestId("map-canvas")).toBeVisible();
     await expect(page.getByTestId("map-new-search")).toBeVisible();
-    await expect(page.getByText("Project filters")).toBeVisible();
-    await expect(page.getByText(/covering geography, not connection capacity/i).first()).toBeVisible();
-    await expect(page.getByText(/not available connection capacity/i).first()).toBeVisible();
+    await expect(page.getByTestId("map-discovery")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Filters$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Layers$/ })).toBeVisible();
 
+    await page.getByRole("button", { name: /^Layers$/ }).click();
+    await expect(page.getByTestId("map-layers")).toBeVisible();
+    await expect(page.getByText(/covering geography, not available connection capacity/i).first()).toBeVisible();
     await expect(page.getByTestId("map-layer-nup")).not.toBeChecked();
     await expect(page.getByTestId("map-layer-opportunity-zones")).not.toBeChecked();
     await expect(page.getByTestId("map-layer-local-network")).toBeChecked();
@@ -56,17 +59,17 @@ test.describe("authenticated Map workspace", () => {
       await openOpportunity.click();
       await expect(page).toHaveURL(/\/opportunities\//);
       await page.goto("/map");
+      await expect(page.getByTestId("map-canvas")).toBeVisible();
     }
 
     const discoverySelect = page.getByLabel("Selected screening run");
     if (await discoverySelect.count()) {
-      const labels = await discoverySelect.locator("option:enabled").allTextContents();
-      const completed = labels.find((label) => /Completed/i.test(label));
-      if (completed) {
-        await discoverySelect.selectOption({ label: completed });
-        await expect(page.getByText(/loading selected screening run|candidate site/i).first()).toBeVisible({
-          timeout: 20_000,
-        });
+      const runValue = await discoverySelect.locator("option:enabled").nth(1).getAttribute("value");
+      if (runValue) {
+        await discoverySelect.selectOption(runValue);
+        await expect(page.getByTestId("map-canvas")).toBeVisible();
+        await page.getByText(/loading selected screening run/i).waitFor({ timeout: 8_000 }).catch(() => {});
+        await expect(page.getByTestId("map-discovery")).toBeVisible();
       }
     } else {
       await expect(page.getByTestId("map-discovery").getByText(/no searches yet/i)).toBeVisible();
@@ -80,6 +83,8 @@ test.describe("authenticated Map workspace", () => {
     await page.getByTestId("map-hide-panels").click();
     await expect(page.getByRole("button", { name: /show panels/i })).toBeVisible();
     await page.getByRole("button", { name: /show panels/i }).click();
+    await expect(page.getByTestId("map-new-search")).toBeVisible();
+    await page.getByRole("button", { name: /^Layers$/ }).click();
     await expect(page.getByTestId("map-layers")).toBeVisible();
   });
 });

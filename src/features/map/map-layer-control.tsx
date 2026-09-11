@@ -1,7 +1,6 @@
 "use client";
 
 import type { OfficialMapLayerVisibility } from "@/lib/domain/official-map";
-import { ChevronLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function MapLayerControl({
@@ -16,32 +15,26 @@ export function MapLayerControl({
   hasDiscoveryRun?: boolean;
 }) {
   return (
-    <section className="rounded-md border border-line bg-surface/95 p-3 text-xs backdrop-blur-sm" data-testid="map-layers">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-medium">Map layers</p>
-          <p className="mt-0.5 text-[11px] leading-4 text-muted">Development objects above official covering</p>
-        </div>
+    <section className="w-[16.5rem] rounded-md border border-line bg-surface p-2.5 text-xs" data-testid="map-layers">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-medium">Layers</p>
         {onCollapse ? (
-          <button
-            type="button"
-            onClick={onCollapse}
-            className="text-muted hover:text-ink"
-            aria-label="Collapse map layers"
-          >
-            <ChevronLeft size={14} />
+          <button type="button" onClick={onCollapse} className="text-muted hover:text-ink" aria-label="Close layers">
+            Close
           </button>
         ) : null}
       </div>
-      <LayerGroup title="Your development" subtitle="Customer entered">
+      <LayerGroup title="Your development">
         <LayerToggle
           checked={layers.projects}
           label="Projects"
+          provenance="Customer entered"
           onChange={(checked) => onChange({ ...layers, projects: checked })}
         />
         <LayerToggle
           checked={layers.opportunities}
           label="Opportunities"
+          provenance="Customer entered"
           onChange={(checked) => onChange({ ...layers, opportunities: checked })}
         />
         <LayerToggle
@@ -50,17 +43,19 @@ export function MapLayerControl({
           onChange={(checked) => onChange({ ...layers, rejectedOpportunities: checked })}
         />
       </LayerGroup>
-      <LayerGroup title="Discovery" subtitle={hasDiscoveryRun ? "Selected run · Noxheim Derived" : "Select a run to load"}>
+      <LayerGroup title="Discovery">
         <LayerToggle
           checked={layers.searchAreas}
           disabled={!hasDiscoveryRun}
           label="Search Area"
+          provenance={hasDiscoveryRun ? "Selected run" : "Select a run"}
           onChange={(checked) => onChange({ ...layers, searchAreas: checked })}
         />
         <LayerToggle
           checked={layers.candidateSites}
           disabled={!hasDiscoveryRun}
           label="Candidate Sites"
+          provenance={hasDiscoveryRun ? "Noxheim Derived" : undefined}
           onChange={(checked) => onChange({ ...layers, candidateSites: checked })}
         />
         <LayerToggle
@@ -71,16 +66,18 @@ export function MapLayerControl({
           onChange={(checked) => onChange({ ...layers, opportunityZones: checked })}
         />
       </LayerGroup>
-      <LayerGroup title="Official grid" subtitle="Grid Intelligence · covering geography, not capacity">
+      <LayerGroup title="Official grid" note="Covering geography, not available connection capacity.">
         <LayerToggle
           checked={layers.localNetwork}
           label="Local network areas"
+          provenance="Official Source"
           testId="map-layer-local-network"
           onChange={(checked) => onChange({ ...layers, localNetwork: checked })}
         />
         <LayerToggle
           checked={layers.planningArea}
           label="Network development plans"
+          provenance="Official Source"
           testId="map-layer-nup"
           onChange={(checked) => onChange({ ...layers, planningArea: checked })}
         />
@@ -91,18 +88,18 @@ export function MapLayerControl({
 
 function LayerGroup({
   title,
-  subtitle,
+  note,
   children,
 }: {
   title: string;
-  subtitle: string;
+  note?: string;
   children: ReactNode;
 }) {
   return (
     <div className="mt-2 border-t border-line pt-2">
-      <p className="font-medium text-ink">{title}</p>
-      <p className="mb-1.5 text-[11px] leading-4 text-muted">{subtitle}</p>
-      <div className="space-y-1.5">{children}</div>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">{title}</p>
+      <div className="mt-1.5 space-y-1">{children}</div>
+      {note ? <p className="mt-1.5 text-[11px] leading-4 text-muted">{note}</p> : null}
     </div>
   );
 }
@@ -110,27 +107,32 @@ function LayerGroup({
 function LayerToggle({
   checked,
   label,
+  provenance,
   onChange,
   disabled = false,
   testId,
 }: {
   checked: boolean;
   label: string;
+  provenance?: string;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   testId?: string;
 }) {
   return (
-    <label className={`flex items-center gap-2 text-sm ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+    <label className={`flex items-start gap-2 ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
-        className="accent-teal"
+        className="mt-0.5 accent-teal"
         data-testid={testId}
       />
-      {label}
+      <span>
+        <span className="block text-sm leading-4">{label}</span>
+        {provenance ? <span className="block text-[11px] leading-4 text-muted">{provenance}</span> : null}
+      </span>
     </label>
   );
 }

@@ -233,7 +233,7 @@ type SearchRow = {
   latest_run_id: string | null;
 };
 
-async function listRecentOpportunitySearches(organizationId: string): Promise<OpportunitySearchListItem[]> {
+export async function listRecentOpportunitySearches(organizationId: string): Promise<OpportunitySearchListItem[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("opportunity_searches")

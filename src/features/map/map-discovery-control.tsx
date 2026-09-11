@@ -1,8 +1,6 @@
 "use client";
 
-import { formatDate } from "@/lib/format";
 import {
-  discoveryGeographyLabel,
   discoveryRunStatusLabel,
   isCompletedDiscoveryRun,
   type MapDiscoverySearch,
@@ -25,12 +23,16 @@ export function MapDiscoveryControl({
   onClear: () => void;
 }) {
   const selectedSearch = searches.find((item) => item.latestRunId === selectedRunId) ?? null;
+  const candidateCount = selectedSearch?.returnedCount;
+  const status = selectedSearch ? discoveryRunStatusLabel(selectedSearch.latestRunStatus) : null;
   return (
-    <div className="flex min-w-[16rem] flex-col" data-testid="map-discovery">
-      <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
-        <span className="whitespace-nowrap text-muted">Discovery</span>
+    <div className="flex min-w-0 items-center gap-2 overflow-hidden" data-testid="map-discovery">
+      <label className="flex h-8 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
+        <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+          Discovery
+        </span>
         {searches.length === 0 ? (
-          <span className="text-ink">No searches yet</span>
+          <span className="pr-1 text-ink">No searches yet</span>
         ) : (
           <select
             value={selectedSearch?.searchId ?? ""}
@@ -45,36 +47,38 @@ export function MapDiscoveryControl({
               const search = searches.find((item) => item.searchId === value);
               if (search) onSelect(search);
             }}
-            className="max-w-[18rem] bg-transparent text-ink"
+            className="max-w-[14rem] bg-transparent text-ink lg:max-w-[18rem]"
           >
-            <option value="">No run selected</option>
+            <option value="">Select a run</option>
             {searches.map((search) => (
               <option
                 key={search.searchId}
                 value={search.searchId}
                 disabled={!isCompletedDiscoveryRun(search.latestRunStatus) || !search.latestRunId}
               >
-                {search.name} · {discoveryRunStatusLabel(search.latestRunStatus)} · {formatDate(search.createdAt)}
+                {search.name}
               </option>
             ))}
           </select>
         )}
       </label>
-      {searches.length === 0 ? (
-        <p className="mt-1 text-[11px] leading-4 text-muted">
-          Start by searching a development area.{" "}
-          <Link href="/opportunities/new" className="font-medium text-teal hover:underline">
-            New search
-          </Link>
-        </p>
-      ) : (
-        <p className="mt-1 text-[11px] leading-4 text-muted">
-          {selectedSearch
-            ? discoveryGeographyLabel(selectedSearch)
-            : "Select a completed screening run to load Candidate Sites."}
-        </p>
-      )}
-      {error ? <p className="mt-1 text-[11px] leading-4 text-critical">{error}</p> : null}
+      {selectedSearch && isCompletedDiscoveryRun(selectedSearch.latestRunStatus) ? (
+        <>
+          <span className="hidden whitespace-nowrap text-[11px] text-muted 2xl:inline">
+            {candidateCount != null ? `${candidateCount} Candidate Sites` : "Candidate Sites"}
+            {status ? ` · ${status.toLowerCase()}` : ""}
+          </span>
+          {selectedSearch.latestRunId ? (
+            <Link
+              href={`/opportunities/searches/${selectedSearch.searchId}/runs/${selectedSearch.latestRunId}`}
+              className="hidden whitespace-nowrap text-[11px] font-medium text-teal hover:underline xl:inline"
+            >
+              View results →
+            </Link>
+          ) : null}
+        </>
+      ) : null}
+      {error ? <p className="max-w-[12rem] truncate text-[11px] text-critical">{error}</p> : null}
     </div>
   );
 }

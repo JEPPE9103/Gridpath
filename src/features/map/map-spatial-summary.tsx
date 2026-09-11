@@ -18,7 +18,7 @@ export function MapSpatialSummary({
 }) {
   const degraded = matchesStatus === "unavailable" || localNetworkStatus === "unavailable";
   return (
-    <section className="rounded-md border border-line bg-surface/95 p-3 text-xs backdrop-blur-sm">
+    <section className="rounded-md border border-line bg-canvas p-2.5 text-xs">
       <p className="font-medium">Official grid context</p>
       {degraded ? (
         <p className="mt-2 text-sm text-ink" data-testid="map-official-degraded">

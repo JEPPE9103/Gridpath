@@ -1,5 +1,5 @@
-import { cache } from "react";
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { listRecentOpportunitySearches } from "@/lib/data/opportunities";
 import { getOpportunitySearchRun, type OpportunityRunCandidate } from "@/lib/data/opportunity-runs";
 import { toNumber } from "@/lib/data/row-utils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -8,8 +8,6 @@ import {
   type MapDiscoverySearch,
   type MapGeoJsonFeatureCollection,
 } from "@/lib/domain/map-discovery";
-
-const MAP_SEARCH_LIMIT = 8;
 
 export type MapDiscoveryRunPayload = {
   searchId: string;
@@ -26,75 +24,74 @@ export type MapDiscoveryRunPayload = {
   providerAvailability: Record<string, boolean>;
 };
 
-type SearchRow = {
-  id: string;
-  name: string | null;
-  created_at: string;
-  latest_run_id: string | null;
-};
+type Bbox = { west: number | null; south: number | null; east: number | null; north: number | null };
 
-type RunRow = {
-  id: string;
-  search_id: string;
-  status: string;
-  returned_count: number | string | null;
-  west: number | string | null;
-  south: number | string | null;
-  east: number | string | null;
-  north: number | string | null;
-  completed_at: string | null;
-  started_at: string | null;
-};
+function asBbox(row: {
+  west?: number | string | null;
+  south?: number | string | null;
+  east?: number | string | null;
+  north?: number | string | null;
+}): Bbox {
+  return {
+    west: row.west == null ? null : toNumber(row.west),
+    south: row.south == null ? null : toNumber(row.south),
+    east: row.east == null ? null : toNumber(row.east),
+    north: row.north == null ? null : toNumber(row.north),
+  };
+}
 
-export const listMapDiscoverySearches = cache(async (): Promise<MapDiscoverySearch[]> => {
+export async function listMapDiscoverySearches(): Promise<MapDiscoverySearch[]> {
   const organization = await getCurrentOrganization();
   if (!organization) return [];
+  const recent = await listRecentOpportunitySearches(organization.id);
+  if (recent.length === 0) return [];
+  const runIds = recent.map((item) => item.latestRunId).filter((id): id is string => Boolean(id));
+  const searchIds = recent.map((item) => item.id);
+  const runBbox = new Map<string, Bbox>();
+  const searchBbox = new Map<string, Bbox>();
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  if (runIds.length > 0) {
+    const { data: runs, error: runError } = await supabase
+      .from("opportunity_search_runs")
+      .select("id, west, south, east, north")
+      .eq("organization_id", organization.id)
+      .in("id", runIds);
+    if (runError) {
+      console.error("listMapDiscoverySearches run bbox failed", runError.message);
+    } else {
+      for (const run of runs ?? []) {
+        runBbox.set(run.id, asBbox(run));
+      }
+    }
+  }
+  const { data: searches, error: searchError } = await supabase
     .from("opportunity_searches")
-    .select("id, name, created_at, latest_run_id")
+    .select("id, west, south, east, north")
     .eq("organization_id", organization.id)
-    .order("created_at", { ascending: false })
-    .limit(MAP_SEARCH_LIMIT);
-  if (error) {
-    console.error("listMapDiscoverySearches failed", error.message);
-    return [];
+    .in("id", searchIds);
+  if (searchError) {
+    console.error("listMapDiscoverySearches search bbox failed", searchError.message);
+  } else {
+    for (const search of searches ?? []) {
+      searchBbox.set(search.id, asBbox(search));
+    }
   }
-  const rows = (data ?? []) as SearchRow[];
-  if (rows.length === 0) return [];
-  const searchIds = rows.map((row) => row.id);
-  const { data: runs, error: runError } = await supabase
-    .from("opportunity_search_runs")
-    .select("id, search_id, status, returned_count, west, south, east, north, completed_at, started_at")
-    .eq("organization_id", organization.id)
-    .in("search_id", searchIds)
-    .order("started_at", { ascending: false });
-  if (runError) {
-    console.error("listMapDiscoverySearches runs failed", runError.message);
-  }
-  const latestBySearch = new Map<string, RunRow>();
-  for (const run of (runs ?? []) as RunRow[]) {
-    if (!latestBySearch.has(run.search_id)) latestBySearch.set(run.search_id, run);
-  }
-  return rows.map((row) => {
-    const preferred = row.latest_run_id
-      ? ((runs ?? []) as RunRow[]).find((run) => run.id === row.latest_run_id)
-      : undefined;
-    const run = preferred ?? latestBySearch.get(row.id);
+  return recent.map((item) => {
+    const bbox = (item.latestRunId ? runBbox.get(item.latestRunId) : undefined) ?? searchBbox.get(item.id);
     return {
-      searchId: row.id,
-      name: row.name?.trim() || "Untitled search",
-      createdAt: run?.completed_at || run?.started_at || row.created_at,
-      latestRunId: run?.id ?? row.latest_run_id,
-      latestRunStatus: run?.status ?? null,
-      returnedCount: run?.returned_count == null ? null : toNumber(run.returned_count),
-      west: run?.west == null ? null : toNumber(run.west),
-      south: run?.south == null ? null : toNumber(run.south),
-      east: run?.east == null ? null : toNumber(run.east),
-      north: run?.north == null ? null : toNumber(run.north),
+      searchId: item.id,
+      name: item.name,
+      createdAt: item.createdAt,
+      latestRunId: item.latestRunId,
+      latestRunStatus: item.latestRunStatus,
+      returnedCount: item.returnedCount,
+      west: bbox?.west ?? null,
+      south: bbox?.south ?? null,
+      east: bbox?.east ?? null,
+      north: bbox?.north ?? null,
     };
   });
-});
+}
 
 export async function getMapDiscoveryRun(
   searchId: string,
