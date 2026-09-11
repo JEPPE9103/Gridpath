@@ -6,6 +6,14 @@ import { markerColor, STYLE } from "@/features/map/mini-map";
 import type { MapProject } from "@/lib/data/map-types";
 import type { OpportunityListItem } from "@/lib/data/opportunities";
 import type { OfficialCoveringGeojson } from "@/lib/data/official-map";
+import {
+  EMPTY_DISCOVERY_GEOJSON,
+  opportunityFootprintFilter,
+  screeningLayerFilter,
+  searchAreaBboxCollection,
+  type MapGeoJsonFeatureCollection,
+  type MapSearchArea,
+} from "@/lib/domain/map-discovery";
 import type {
   OfficialMapAreaPreview,
   OfficialMapCachedViewport,
@@ -34,32 +42,55 @@ const LOCAL_SOURCE = "official-local-network";
 const NUP_SOURCE = "official-nup";
 const COVER_SOURCE = "official-covering";
 const CHANGE_HIGHLIGHT_SOURCE = "official-change-highlight";
+const ZONES_SOURCE = "map-opportunity-zones";
+const SEARCH_AREA_SOURCE = "map-search-area";
+const CANDIDATES_SOURCE = "map-candidates";
+const OPP_FOOTPRINT_SOURCE = "map-opportunity-footprints";
+const DEVELOPMENT_FILL_LAYERS = ["map-candidates-fill", "map-opportunity-footprints-fill"] as const;
 
 export const SwedenMap = memo(function SwedenMap({
   projects,
   opportunities = [],
   selectedId,
+  selectedOpportunitySlug = null,
+  selectedCandidateId = null,
   layers,
   localNetwork,
   planningArea,
   covering,
   highlightAreaId,
   highlightLayer,
+  discoveryGeojson = EMPTY_DISCOVERY_GEOJSON,
+  searchArea = null,
+  opportunityFootprints = EMPTY_DISCOVERY_GEOJSON,
+  discoveryFitKey = null,
+  discoveryLoading = false,
+  fitPadding = 56,
   onSelectProject,
   onSelectOpportunity,
+  onSelectCandidate,
   onSelectOfficial,
 }: {
   projects: MapProject[];
   opportunities?: OpportunityListItem[];
   selectedId: string | null;
+  selectedOpportunitySlug?: string | null;
+  selectedCandidateId?: string | null;
   layers: OfficialMapLayerVisibility;
   localNetwork: OfficialMapFeatureCollection;
   planningArea: OfficialMapFeatureCollection;
   covering: OfficialCoveringGeojson | null;
   highlightAreaId?: string | null;
   highlightLayer?: OfficialMapLayer | null;
+  discoveryGeojson?: MapGeoJsonFeatureCollection;
+  searchArea?: MapSearchArea | null;
+  opportunityFootprints?: MapGeoJsonFeatureCollection;
+  discoveryFitKey?: string | null;
+  discoveryLoading?: boolean;
+  fitPadding?: number | { top: number; right: number; bottom: number; left: number };
   onSelectProject: (slug: string) => void;
   onSelectOpportunity?: (slug: string) => void;
+  onSelectCandidate?: (id: string) => void;
   onSelectOfficial: (input: OfficialMapAreaPreview) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -69,7 +100,9 @@ export const SwedenMap = memo(function SwedenMap({
   const collectionsRef = useRef({ localNetwork, planningArea });
   const onSelectProjectRef = useRef(onSelectProject);
   const onSelectOpportunityRef = useRef(onSelectOpportunity);
+  const onSelectCandidateRef = useRef(onSelectCandidate);
   const onSelectOfficialRef = useRef(onSelectOfficial);
+  const lastDiscoveryFitRef = useRef<string | null>(null);
   const markersRef = useRef(new Map<string, Marker>());
   const opportunityMarkersRef = useRef(new Map<string, Marker>());
   const fetchKeyRef = useRef("overview");
@@ -83,6 +116,7 @@ export const SwedenMap = memo(function SwedenMap({
 
   onSelectProjectRef.current = onSelectProject;
   onSelectOpportunityRef.current = onSelectOpportunity;
+  onSelectCandidateRef.current = onSelectCandidate;
   onSelectOfficialRef.current = onSelectOfficial;
   coveringRef.current = covering;
 
@@ -133,7 +167,7 @@ export const SwedenMap = memo(function SwedenMap({
     mapRef.current = map;
     map.once("load", () => {
       if (cancelled || !map) return;
-      addOfficialLayers(map);
+      addMapLayers(map);
       setSourceData(map, LOCAL_SOURCE, collectionsRef.current.localNetwork);
       setSourceData(map, NUP_SOURCE, collectionsRef.current.planningArea);
       setMapReady(true);
@@ -189,7 +223,49 @@ export const SwedenMap = memo(function SwedenMap({
       "visibility",
       layers.planningArea ? "visible" : "none",
     );
-  }, [layers.localNetwork, layers.planningArea, mapReady]);
+    if (map.getLayer("map-search-area-line")) {
+      map.setLayoutProperty(
+        "map-search-area-line",
+        "visibility",
+        layers.searchAreas && searchArea ? "visible" : "none",
+      );
+    }
+    const siteFilter = screeningLayerFilter(layers.candidateSites, false);
+    const zoneFilter = screeningLayerFilter(false, layers.opportunityZones);
+    if (map.getLayer("map-zones-fill")) {
+      map.setFilter("map-zones-fill", zoneFilter as never);
+      map.setFilter("map-zones-line", zoneFilter as never);
+    }
+    if (map.getLayer("map-candidates-fill")) {
+      map.setFilter("map-candidates-fill", siteFilter as never);
+      map.setFilter("map-candidates-line", siteFilter as never);
+    }
+    if (map.getLayer("map-opportunity-footprints-fill")) {
+      const footprintFilter = opportunityFootprintFilter(
+        layers.opportunities,
+        layers.rejectedOpportunities,
+      );
+      map.setFilter("map-opportunity-footprints-fill", footprintFilter as never);
+      map.setFilter("map-opportunity-footprints-line", footprintFilter as never);
+    }
+    if (map.getLayer("map-candidates-selected")) {
+      map.setLayoutProperty(
+        "map-candidates-selected",
+        "visibility",
+        layers.candidateSites ? "visible" : "none",
+      );
+    }
+  }, [
+    layers.localNetwork,
+    layers.planningArea,
+    layers.searchAreas,
+    layers.candidateSites,
+    layers.opportunityZones,
+    layers.opportunities,
+    layers.rejectedOpportunities,
+    searchArea,
+    mapReady,
+  ]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -205,6 +281,56 @@ export const SwedenMap = memo(function SwedenMap({
       provenance: null,
     });
   }, [covering, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    setDiscoverySourceData(map, CANDIDATES_SOURCE, discoveryGeojson);
+    setDiscoverySourceData(map, ZONES_SOURCE, discoveryGeojson);
+  }, [discoveryGeojson, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    setDiscoverySourceData(map, SEARCH_AREA_SOURCE, searchAreaBboxCollection(searchArea));
+  }, [searchArea, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    setDiscoverySourceData(map, OPP_FOOTPRINT_SOURCE, opportunityFootprints);
+  }, [opportunityFootprints, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !map.getLayer("map-candidates-selected")) return;
+    map.setFilter("map-candidates-selected", ["==", ["get", "id"], selectedCandidateId ?? ""]);
+  }, [selectedCandidateId, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !map.getLayer("map-opportunity-footprints-selected")) return;
+    map.setFilter("map-opportunity-footprints-selected", [
+      "==",
+      ["get", "slug"],
+      selectedOpportunitySlug ?? "",
+    ]);
+  }, [selectedOpportunitySlug, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    if (!discoveryFitKey || !searchArea) return;
+    if (lastDiscoveryFitRef.current === discoveryFitKey) return;
+    lastDiscoveryFitRef.current = discoveryFitKey;
+    map.fitBounds(
+      [
+        [searchArea.west, searchArea.south],
+        [searchArea.east, searchArea.north],
+      ],
+      { padding: fitPadding, maxZoom: 10, duration: 420 },
+    );
+  }, [discoveryFitKey, searchArea, mapReady, fitPadding]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -231,6 +357,25 @@ export const SwedenMap = memo(function SwedenMap({
     const map = mapRef.current;
     if (!map || !mapReady) return;
     const handleClick = (event: MapMouseEvent) => {
+    const existingDevelopment = DEVELOPMENT_FILL_LAYERS.filter((id) => map.getLayer(id));
+    const developmentHits = existingDevelopment.length
+      ? map.queryRenderedFeatures(event.point, { layers: [...existingDevelopment] })
+      : [];
+      const development = developmentHits[0];
+      if (development?.layer?.id === "map-candidates-fill") {
+        const id = development.properties?.id;
+        if (typeof id === "string") {
+          onSelectCandidateRef.current?.(id);
+          return;
+        }
+      }
+      if (development?.layer?.id === "map-opportunity-footprints-fill") {
+        const slug = development.properties?.slug;
+        if (typeof slug === "string") {
+          onSelectOpportunityRef.current?.(slug);
+          return;
+        }
+      }
       const hits = map.queryRenderedFeatures(event.point, {
         layers: [
           "official-local-network-fill",
@@ -253,6 +398,8 @@ export const SwedenMap = memo(function SwedenMap({
       onSelectOfficialRef.current(preview);
     };
     const interactiveLayers = [
+      "map-candidates-fill",
+      "map-opportunity-footprints-fill",
       "official-local-network-fill",
       "official-nup-fill",
       "official-covering-fill",
@@ -518,12 +665,12 @@ export const SwedenMap = memo(function SwedenMap({
       const existing = markers.get(item.slug);
       if (existing) {
         existing.setLngLat([item.longitude as number, item.latitude as number]);
-        styleOpportunityMarker(existing.getElement(), item);
+        styleOpportunityMarker(existing.getElement(), item, selectedOpportunitySlug === item.slug);
         continue;
       }
       const el = document.createElement("button");
       el.type = "button";
-      styleOpportunityMarker(el, item);
+      styleOpportunityMarker(el, item, selectedOpportunitySlug === item.slug);
       el.onclick = (event) => {
         event.stopPropagation();
         onSelectOpportunityRef.current?.(item.slug);
@@ -533,7 +680,7 @@ export const SwedenMap = memo(function SwedenMap({
         new Marker({ element: el }).setLngLat([item.longitude as number, item.latitude as number]).addTo(map),
       );
     }
-  }, [opportunities, mapReady, layers.opportunities, layers.rejectedOpportunities]);
+  }, [opportunities, mapReady, layers.opportunities, layers.rejectedOpportunities, selectedOpportunitySlug]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -556,7 +703,12 @@ export const SwedenMap = memo(function SwedenMap({
 
   return (
     <div className="relative h-full w-full">
-      <div ref={containerRef} className="h-full w-full bg-[#e4e9ee]" />
+      <div ref={containerRef} className="h-full w-full bg-[#e4e9ee]" data-testid="map-canvas" />
+      {discoveryLoading ? (
+        <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-md border border-line bg-surface/95 px-3 py-1.5 text-xs text-muted shadow-sm">
+          Loading selected screening run…
+        </div>
+      ) : null}
       {initError ? (
         <div className="absolute inset-0 flex items-center justify-center bg-surface p-6 text-center text-sm text-muted">
           Could not start the map. Refresh the page. If it continues, restart the local app.
@@ -566,7 +718,7 @@ export const SwedenMap = memo(function SwedenMap({
   );
 });
 
-function addOfficialLayers(map: MapLibreMap) {
+function addMapLayers(map: MapLibreMap) {
   const empty = { type: "FeatureCollection" as const, features: [] as Array<Record<string, unknown>> };
   const source = {
     type: "geojson" as const,
@@ -574,18 +726,38 @@ function addOfficialLayers(map: MapLibreMap) {
     promoteId: "id",
     tolerance: 1.4,
   };
+  map.addSource(ZONES_SOURCE, { ...source, data: { ...empty } as never, promoteId: "id" });
   map.addSource(LOCAL_SOURCE, { ...source, data: { ...empty } as never });
   map.addSource(NUP_SOURCE, { ...source, data: { ...empty } as never });
+  map.addSource(SEARCH_AREA_SOURCE, { ...source, data: { ...empty } as never, tolerance: 0.4 });
+  map.addSource(CANDIDATES_SOURCE, { ...source, data: { ...empty } as never, tolerance: 0.4 });
+  map.addSource(OPP_FOOTPRINT_SOURCE, { ...source, data: { ...empty } as never, tolerance: 0.4 });
   map.addSource(COVER_SOURCE, { ...source, data: { ...empty } as never, tolerance: 0.8 });
   map.addSource(CHANGE_HIGHLIGHT_SOURCE, { ...source, data: { ...empty } as never, tolerance: 0.8 });
 
+  map.addLayer({
+    id: "map-zones-fill",
+    type: "fill",
+    source: ZONES_SOURCE,
+    filter: ["==", ["get", "candidateKind"], "zone"],
+    layout: { visibility: "none" },
+    paint: { "fill-color": "#C5CCD6", "fill-opacity": 0.12 },
+  });
+  map.addLayer({
+    id: "map-zones-line",
+    type: "line",
+    source: ZONES_SOURCE,
+    filter: ["==", ["get", "candidateKind"], "zone"],
+    layout: { visibility: "none", "line-join": "round", "line-cap": "round" },
+    paint: { "line-color": "#8A8F98", "line-width": 0.6, "line-opacity": 0.35 },
+  });
   map.addLayer({
     id: "official-nup-fill",
     type: "fill",
     source: NUP_SOURCE,
     paint: {
       "fill-color": NUP_FILL,
-      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.07, 6, 0.1, 9, 0.16],
+      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.03, 6, 0.05, 9, 0.08],
     },
   });
   map.addLayer({
@@ -594,8 +766,8 @@ function addOfficialLayers(map: MapLibreMap) {
     source: NUP_SOURCE,
     paint: {
       "line-color": NUP_FILL,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 3.8, 0.9, 6, 1.15, 9, 1.5],
-      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.7, 6, 0.82],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 3.8, 0.6, 6, 0.85, 9, 1.15],
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.45, 6, 0.58],
     },
     layout: { "line-join": "round", "line-cap": "round" },
   });
@@ -605,7 +777,7 @@ function addOfficialLayers(map: MapLibreMap) {
     source: LOCAL_SOURCE,
     paint: {
       "fill-color": LOCAL_NETWORK_FILL,
-      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.09, 6, 0.12, 9, 0.18],
+      "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.04, 6, 0.07, 9, 0.1],
     },
   });
   map.addLayer({
@@ -614,8 +786,80 @@ function addOfficialLayers(map: MapLibreMap) {
     source: LOCAL_SOURCE,
     paint: {
       "line-color": LOCAL_NETWORK_FILL,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 3.8, 1, 6, 1.25, 9, 1.7],
-      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.78, 6, 0.9],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 3.8, 0.7, 6, 0.95, 9, 1.25],
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3.8, 0.5, 6, 0.62],
+    },
+    layout: { "line-join": "round", "line-cap": "round" },
+  });
+  map.addLayer({
+    id: "map-search-area-line",
+    type: "line",
+    source: SEARCH_AREA_SOURCE,
+    paint: { "line-color": "#1A1E24", "line-width": 1.15, "line-dasharray": [2, 1.4], "line-opacity": 0.55 },
+    layout: { "line-join": "round", "line-cap": "round" },
+  });
+  map.addLayer({
+    id: "map-candidates-fill",
+    type: "fill",
+    source: CANDIDATES_SOURCE,
+    filter: ["==", ["get", "candidateKind"], "site"],
+    paint: {
+      "fill-color": [
+        "case",
+        ["==", ["get", "excluded"], true],
+        "#D0D3D8",
+        ["==", ["get", "recommendation"], "prioritise"],
+        "#176C4A",
+        ["==", ["get", "recommendation"], "investigate"],
+        "#0F6C8D",
+        ["==", ["get", "recommendation"], "secondary"],
+        "#B54708",
+        "#8B9098",
+      ],
+      "fill-opacity": 0.5,
+    },
+  });
+  map.addLayer({
+    id: "map-candidates-line",
+    type: "line",
+    source: CANDIDATES_SOURCE,
+    filter: ["==", ["get", "candidateKind"], "site"],
+    paint: { "line-color": "#1A1E24", "line-width": 0.9, "line-opacity": 0.75 },
+    layout: { "line-join": "round", "line-cap": "round" },
+  });
+  map.addLayer({
+    id: "map-opportunity-footprints-fill",
+    type: "fill",
+    source: OPP_FOOTPRINT_SOURCE,
+    paint: {
+      "fill-color": [
+        "match",
+        ["get", "footprintStyle"],
+        "shortlisted",
+        "#163A34",
+        "rejected",
+        "#8A8F98",
+        "#2A7A6F",
+      ],
+      "fill-opacity": ["match", ["get", "footprintStyle"], "rejected", 0.1, "shortlisted", 0.28, 0.2],
+    },
+  });
+  map.addLayer({
+    id: "map-opportunity-footprints-line",
+    type: "line",
+    source: OPP_FOOTPRINT_SOURCE,
+    paint: {
+      "line-color": [
+        "match",
+        ["get", "footprintStyle"],
+        "shortlisted",
+        "#163A34",
+        "rejected",
+        "#8A8F98",
+        "#2A7A6F",
+      ],
+      "line-width": ["match", ["get", "footprintStyle"], "shortlisted", 1.7, "rejected", 0.9, 1.35],
+      "line-opacity": 0.85,
     },
     layout: { "line-join": "round", "line-cap": "round" },
   });
@@ -651,32 +895,52 @@ function addOfficialLayers(map: MapLibreMap) {
     paint: { "line-color": "#163A34", "line-width": 3.4 },
     layout: { "line-join": "round", "line-cap": "round" },
   });
+  map.addLayer({
+    id: "map-candidates-selected",
+    type: "line",
+    source: CANDIDATES_SOURCE,
+    filter: ["==", ["get", "id"], ""],
+    paint: { "line-color": "#0B3D2E", "line-width": 2.6 },
+    layout: { "line-join": "round", "line-cap": "round" },
+  });
+  map.addLayer({
+    id: "map-opportunity-footprints-selected",
+    type: "line",
+    source: OPP_FOOTPRINT_SOURCE,
+    filter: ["==", ["get", "slug"], ""],
+    paint: { "line-color": "#0B3D2E", "line-width": 2.8 },
+    layout: { "line-join": "round", "line-cap": "round" },
+  });
 }
 
-function styleOpportunityMarker(el: HTMLElement, item: OpportunityListItem) {
+function styleOpportunityMarker(el: HTMLElement, item: OpportunityListItem, selected = false) {
   const rejected = item.status === "rejected";
   const shortlisted = item.status === "shortlisted" || item.status === "strong_candidate";
-  el.style.width = shortlisted ? "13px" : "12px";
-  el.style.height = shortlisted ? "13px" : "12px";
+  el.style.width = selected ? "15px" : shortlisted ? "13px" : "12px";
+  el.style.height = selected ? "15px" : shortlisted ? "13px" : "12px";
   el.style.borderRadius = "2px";
-  el.style.background = rejected ? "#8A8F98" : shortlisted ? "#163A34" : "#2A7A6F";
-  el.style.border = "2px solid white";
-  el.style.boxShadow = "0 0 0 1px rgba(26,30,36,0.25)";
+  el.style.background = "#F7F8F9";
+  el.style.border = `${selected ? "3px" : "2px"} solid ${rejected ? "#8A8F98" : shortlisted ? "#163A34" : "#2A7A6F"}`;
+  el.style.boxShadow = selected ? "0 0 0 3px rgba(42,122,111,0.28)" : "0 0 0 1px rgba(26,30,36,0.2)";
   el.style.cursor = "pointer";
   el.style.opacity = rejected ? "0.7" : "1";
+  el.style.zIndex = selected ? "3" : "2";
   el.title = `${item.name} · Opportunity`;
+  el.setAttribute("aria-label", `${item.name}, opportunity`);
 }
 
 function styleMarkerElement(el: HTMLElement, selected: boolean, project: MapProject) {
-  el.style.width = selected ? "18px" : "14px";
-  el.style.height = selected ? "18px" : "14px";
+  const outlook = markerColor(project.outlook);
+  el.style.width = selected ? "16px" : "13px";
+  el.style.height = selected ? "16px" : "13px";
   el.style.borderRadius = "999px";
-  el.style.background = markerColor(project.outlook);
-  el.style.border = "2px solid white";
-  el.style.boxShadow = selected ? "0 0 0 3px rgba(42,122,111,0.35)" : "0 0 0 1px rgba(26,30,36,0.2)";
+  el.style.background = "#F7F8F9";
+  el.style.border = `${selected ? "3px" : "2px"} solid ${outlook}`;
+  el.style.boxShadow = selected ? "0 0 0 3px rgba(42,122,111,0.32)" : "0 0 0 1px rgba(26,30,36,0.18)";
   el.style.cursor = "pointer";
-  el.style.zIndex = selected ? "2" : "1";
-  el.title = project.name;
+  el.style.zIndex = selected ? "4" : "3";
+  el.title = `${project.name} · Project · team outlook ${project.outlook}`;
+  el.setAttribute("aria-label", `${project.name}, project`);
 }
 
 function findHighlightFeature(
@@ -748,6 +1012,25 @@ function inferOfficialLayer(
     return "planning_area";
   }
   return "local_network";
+}
+
+function setDiscoverySourceData(map: MapLibreMap, sourceId: string, collection: MapGeoJsonFeatureCollection) {
+  const source = map.getSource(sourceId) as GeoJSONSource | undefined;
+  if (!source) return;
+  source.setData({
+    type: "FeatureCollection",
+    features: collection.features.flatMap((feature) => {
+      if (!feature.geometry) return [];
+      return [
+        {
+          type: "Feature" as const,
+          id: feature.id ?? (typeof feature.properties.id === "string" ? feature.properties.id : undefined),
+          geometry: feature.geometry as never,
+          properties: feature.properties,
+        },
+      ];
+    }),
+  });
 }
 
 function setSourceData(map: MapLibreMap, sourceId: string, collection: OfficialMapFeatureCollection) {

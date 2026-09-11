@@ -6,18 +6,22 @@ import { SavedComparisonsList } from "@/features/compare/saved-comparisons-list"
 import { BellButton } from "@/components/layout/app-shell";
 import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
-import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
+import { EmptyState, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { MapCandidatePanel } from "@/features/map/map-candidate-panel";
+import { MapDiscoveryControl } from "@/features/map/map-discovery-control";
 import { MapGridContextCard } from "@/features/map/map-grid-context";
 import { MapLayerControl } from "@/features/map/map-layer-control";
 import { MapLegend } from "@/features/map/map-legend";
 import { MapOfficialPanel } from "@/features/map/map-official-panel";
+import { MapOpportunityPanel } from "@/features/map/map-opportunity-panel";
 import { MapSpatialSummary } from "@/features/map/map-spatial-summary";
 import { SwedenMap } from "@/features/map/sweden-map";
 import { markerColor } from "@/features/map/mini-map";
 import { cn } from "@/lib/cn";
 import { formatOutlookLabel } from "@/lib/format";
-import type { OfficialCoveringGeojson, OfficialMapAreaContext } from "@/lib/data/official-map";
+import type { MapDiscoveryRunPayload } from "@/lib/data/map-discovery";
+import type { OfficialCoveringGeojson, OfficialLoadStatus, OfficialMapAreaContext } from "@/lib/data/official-map";
 import type { MapProject, MapProjectsResult } from "@/lib/data/map-types";
 import type { OpportunityListItem } from "@/lib/data/opportunities";
 import type { SavedComparisonsResult } from "@/lib/data/portfolio-comparisons";
@@ -31,7 +35,14 @@ import {
   type OfficialMapLayer,
   type OfficialSpatialMatch,
 } from "@/lib/domain/official-map";
-import { loadOfficialCoveringAction, loadOfficialMapAreaContextAction } from "@/lib/map/actions";
+import {
+  EMPTY_DISCOVERY_GEOJSON,
+  opportunityFootprintsCollection,
+  isCompletedDiscoveryRun,
+  type MapDiscoverySearch,
+  type MapSearchArea,
+} from "@/lib/domain/map-discovery";
+import { loadMapDiscoveryRunAction, loadOfficialCoveringAction, loadOfficialMapAreaContextAction } from "@/lib/map/actions";
 import {
   getCachedValue,
   peekCachedValue,
@@ -66,26 +77,36 @@ const EMPTY_FILTERS = {
 export function MapPage({
   result,
   opportunities = [],
+  discoverySearches = [],
   savedComparisons,
   localNetwork,
   planningArea,
   spatialMatches,
+  officialStatus,
   initialProjectSlug,
   initialChangeArea,
+  initialRunId,
 }: {
   result: MapProjectsResult;
   opportunities?: OpportunityListItem[];
+  discoverySearches?: MapDiscoverySearch[];
   savedComparisons: SavedComparisonsResult;
   localNetwork: OfficialMapFeatureCollection;
   planningArea: OfficialMapFeatureCollection;
   spatialMatches: OfficialSpatialMatch[];
+  officialStatus?: {
+    localNetwork: OfficialLoadStatus;
+    planningArea: OfficialLoadStatus;
+    matches: OfficialLoadStatus;
+  };
   initialProjectSlug?: string | null;
   initialChangeArea?: { areaId: string; layer: OfficialMapLayer } | null;
+  initialRunId?: string | null;
 }) {
   if (result.kind === "no_organization") {
     return (
       <>
-        <PageHeader eyebrow="Discover" title="Map" subtitle="Portfolio geography and official covering layers" />
+        <PageHeader eyebrow="Discover" title="Map" subtitle="One spatial workspace from screening to development" />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
             title="No workspace yet"
@@ -100,7 +121,7 @@ export function MapPage({
   if (result.kind === "error") {
     return (
       <>
-        <PageHeader eyebrow="Discover" title="Map" subtitle="Portfolio geography and official covering layers" />
+        <PageHeader eyebrow="Discover" title="Map" subtitle="One spatial workspace from screening to development" />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
           <ErrorState
             title="Could not load map"
@@ -111,37 +132,19 @@ export function MapPage({
     );
   }
 
-  if (result.projects.length === 0 && opportunities.length === 0) {
-    return (
-      <>
-        <PageHeader eyebrow="Discover" title="Map" subtitle="Portfolio geography and official covering layers" />
-        <div className="space-y-4 px-4 py-8 sm:px-6 lg:px-8">
-          <EmptyState
-            title="No projects or opportunities on the map yet"
-            description="Add a project, or run a search and save a Candidate Site, to place it on the Map. Saved team comparisons still appear below."
-            action={<EmptyProjectsAction />}
-          />
-          {savedComparisons.kind === "ok" ? (
-            <SavedComparisonsList
-              comparisons={savedComparisons.comparisons}
-              canWrite={savedComparisons.canWrite}
-            />
-          ) : null}
-        </div>
-      </>
-    );
-  }
-
   return (
     <LoadedMapPage
       projects={result.projects}
       opportunities={opportunities}
+      discoverySearches={discoverySearches}
       savedComparisons={savedComparisons.kind === "ok" ? savedComparisons : null}
       localNetwork={localNetwork}
       planningArea={planningArea}
       spatialMatches={spatialMatches}
+      officialStatus={officialStatus ?? { localNetwork: "available", planningArea: "available", matches: "available" }}
       initialProjectSlug={initialProjectSlug ?? null}
       initialChangeArea={initialChangeArea ?? null}
+      initialRunId={initialRunId ?? null}
     />
   );
 }
@@ -149,25 +152,37 @@ export function MapPage({
 function LoadedMapPage({
   projects,
   opportunities,
+  discoverySearches,
   savedComparisons,
   localNetwork,
   planningArea,
   spatialMatches,
+  officialStatus,
   initialProjectSlug,
   initialChangeArea,
+  initialRunId,
 }: {
   projects: MapProject[];
   opportunities: OpportunityListItem[];
+  discoverySearches: MapDiscoverySearch[];
   savedComparisons: Extract<SavedComparisonsResult, { kind: "ok" }> | null;
   localNetwork: OfficialMapFeatureCollection;
   planningArea: OfficialMapFeatureCollection;
   spatialMatches: OfficialSpatialMatch[];
+  officialStatus: {
+    localNetwork: OfficialLoadStatus;
+    planningArea: OfficialLoadStatus;
+    matches: OfficialLoadStatus;
+  };
   initialProjectSlug: string | null;
   initialChangeArea: { areaId: string; layer: OfficialMapLayer } | null;
+  initialRunId: string | null;
 }) {
   const router = useRouter();
   const { compareIds, addToCompare, removeFromCompare, clearCompare } = useWorkspace();
   const [selectedSlug, setSelectedSlug] = useState<string | null>(initialProjectSlug);
+  const [selectedOpportunitySlug, setSelectedOpportunitySlug] = useState<string | null>(null);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [layersCollapsed, setLayersCollapsed] = useState(false);
@@ -188,6 +203,10 @@ function LoadedMapPage({
   const [officialAreaId, setOfficialAreaId] = useState<string | null>(
     initialChangeArea?.areaId ?? null,
   );
+  const [coveringStatus, setCoveringStatus] = useState<OfficialLoadStatus | "loading">("loading");
+  const [discovery, setDiscovery] = useState<MapDiscoveryRunPayload | null>(null);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(initialRunId);
   const appliedChangeRef = useRef(false);
   const officialFetchGenRef = useRef(0);
 
@@ -233,10 +252,48 @@ function LoadedMapPage({
   const compared = projects.filter((project) => compareIds.includes(project.slug));
   const filtersActive = hasActiveFilters(filters) || unmatchedOnly;
 
-  const covering = selected?.id
-    ? (peekCachedValue<OfficialCoveringGeojson>("covering", selected.id) ??
-      (fetchedCovering?.projectId === selected.id ? fetchedCovering.covering : null))
+  const coveringFromCache = selected?.id
+    ? peekCachedValue<OfficialCoveringGeojson>("covering", selected.id)
     : null;
+  const covering = coveringFromCache ??
+    (selected?.id && fetchedCovering?.projectId === selected.id ? fetchedCovering.covering : null);
+  const coveringStatusResolved: OfficialLoadStatus | "loading" = coveringFromCache
+    ? "available"
+    : selected?.id && fetchedCovering?.projectId === selected.id
+      ? coveringStatus
+      : selected?.id
+        ? "loading"
+        : "available";
+  const selectedOpportunity =
+    selectedOpportunitySlug ? (opportunities.find((item) => item.slug === selectedOpportunitySlug) ?? null) : null;
+  const activeDiscovery = selectedRunId && discovery?.runId === selectedRunId ? discovery : null;
+  const selectedCandidate =
+    selectedCandidateId && activeDiscovery
+      ? (activeDiscovery.candidates.find((item) => item.id === selectedCandidateId) ?? null)
+      : null;
+  const searchArea: MapSearchArea | null =
+    activeDiscovery &&
+    activeDiscovery.west != null &&
+    activeDiscovery.south != null &&
+    activeDiscovery.east != null &&
+    activeDiscovery.north != null
+      ? {
+          id: activeDiscovery.searchId,
+          searchId: activeDiscovery.searchId,
+          name: activeDiscovery.searchName,
+          west: activeDiscovery.west,
+          south: activeDiscovery.south,
+          east: activeDiscovery.east,
+          north: activeDiscovery.north,
+        }
+      : null;
+  const opportunityFootprints = useMemo(
+    () => opportunityFootprintsCollection(opportunities),
+    [opportunities],
+  );
+  const discoveryPending = Boolean(selectedRunId) && !discoveryError && discovery?.runId !== selectedRunId;
+  const missingSelectedRun =
+    Boolean(selectedRunId) && !discoverySearches.some((item) => item.latestRunId === selectedRunId);
 
   useEffect(() => {
     if (!selected?.id) return;
@@ -244,9 +301,11 @@ function LoadedMapPage({
     if (peekCachedValue<OfficialCoveringGeojson>("covering", projectId)) return;
     let cancelled = false;
     loadOfficialCoveringAction(projectId).then((result) => {
-      if (!cancelled && result.ok) {
+      if (cancelled) return;
+      setCoveringStatus(result.status);
+      setFetchedCovering({ projectId, covering: result.covering });
+      if (result.ok) {
         setCachedValue("covering", projectId, result.covering);
-        setFetchedCovering({ projectId, covering: result.covering });
       }
     });
     return () => {
@@ -256,16 +315,86 @@ function LoadedMapPage({
 
   const selectProject = useCallback((slug: string) => {
     setSelectedSlug(slug);
+    setSelectedOpportunitySlug(null);
+    setSelectedCandidateId(null);
     setOfficialAreaId(null);
     setOfficialContext(null);
     setOfficialPreview(null);
     setDetailCollapsed(false);
   }, []);
 
+  const selectOpportunity = useCallback((slug: string) => {
+    setSelectedOpportunitySlug(slug);
+    setSelectedSlug(null);
+    setSelectedCandidateId(null);
+    setOfficialAreaId(null);
+    setOfficialContext(null);
+    setOfficialPreview(null);
+    setDetailCollapsed(false);
+  }, []);
+
+  const selectCandidate = useCallback((id: string) => {
+    setSelectedCandidateId(id);
+    setSelectedSlug(null);
+    setSelectedOpportunitySlug(null);
+    setOfficialAreaId(null);
+    setOfficialContext(null);
+    setOfficialPreview(null);
+    setDetailCollapsed(false);
+  }, []);
+
+  const persistRun = useCallback(
+    (runId: string | null) => {
+      const params = new URLSearchParams(window.location.search);
+      if (runId) params.set("run", runId);
+      else params.delete("run");
+      const query = params.toString();
+      router.replace(query ? `/map?${query}` : "/map", { scroll: false });
+    },
+    [router],
+  );
+
+  const loadDiscovery = useCallback(
+    (search: MapDiscoverySearch) => {
+      if (!search.latestRunId || !isCompletedDiscoveryRun(search.latestRunStatus)) {
+        setDiscoveryError("Select a completed screening run.");
+        return;
+      }
+      setDiscoveryError(null);
+      setSelectedRunId(search.latestRunId);
+      persistRun(search.latestRunId);
+    },
+    [persistRun],
+  );
+
+  useEffect(() => {
+    if (!selectedRunId) return;
+    const search = discoverySearches.find((item) => item.latestRunId === selectedRunId);
+    if (!search) return;
+    let cancelled = false;
+    loadMapDiscoveryRunAction(search.searchId, selectedRunId).then((result) => {
+      if (cancelled) return;
+      if (!result.ok) {
+        setDiscovery(null);
+        setDiscoveryError(result.error);
+        return;
+      }
+      setDiscoveryError(null);
+      setDiscovery(result.payload);
+      setLayers((current) => ({ ...current, searchAreas: true, candidateSites: true }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRunId, discoverySearches]);
+
   const selectOfficial = useCallback((input: OfficialMapAreaPreview) => {
     const generation = (officialFetchGenRef.current += 1);
     setOfficialPreview(input);
     setOfficialAreaId(input.areaId);
+    setSelectedSlug(null);
+    setSelectedOpportunitySlug(null);
+    setSelectedCandidateId(null);
     setDetailCollapsed(false);
     const cached = getCachedValue<OfficialMapAreaContext>("area", input.areaId);
     if (cached) {
@@ -301,9 +430,12 @@ function LoadedMapPage({
       <PageHeader
         title="Map"
         eyebrow="Discover"
-        subtitle="Official Ei geography on your portfolio · covering areas, not connection capacity"
+        subtitle="One spatial workspace from screening to development · covering geography, not connection capacity"
         actions={
           <>
+            <Link href="/opportunities/new" data-testid="map-new-search">
+              <Button>New search</Button>
+            </Link>
             <Button variant="secondary" onClick={() => setCompareOpen(true)} disabled={compared.length === 0}>
               Temporary compare ({compared.length}/4)
             </Button>
@@ -316,7 +448,26 @@ function LoadedMapPage({
       />
       <div className="relative min-h-0 flex-1 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
         {panelsHidden ? null : (
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="mb-3 space-y-1">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Project filters</p>
+          <div className="flex flex-wrap items-center gap-2">
+          <MapDiscoveryControl
+            searches={discoverySearches}
+            selectedRunId={selectedRunId}
+            loading={discoveryPending}
+            error={
+              missingSelectedRun
+                ? "That screening run is not in recent searches."
+                : discoveryError
+            }
+            onSelect={loadDiscovery}
+            onClear={() => {
+              setSelectedRunId(null);
+              setDiscovery(null);
+              setSelectedCandidateId(null);
+              persistRun(null);
+            }}
+          />
           <Select
             label="Technology"
             value={filters.technology}
@@ -375,10 +526,11 @@ function LoadedMapPage({
           <Button variant="ghost" onClick={() => { setFilters(EMPTY_FILTERS); setUnmatchedOnly(false); }} disabled={!filtersActive}>
             Reset filters
           </Button>
-          <Button variant="secondary" onClick={() => setPanelsHidden(true)}>
+          <Button variant="secondary" onClick={() => setPanelsHidden(true)} aria-pressed={false} data-testid="map-hide-panels">
             <Maximize2 size={14} />
             Hide panels
           </Button>
+          </div>
         </div>
         )}
 
@@ -394,14 +546,27 @@ function LoadedMapPage({
             projects={mapped}
             opportunities={opportunities}
             selectedId={visibleSelectedSlug}
+            selectedOpportunitySlug={selectedOpportunitySlug}
+            selectedCandidateId={selectedCandidateId}
             layers={layers}
             localNetwork={localNetwork}
             planningArea={planningArea}
             covering={selected ? covering : null}
             highlightAreaId={officialAreaId}
             highlightLayer={officialPreview?.layer ?? initialChangeArea?.layer}
+            discoveryGeojson={activeDiscovery?.geojson ?? EMPTY_DISCOVERY_GEOJSON}
+            searchArea={searchArea}
+            opportunityFootprints={opportunityFootprints}
+            discoveryFitKey={activeDiscovery?.runId ?? null}
+            discoveryLoading={discoveryPending}
+            fitPadding={
+              panelsHidden
+                ? 48
+                : { top: 48, right: 360, bottom: 48, left: 300 }
+            }
             onSelectProject={selectProject}
-            onSelectOpportunity={(slug) => router.push(`/opportunities/${slug}`)}
+            onSelectOpportunity={selectOpportunity}
+            onSelectCandidate={selectCandidate}
             onSelectOfficial={selectOfficial}
           />
 
@@ -409,6 +574,7 @@ function LoadedMapPage({
             <button
               type="button"
               onClick={() => setPanelsHidden(false)}
+              aria-pressed={true}
               className="absolute left-3 top-3 z-20 flex items-center gap-1 rounded-md border border-line bg-surface/95 px-2 py-2 text-xs text-muted shadow-sm backdrop-blur-sm hover:text-ink"
             >
               <Minimize2 size={14} />
@@ -432,27 +598,64 @@ function LoadedMapPage({
               </button>
             ) : (
               <>
-                <MapLayerControl layers={layers} onChange={setLayers} onCollapse={() => setLayersCollapsed(true)} />
-                <MapLegend />
+                <MapLayerControl
+                  layers={layers}
+                  onChange={setLayers}
+                  onCollapse={() => setLayersCollapsed(true)}
+                  hasDiscoveryRun={Boolean(activeDiscovery)}
+                />
+                <MapLegend
+                  hasDiscoveryRun={Boolean(activeDiscovery)}
+                  showZones={layers.opportunityZones}
+                  showNup={layers.planningArea}
+                />
                 <MapSpatialSummary
                   summary={spatialSummary}
                   unmatchedActive={unmatchedOnly}
                   onToggleUnmatched={() => setUnmatchedOnly((current) => !current)}
+                  matchesStatus={officialStatus.matches}
+                  localNetworkStatus={officialStatus.localNetwork}
                 />
               </>
             )}
           </div>
           )}
 
-          {mapped.length === 0 ? (
+          {mapped.length === 0 && filtersActive ? (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
               <div className="pointer-events-auto max-w-sm rounded-md border border-line bg-surface px-4 py-3 text-sm shadow-sm">
-                <p className="font-medium">No mapped projects match the current filters</p>
+                <p className="font-medium">No projects match these project filters</p>
                 <p className="mt-1 text-muted">
                   {ungeocoded.length > 0
                     ? `${ungeocoded.length} listed project${ungeocoded.length === 1 ? "" : "s"} ${ungeocoded.length === 1 ? "has" : "have"} no map coordinates.`
-                    : "Reset filters to see portfolio sites on the map."}
+                    : "Opportunities and discovery layers remain visible. Reset project filters to see portfolio sites."}
                 </p>
+              </div>
+            </div>
+          ) : projects.length === 0 && opportunities.length === 0 && !activeDiscovery ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+              <div className="pointer-events-auto max-w-sm rounded-md border border-line bg-surface px-4 py-3 text-sm shadow-sm">
+                <p className="font-medium">Start by searching a development area</p>
+                <p className="mt-1 text-muted">
+                  {discoverySearches.length === 0
+                    ? "The Map stays usable without a portfolio. Run a search, then select the completed run here to load Candidate Sites."
+                    : "Searches exist. Select a completed run in Discovery, or save a Candidate Site as an Opportunity."}
+                </p>
+                <Link href="/opportunities/new" className="pointer-events-auto mt-3 inline-block">
+                  <Button className="h-8 px-3 text-xs">New search</Button>
+                </Link>
+              </div>
+            </div>
+          ) : activeDiscovery && activeDiscovery.candidateCount === 0 ? (
+            <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 p-3">
+              <div className="rounded-md border border-line bg-surface px-3 py-2 text-xs text-muted shadow-sm">
+                This screening run has no Candidate Sites.
+              </div>
+            </div>
+          ) : officialStatus.localNetwork === "unavailable" ? (
+            <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 p-3">
+              <div className="rounded-md border border-line bg-surface px-3 py-2 text-xs text-muted shadow-sm" data-testid="map-official-empty">
+                Official local-network layer is currently unavailable. This is not a no-match result.
               </div>
             </div>
           ) : null}
@@ -477,9 +680,9 @@ function LoadedMapPage({
               <>
                 <div className="flex items-start justify-between gap-2 border-b border-line px-3 py-2">
                   <div>
-                    <p className="text-xs font-medium">Team outlook</p>
+                    <p className="text-xs font-medium">Projects</p>
                     <p className="mt-0.5 text-[11px] leading-4 text-muted">
-                      Customer-entered triage colours — not official capacity.
+                      Circle markers. Ring colour is customer-entered team outlook, not official capacity.
                     </p>
                   </div>
                   <button
@@ -505,13 +708,7 @@ function LoadedMapPage({
                       <button
                         key={project.slug}
                         type="button"
-                        onClick={() => {
-                          setSelectedSlug(project.slug);
-                          setOfficialAreaId(null);
-                          setOfficialContext(null);
-                          setOfficialPreview(null);
-                          setDetailCollapsed(false);
-                        }}
+                        onClick={() => selectProject(project.slug)}
                         className={cn(
                           "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-canvas",
                           visibleSelectedSlug === project.slug && "bg-canvas",
@@ -548,10 +745,21 @@ function LoadedMapPage({
                 setOfficialPreview(null);
               }}
             />
+          ) : selectedCandidate && activeDiscovery && !detailCollapsed ? (
+            <MapCandidatePanel
+              candidate={selectedCandidate}
+              searchId={activeDiscovery.searchId}
+              runId={activeDiscovery.runId}
+              providerAvailability={activeDiscovery.providerAvailability}
+              onClose={() => setSelectedCandidateId(null)}
+            />
+          ) : selectedOpportunity && !detailCollapsed ? (
+            <MapOpportunityPanel item={selectedOpportunity} onClose={() => setSelectedOpportunitySlug(null)} />
           ) : selected && !detailCollapsed ? (
-            <aside className="absolute inset-x-3 bottom-3 max-h-[58%] overflow-auto rounded-md border border-line bg-surface p-4 md:inset-x-auto md:bottom-auto md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-[320px]">
+            <aside className="absolute inset-x-3 bottom-3 max-h-[58%] overflow-auto rounded-md border border-line bg-surface p-4 md:inset-x-auto md:bottom-auto md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-[320px]" data-testid="map-project-panel">
               <div className="flex items-start justify-between gap-2">
                 <div>
+                  <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Project · Customer entered</p>
                   <h2 className="text-base font-semibold">{selected.name}</h2>
                   <p className="text-sm text-muted">{locationLabel(selected)}</p>
                 </div>
@@ -578,11 +786,22 @@ function LoadedMapPage({
                 <Line label="Current stage" value={<StageBadge stage={selected.stage} />} />
                 <Line label="Target COD" value={selected.targetCOD || "—"} />
                 <Line label="Application readiness" value={readinessLabel(selected.readinessPercent)} />
+                <Line
+                  label="Next action"
+                  value={
+                    selected.connectionCase?.nextMilestone ||
+                    selected.openAlerts[0]?.title ||
+                    "None recorded"
+                  }
+                />
               </dl>
               <MapGridContextCard
                 project={selected}
                 match={matchByProjectId.get(selected.id)}
                 covering={covering}
+                coveringStatus={coveringStatusResolved === "loading" ? "available" : coveringStatusResolved}
+                matchesStatus={officialStatus.matches}
+                coveringLoading={coveringStatusResolved === "loading"}
               />
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <Link href={`/projects/${selected.slug}`} className="flex-1">
@@ -609,23 +828,32 @@ function LoadedMapPage({
               <ChevronLeft size={14} />
               <span className="ml-1 max-w-[9rem] truncate">{selected.name}</span>
             </button>
+          ) : selectedOpportunity && detailCollapsed ? (
+            <button
+              type="button"
+              onClick={() => setDetailCollapsed(false)}
+              className="absolute right-3 top-3 hidden rounded-md border border-line bg-surface px-2 py-2 text-xs text-muted hover:text-ink md:flex"
+            >
+              <ChevronLeft size={14} />
+              <span className="ml-1 max-w-[9rem] truncate">{selectedOpportunity.name}</span>
+            </button>
           ) : null}
         </div>
 
         {panelsHidden ? null : (
         <div className="mt-3 space-y-1">
           <p className="text-[11px] uppercase tracking-[0.12em] text-muted">
-            Customer / project data
+            Customer entered
             <span className="mx-2 text-muted">|</span>
-            Official Ei Grid Intelligence · covering geography
+            Official Source · Ei covering geography
             <span className="mx-2 text-muted">|</span>
-            Portfolio comparison · development triage ranking
+            Noxheim Derived · Candidate Sites
           </p>
           <p className="text-xs leading-5 text-muted">
-            Map colours use customer-entered team outlook. Official polygons are Ei local-network
-            concession areas and NUP planning geography. Covering official area is geographic
-            context, not a connection point. NUP figures are published forecast transfer-capacity
-            need and do not represent available connection capacity or grid headroom.
+            Projects and Opportunities are saved development objects. Candidate Sites are screening geometry from
+            a selected run. Official polygons are Ei local-network concession areas and NUP planning geography.
+            Covering official area is geographic context, not a connection point and not available connection
+            capacity. NUP is planning context when enabled. Team outlook is customer-entered triage.
           </p>
           {savedComparisons && savedComparisons.comparisons.length > 0 ? (
             <div className="mt-3">

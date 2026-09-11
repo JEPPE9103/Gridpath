@@ -1,9 +1,10 @@
 "use server";
 
+import { getMapDiscoveryRun } from "@/lib/data/map-discovery";
 import {
-  getOfficialCoveringGeojsonForProject,
+  getOfficialCoveringLoad,
   getOfficialMapAreaContext,
-  getOfficialMapLayerGeojson,
+  getOfficialMapLayerLoad,
   type OfficialMapBbox,
 } from "@/lib/data/official-map";
 import { isOfficialMapLayer } from "@/lib/domain/official-map";
@@ -14,10 +15,25 @@ export async function loadOfficialMapLayerAction(input: {
   zoom: number;
 }) {
   if (!isOfficialMapLayer(input.layer)) {
-    return { ok: false as const, error: "Unknown official layer." };
+    return {
+      ok: false as const,
+      status: "unavailable" as const,
+      error: "Unknown official layer.",
+      collection: {
+        type: "FeatureCollection" as const,
+        features: [],
+        truncated: false,
+        featureCount: 0,
+        provenance: null,
+      },
+    };
   }
-  const collection = await getOfficialMapLayerGeojson(input.layer, input.bbox, input.zoom);
-  return { ok: true as const, collection };
+  const loaded = await getOfficialMapLayerLoad(input.layer, input.bbox, input.zoom);
+  return {
+    ok: loaded.status === "available",
+    status: loaded.status,
+    collection: loaded.collection,
+  };
 }
 
 export async function loadOfficialMapAreaContextAction(areaId: string) {
@@ -29,6 +45,21 @@ export async function loadOfficialMapAreaContextAction(areaId: string) {
 }
 
 export async function loadOfficialCoveringAction(projectId: string) {
-  const covering = await getOfficialCoveringGeojsonForProject(projectId);
-  return { ok: true as const, covering };
+  const loaded = await getOfficialCoveringLoad(projectId);
+  return {
+    ok: loaded.status === "available",
+    status: loaded.status,
+    covering: loaded.covering,
+  };
+}
+
+export async function loadMapDiscoveryRunAction(searchId: string, runId: string) {
+  if (!searchId.trim() || !runId.trim()) {
+    return { ok: false as const, error: "Select a completed search run." };
+  }
+  const payload = await getMapDiscoveryRun(searchId, runId);
+  if (!payload) {
+    return { ok: false as const, error: "Could not load that screening run." };
+  }
+  return { ok: true as const, payload };
 }

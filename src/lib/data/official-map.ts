@@ -42,6 +42,23 @@ export type OfficialCoveringGeojson = {
   planningArea: OfficialMapFeatureCollection["features"][number] | null;
 };
 
+export type OfficialLoadStatus = "available" | "unavailable";
+
+export type OfficialLayerLoad = {
+  status: OfficialLoadStatus;
+  collection: OfficialMapFeatureCollection;
+};
+
+export type OfficialMatchesLoad = {
+  status: OfficialLoadStatus;
+  matches: OfficialSpatialMatch[];
+};
+
+export type OfficialCoveringLoad = {
+  status: OfficialLoadStatus;
+  covering: OfficialCoveringGeojson;
+};
+
 function emptyCollection(): OfficialMapFeatureCollection {
   return {
     type: "FeatureCollection",
@@ -57,9 +74,18 @@ export async function getOfficialMapLayerGeojson(
   bbox: OfficialMapBbox = SWEDEN_MAP_BOUNDS,
   zoom = 4.35,
 ): Promise<OfficialMapFeatureCollection> {
+  const loaded = await getOfficialMapLayerLoad(layer, bbox, zoom);
+  return loaded.collection;
+}
+
+export async function getOfficialMapLayerLoad(
+  layer: OfficialMapLayer,
+  bbox: OfficialMapBbox = SWEDEN_MAP_BOUNDS,
+  zoom = 4.35,
+): Promise<OfficialLayerLoad> {
   const organization = await getCurrentOrganization();
   if (!organization) {
-    return emptyCollection();
+    return { status: "unavailable", collection: emptyCollection() };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -73,15 +99,20 @@ export async function getOfficialMapLayerGeojson(
   });
   if (error) {
     logError("official_map.layer_failed", { layer, message: error.message });
-    return emptyCollection();
+    return { status: "unavailable", collection: emptyCollection() };
   }
-  return parseOfficialMapFeatureCollection(data);
+  return { status: "available", collection: parseOfficialMapFeatureCollection(data) };
 }
 
 export async function getOrganizationOfficialSpatialMatches(): Promise<OfficialSpatialMatch[]> {
+  const loaded = await getOrganizationOfficialSpatialMatchesLoad();
+  return loaded.matches;
+}
+
+export async function getOrganizationOfficialSpatialMatchesLoad(): Promise<OfficialMatchesLoad> {
   const organization = await getCurrentOrganization();
   if (!organization) {
-    return [];
+    return { status: "unavailable", matches: [] };
   }
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("get_organization_official_spatial_matches", {
@@ -89,17 +120,23 @@ export async function getOrganizationOfficialSpatialMatches(): Promise<OfficialS
   });
   if (error) {
     logError("official_map.matches_failed", { message: error.message });
-    return [];
+    return { status: "unavailable", matches: [] };
   }
-  return parseOfficialSpatialMatches(data);
+  return { status: "available", matches: parseOfficialSpatialMatches(data) };
 }
 
 export async function getOfficialCoveringGeojsonForProject(
   projectId: string,
 ): Promise<OfficialCoveringGeojson> {
+  const loaded = await getOfficialCoveringLoad(projectId);
+  return loaded.covering;
+}
+
+export async function getOfficialCoveringLoad(projectId: string): Promise<OfficialCoveringLoad> {
+  const empty = { localNetwork: null, planningArea: null };
   const organization = await getCurrentOrganization();
   if (!organization || !projectId.trim()) {
-    return { localNetwork: null, planningArea: null };
+    return { status: "unavailable", covering: empty };
   }
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("get_official_covering_geojson_for_project", {
@@ -107,7 +144,7 @@ export async function getOfficialCoveringGeojsonForProject(
   });
   if (error) {
     logError("official_map.covering_failed", { message: error.message });
-    return { localNetwork: null, planningArea: null };
+    return { status: "unavailable", covering: empty };
   }
   const record = data && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>) : {};
   const local = parseOfficialMapFeatureCollection({
@@ -118,7 +155,7 @@ export async function getOfficialCoveringGeojsonForProject(
     type: "FeatureCollection",
     features: record.planningArea ? [record.planningArea] : [],
   }).features[0] ?? null;
-  return { localNetwork: local, planningArea: nup };
+  return { status: "available", covering: { localNetwork: local, planningArea: nup } };
 }
 
 export async function getOfficialMapAreaContext(

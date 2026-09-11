@@ -91,6 +91,9 @@ export type OfficialSpatialSummary = {
 };
 
 export type OfficialMapLayerVisibility = {
+  searchAreas: boolean;
+  candidateSites: boolean;
+  opportunityZones: boolean;
   projects: boolean;
   localNetwork: boolean;
   planningArea: boolean;
@@ -99,9 +102,12 @@ export type OfficialMapLayerVisibility = {
 };
 
 export const DEFAULT_OFFICIAL_MAP_LAYERS: OfficialMapLayerVisibility = {
+  searchAreas: true,
+  candidateSites: true,
+  opportunityZones: false,
   projects: true,
   localNetwork: true,
-  planningArea: true,
+  planningArea: false,
   opportunities: true,
   rejectedOpportunities: false,
 };
@@ -408,13 +414,18 @@ export function parseOfficialMapFeatureCollection(value: unknown): OfficialMapFe
   };
 }
 
+export const OFFICIAL_SOURCE_UNAVAILABLE_LABEL = "Official source unavailable";
+export const OFFICIAL_NO_GEOGRAPHIC_MATCH_LABEL = "No geographic match";
+
 export function officialMapContextLabel(input: {
   coveringName?: string | null;
   matched: boolean;
+  status?: "available" | "unavailable";
 }): string {
+  if (input.status === "unavailable") return OFFICIAL_SOURCE_UNAVAILABLE_LABEL;
   const name = input.coveringName?.trim();
   if (name) return name;
-  return input.matched ? "Matched" : "No match";
+  return input.matched ? "Matched" : OFFICIAL_NO_GEOGRAPHIC_MATCH_LABEL;
 }
 
 export function parseOfficialSpatialMatches(value: unknown): OfficialSpatialMatch[] {

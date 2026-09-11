@@ -258,11 +258,14 @@ describe("official map copy", () => {
     assert.equal(officialMapCopyContainsForbiddenTerm(COVERING_OFFICIAL_AREA_LABEL), null);
   });
 
-  it("defaults all Grid Intelligence layers on", () => {
+  it("defaults development objects on, Opportunity Zones and NUP off", () => {
     assert.deepEqual(DEFAULT_OFFICIAL_MAP_LAYERS, {
+      searchAreas: true,
+      candidateSites: true,
+      opportunityZones: false,
       projects: true,
       localNetwork: true,
-      planningArea: true,
+      planningArea: false,
       opportunities: true,
       rejectedOpportunities: false,
     });
@@ -328,6 +331,14 @@ describe("official map context labels", () => {
       "Ellevio AB — 153BK",
     );
     assert.equal(officialMapContextLabel({ coveringName: "  ", matched: true }), "Matched");
-    assert.equal(officialMapContextLabel({ coveringName: null, matched: false }), "No match");
+    assert.equal(officialMapContextLabel({ coveringName: null, matched: false }), "No geographic match");
+    assert.equal(
+      officialMapContextLabel({ coveringName: null, matched: false, status: "unavailable" }),
+      "Official source unavailable",
+    );
+    assert.notEqual(
+      officialMapContextLabel({ coveringName: null, matched: false, status: "unavailable" }),
+      officialMapContextLabel({ coveringName: null, matched: false, status: "available" }),
+    );
   });
 });

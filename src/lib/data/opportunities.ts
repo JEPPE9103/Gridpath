@@ -8,6 +8,7 @@ import {
   type OpportunityStatusValue,
   type OpportunityTechnologyValue,
 } from "@/lib/opportunities/catalog";
+import { parseAreaGeometry, type MapGeoJsonGeometry } from "@/lib/domain/map-discovery";
 import { canCreateOrEditOpportunities } from "@/lib/opportunities/authorization";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -38,6 +39,7 @@ export type OpportunityListItem = {
   originatingRunId: string | null;
   originatingSearchId: string | null;
   contiguousAreaHa: number | null;
+  areaGeometry: MapGeoJsonGeometry | null;
 };
 
 export type OpportunityFunnel = {
@@ -93,6 +95,7 @@ type OpportunityRow = {
   updated_at: string;
   promoted_project_id: string | null;
   owner_id: string | null;
+  area_geom?: unknown;
 };
 
 const EMPTY_FUNNEL: OpportunityFunnel = {
@@ -115,6 +118,7 @@ function mapRow(
     originatingRunId?: string | null;
     originatingSearchId?: string | null;
     contiguousAreaHa?: number | null;
+    areaGeometry?: MapGeoJsonGeometry | null;
   },
 ): OpportunityListItem {
   return {
@@ -142,6 +146,7 @@ function mapRow(
     originatingRunId: extras?.originatingRunId ?? null,
     originatingSearchId: extras?.originatingSearchId ?? null,
     contiguousAreaHa: extras?.contiguousAreaHa ?? null,
+    areaGeometry: extras?.areaGeometry ?? parseAreaGeometry(row.area_geom),
   };
 }
 
@@ -156,7 +161,7 @@ export const listOpportunitiesForCurrentOrganization = cache(async (): Promise<{
     const page = await supabase
       .from("development_opportunities")
       .select(
-        "id, slug, name, opportunity_type, status, country, region, municipality, target_mw, target_mwh, recommendation, recommendation_summary, key_positive, key_risk, data_confidence, latitude, longitude, updated_at, promoted_project_id, owner_id",
+        "id, slug, name, opportunity_type, status, country, region, municipality, target_mw, target_mwh, recommendation, recommendation_summary, key_positive, key_risk, data_confidence, latitude, longitude, updated_at, promoted_project_id, owner_id, area_geom",
       )
       .eq("organization_id", organization.id)
       .order("updated_at", { ascending: false })

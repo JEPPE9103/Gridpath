@@ -1,33 +1,49 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import type { OfficialCoveringGeojson } from "@/lib/data/official-map";
+import type { OfficialCoveringGeojson, OfficialLoadStatus } from "@/lib/data/official-map";
 import type { MapProject } from "@/lib/data/map-types";
 import type { OfficialSpatialMatch } from "@/lib/domain/official-map";
-import { COVERING_OFFICIAL_AREA_LABEL, officialMapContextLabel } from "@/lib/domain/official-map";
+import {
+  COVERING_OFFICIAL_AREA_LABEL,
+  officialMapContextLabel,
+} from "@/lib/domain/official-map";
 import Link from "next/link";
 
 export function MapGridContextCard({
   project,
   match,
   covering,
+  coveringStatus = "available",
+  matchesStatus = "available",
+  coveringLoading = false,
 }: {
   project: MapProject;
   match: OfficialSpatialMatch | undefined;
   covering: OfficialCoveringGeojson | null;
+  coveringStatus?: OfficialLoadStatus;
+  matchesStatus?: OfficialLoadStatus;
+  coveringLoading?: boolean;
 }) {
-  const local = officialMapContextLabel({
-    coveringName: covering?.localNetwork?.properties.name,
-    matched: Boolean(match?.localAreaId),
-  });
-  const nup = officialMapContextLabel({
-    coveringName: covering?.planningArea?.properties.name,
-    matched: Boolean(match?.nupAreaId),
-  });
+  const status = coveringStatus === "unavailable" || matchesStatus === "unavailable" ? "unavailable" : "available";
+  const local = coveringLoading
+    ? "Loading…"
+    : officialMapContextLabel({
+        coveringName: covering?.localNetwork?.properties.name,
+        matched: Boolean(match?.localAreaId),
+        status,
+      });
+  const nup = coveringLoading
+    ? "Loading…"
+    : officialMapContextLabel({
+        coveringName: covering?.planningArea?.properties.name,
+        matched: Boolean(match?.nupAreaId),
+        status,
+      });
   return (
     <div className="mt-4 rounded-md border border-line bg-canvas p-3">
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
-        Grid context
+        Official geographic covering
       </p>
       <dl className="mt-2 space-y-1 text-sm">
         <div className="flex justify-between gap-3">
@@ -39,14 +55,21 @@ export function MapGridContextCard({
           <dd>{nup}</dd>
         </div>
         <div className="flex justify-between gap-3">
-          <dt className="text-muted">Official sources</dt>
-          <dd>Ei</dd>
+          <dt className="text-muted">Provenance</dt>
+          <dd>Official Source · Ei</dd>
         </div>
       </dl>
-      <p className="mt-2 text-[11px] leading-4 text-muted">
-        {COVERING_OFFICIAL_AREA_LABEL} — geographic covering, not a connection point. Not an indication
-        of available connection capacity.
-      </p>
+      {status === "unavailable" ? (
+        <p className="mt-2 text-[11px] leading-4 text-muted">
+          Official covering lookup is currently unavailable. This is not the same as no geographic match.
+          Source health stays in Settings.
+        </p>
+      ) : (
+        <p className="mt-2 text-[11px] leading-4 text-muted">
+          {COVERING_OFFICIAL_AREA_LABEL} — geographic covering, not a connection point. Not an indication
+          of available connection capacity.
+        </p>
+      )}
       <Link href={`/projects/${project.slug}?tab=grid`} className="mt-3 block">
         <Button variant="secondary" className="w-full">
           View Grid Intelligence
