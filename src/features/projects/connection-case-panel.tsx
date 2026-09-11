@@ -173,7 +173,7 @@ function ConnectionCaseSummary({
             </Button>
           ) : null}
           {project.canDeleteConnectionCase ? (
-            <Button variant="danger" onClick={onDelete} disabled={pending}>
+            <Button variant="ghost" className="text-critical" onClick={onDelete} disabled={pending}>
               {pending ? "Deleting…" : "Delete case"}
             </Button>
           ) : null}

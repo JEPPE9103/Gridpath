@@ -85,7 +85,10 @@ async function expectOperatorToolingHiddenFromCustomer(page: Page) {
   }
   expect(response?.status()).toBe(404);
   const html = (await page.content()).toLowerCase();
-  expect(html).toContain('name="next-error" content="not-found"');
+  expect(
+    html.includes('name="next-error" content="not-found"') ||
+      html.includes('name="boundary-next-error" content="not-found"'),
+  ).toBeTruthy();
   expect(html.includes("recent ingestion runs")).toBeFalsy();
   expect(html.includes("noxheim operators only")).toBeFalsy();
   expect(html.includes("failed notification deliveries")).toBeFalsy();

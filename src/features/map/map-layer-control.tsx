@@ -1,18 +1,35 @@
 "use client";
 
 import type { OfficialMapLayerVisibility } from "@/lib/domain/official-map";
+import { ChevronLeft } from "lucide-react";
 
 export function MapLayerControl({
   layers,
   onChange,
+  onCollapse,
 }: {
   layers: OfficialMapLayerVisibility;
   onChange: (next: OfficialMapLayerVisibility) => void;
+  onCollapse?: () => void;
 }) {
   return (
     <section className="rounded-md border border-line bg-surface/95 p-3 text-xs backdrop-blur-sm">
-      <p className="font-medium">Grid Intelligence</p>
-      <p className="mt-0.5 text-[11px] leading-4 text-muted">Official Ei geography · not capacity</p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-medium">Grid Intelligence</p>
+          <p className="mt-0.5 text-[11px] leading-4 text-muted">Official Ei geography · not capacity</p>
+        </div>
+        {onCollapse ? (
+          <button
+            type="button"
+            onClick={onCollapse}
+            className="text-muted hover:text-ink"
+            aria-label="Collapse map layers"
+          >
+            <ChevronLeft size={14} />
+          </button>
+        ) : null}
+      </div>
       <div className="mt-2 space-y-1.5">
         <LayerToggle
           checked={layers.projects}

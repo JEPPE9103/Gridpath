@@ -1,7 +1,15 @@
 "use client";
 
 import { StatusBadge } from "@/components/ui/badges";
-import { Button } from "@/components/ui/button";
+import {
+  destructiveActionClass,
+  tableBodyRowClass,
+  tableCellClass,
+  tableHeadCellClass,
+  tableHeadClass,
+  tableWrapClass,
+  textActionClass,
+} from "@/components/ui/workspace";
 import { DOCUMENT_STATUS_FILTERS } from "@/lib/data/documents-types";
 import {
   deleteProjectDocument,
@@ -39,18 +47,18 @@ export function DocumentTable({
   showProject?: boolean;
 }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-line bg-surface">
-      <table className="w-full min-w-[1080px] text-left text-sm">
-        <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
+    <div className={tableWrapClass}>
+      <table className="w-full min-w-[920px] text-left text-sm">
+        <thead className={tableHeadClass}>
           <tr>
-            <th className="px-4 py-2 font-medium">Document</th>
-            {showProject ? <th className="px-4 py-2 font-medium">Project</th> : null}
-            <th className="px-4 py-2 font-medium">Type</th>
-            <th className="px-4 py-2 font-medium">Category</th>
-            <th className="px-4 py-2 font-medium">Status</th>
-            <th className="px-4 py-2 font-medium">Uploaded</th>
-            <th className="px-4 py-2 font-medium">Size</th>
-            <th className="px-4 py-2 font-medium">Actions</th>
+            <th className={tableHeadCellClass}>Document</th>
+            {showProject ? <th className={tableHeadCellClass}>Project</th> : null}
+            <th className={tableHeadCellClass}>Type</th>
+            <th className={tableHeadCellClass}>Category</th>
+            <th className={tableHeadCellClass}>Status</th>
+            <th className={tableHeadCellClass}>Uploaded</th>
+            <th className={tableHeadCellClass}>Size</th>
+            <th className={tableHeadCellClass}><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody>
@@ -122,15 +130,15 @@ function DocumentTableItem({
   }
 
   return (
-    <tr className="border-b border-line last:border-0">
-      <td className="px-4 py-3">
+    <tr className={tableBodyRowClass}>
+      <td className={tableCellClass}>
         <div className="font-medium">{doc.name}</div>
         {!doc.hasStoredFile ? (
-          <p className="mt-1 text-xs text-muted">Metadata only — no stored file</p>
+          <p className="mt-0.5 text-[11px] text-muted">Metadata only — no stored file</p>
         ) : null}
       </td>
       {showProject ? (
-        <td className="px-4 py-3">
+        <td className={tableCellClass}>
           {doc.projectSlug ? (
             <Link href={`/projects/${doc.projectSlug}?tab=documents`} className="hover:text-teal">
               {doc.projectName}
@@ -140,9 +148,9 @@ function DocumentTableItem({
           )}
         </td>
       ) : null}
-      <td className="px-4 py-3">{doc.hasStoredFile ? doc.fileKind : "—"}</td>
-      <td className="px-4 py-3">{doc.category}</td>
-      <td className="px-4 py-3">
+      <td className={`${tableCellClass} text-muted`}>{doc.hasStoredFile ? doc.fileKind : "—"}</td>
+      <td className={tableCellClass}>{doc.category}</td>
+      <td className={tableCellClass}>
         <div className="flex items-center gap-2">
           <StatusBadge status={doc.status} />
           {canWrite ? (
@@ -150,6 +158,7 @@ function DocumentTableItem({
               value={doc.status}
               onChange={(event) => onStatusChange(event.target.value as DocumentStatus)}
               disabled={pending}
+              aria-label={`Status for ${doc.name}`}
               className="rounded-md border border-line bg-surface px-1 py-0.5 text-xs"
             >
               {DOCUMENT_STATUS_FILTERS.map((status) => (
@@ -159,26 +168,39 @@ function DocumentTableItem({
           ) : null}
         </div>
       </td>
-      <td className="px-4 py-3 text-muted">
-        <div>{doc.uploadedByName ?? doc.uploadedAt ? (doc.uploadedByName ?? "Team member") : "—"}</div>
+      <td className={`${tableCellClass} text-muted`}>
+        <div>{doc.uploadedByName ?? (doc.uploadedAt ? "Team member" : "—")}</div>
         <div className="text-xs">{doc.uploadedAt ? formatDate(doc.uploadedAt) : "No file uploaded"}</div>
       </td>
-      <td className="px-4 py-3 text-muted">
+      <td className={`${tableCellClass} tabular-nums text-muted`}>
         {doc.hasStoredFile ? formatFileSize(doc.fileSizeBytes) : "—"}
       </td>
-      <td className="px-4 py-3">
-        <div className="flex flex-wrap gap-2">
-          {doc.hasStoredFile ? (
-            <Button type="button" variant="secondary" disabled={pending} onClick={onOpen}>
-              {pending ? "Opening…" : "Open / download"}
-            </Button>
-          ) : null}
-          {canWrite ? (
-            <Button type="button" variant="secondary" disabled={pending} onClick={onDelete}>
-              Delete
-            </Button>
-          ) : null}
-        </div>
+      <td className={`${tableCellClass} whitespace-nowrap text-right`}>
+        {doc.hasStoredFile ? (
+          <button type="button" className={textActionClass} disabled={pending} onClick={onOpen}>
+            {pending ? "Opening…" : "Open →"}
+          </button>
+        ) : null}
+        {canWrite ? (
+          <details className="relative ml-3 inline-block text-left">
+            <summary
+              className="cursor-pointer list-none text-xs text-muted hover:text-ink [&::-webkit-details-marker]:hidden"
+              aria-label={`More actions for ${doc.name}`}
+            >
+              More
+            </summary>
+            <div className="absolute right-0 z-10 mt-1 min-w-[8rem] rounded-md border border-line bg-surface py-1 shadow-sm">
+              <button
+                type="button"
+                className={`block w-full px-3 py-1.5 text-left ${destructiveActionClass}`}
+                disabled={pending}
+                onClick={onDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </details>
+        ) : null}
         {message ? <p className="mt-1 text-xs text-critical">{message}</p> : null}
       </td>
     </tr>

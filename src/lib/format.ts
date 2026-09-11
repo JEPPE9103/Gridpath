@@ -12,13 +12,16 @@ export function capacityMW(project: Pick<Project, "importMW" | "exportMW">): num
 }
 
 export function formatCapacity(project: Pick<Project, "importMW" | "exportMW">): string {
+  if (project.importMW <= 0 && project.exportMW <= 0) {
+    return "Not set";
+  }
   if (project.importMW > 0 && project.exportMW > 0) {
-    if (project.importMW === project.exportMW) {
-      return `${project.importMW} / ${project.exportMW} MW`;
-    }
     return `${project.importMW} / ${project.exportMW} MW`;
   }
-  return `${capacityMW(project)} MW`;
+  if (project.importMW > 0) {
+    return `${project.importMW} MW import`;
+  }
+  return `${project.exportMW} MW export`;
 }
 
 export function formatImportExport(project: Pick<Project, "importMW" | "exportMW">): string {
@@ -38,7 +41,8 @@ export function formatImportExport(project: Pick<Project, "importMW" | "exportMW
 export function formatCapacityShort(
   project: Pick<Project, "importMW" | "exportMW">,
 ): string {
-  return `${capacityMW(project)} MW`;
+  const mw = capacityMW(project);
+  return mw > 0 ? `${mw} MW` : "Not set";
 }
 
 export function formatMWTotal(mw: number): string {

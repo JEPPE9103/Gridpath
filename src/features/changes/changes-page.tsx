@@ -4,6 +4,8 @@ import { BellButton } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { EmptyState, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageBody } from "@/components/ui/workspace";
+import { SourceStatusPanel } from "@/features/changes/source-status-panel";
 import { useToast } from "@/components/ui/toast-provider";
 import { updateChangeImpactReview } from "@/lib/changes/actions";
 import { cn } from "@/lib/cn";
@@ -54,13 +56,13 @@ export function ChangesPage({
     return (
       <>
         <PageHeader title="Changes" eyebrow="Monitor" subtitle={inboxSubtitle()} actions={<HeaderDate date={headerDate} />} />
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <PageBody>
           <EmptyState
             title="No workspace yet"
             description="This account is not a member of an organisation. Join a workspace to review official publication matches."
             action={<EmptyWorkspaceAction />}
           />
-        </div>
+        </PageBody>
       </>
     );
   }
@@ -69,12 +71,12 @@ export function ChangesPage({
     return (
       <>
         <PageHeader title="Changes" eyebrow="Monitor" subtitle={inboxSubtitle()} actions={<HeaderDate date={headerDate} />} />
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <PageBody>
           <ErrorState
             title="Could not load changes"
             description="Try again in a moment. If the problem continues, sign in again."
           />
-        </div>
+        </PageBody>
       </>
     );
   }
@@ -156,7 +158,7 @@ function LoadedChangesPage({
           </>
         }
       />
-      <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+      <PageBody className="space-y-4">
         <div className="flex flex-wrap gap-2">
           {REVIEW_TABS.map((tab) => {
             const count =
@@ -212,9 +214,9 @@ function LoadedChangesPage({
         </div>
 
         {delayedSources.length > 0 ? (
-          <p className="rounded-md border border-warning/40 bg-warning-bg/60 px-3 py-2 text-sm text-warning">
-            {officialSourceDelayMessage(delayedSources.length)}
-            {delayedSources.map((item) => ` · ${item.name}`).join("")}
+          <p className="rounded-md border border-warning/40 bg-warning-bg/40 px-3 py-2 text-sm">
+            {officialSourceDelayMessage(delayedSources.length)}{" "}
+            <span className="text-muted">{delayedSources.map((item) => item.name).join(" · ")}</span>
           </p>
         ) : null}
 
@@ -268,23 +270,15 @@ function LoadedChangesPage({
 
         {nupBaseline ? (
           <p className="text-xs leading-5 text-muted">
-            Latest successful source check: {nupBaseline.name}
-            {nupBaseline.lastRetrievedAtLabel ? ` · ${nupBaseline.lastRetrievedAtLabel}` : ""}.
             Geographic overlap is covering geography, not a connection point.
+            {nupBaseline.lastRetrievedAtLabel
+              ? ` Latest successful ${nupBaseline.name} check: ${nupBaseline.lastRetrievedAtLabel}.`
+              : ""}
           </p>
         ) : null}
 
-        {result.sourceHealth.length > 0 ? (
-          <ul className="text-xs text-muted">
-            {result.sourceHealth.map((item) => (
-              <li key={item.slug}>
-                {item.name}: {item.delayed ? "Currently delayed" : item.healthLabel}
-                {item.changeLabel !== "—" ? ` · ${item.changeLabel}` : ""}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
+        <SourceStatusPanel sources={result.sourceHealth} />
+      </PageBody>
     </>
   );
 }
@@ -316,6 +310,7 @@ function ImpactCard({
             {change.source.name}
             {change.area?.officialCompany ? ` · ${change.area.officialCompany}` : ""}
           </p>
+          <p className="mt-2 text-[11px] text-muted">Noxheim derived project impact · human review</p>
         </div>
         <QuietTag
           tone={
@@ -366,7 +361,9 @@ function ImpactDetail({
     <section className="rounded-md border border-line bg-surface p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">Impact detail</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+            Official change · Noxheim derived impact · team review
+          </p>
           <h2 className="mt-1 text-base font-semibold">{impact.project?.name ?? "Project"}</h2>
         </div>
         <button type="button" className="text-sm text-muted hover:text-ink" onClick={onClose}>

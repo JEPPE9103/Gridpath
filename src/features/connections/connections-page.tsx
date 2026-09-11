@@ -2,10 +2,21 @@
 
 import { BellButton } from "@/components/layout/app-shell";
 import { StageBadge, StatusBadge } from "@/components/ui/badges";
-import { buttonClassName } from "@/components/ui/button";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  FilterBar,
+  FilterSelect,
+  PageBody,
+  quietActionClass,
+  tableBodyRowClass,
+  tableCellClass,
+  tableHeadCellClass,
+  tableHeadClass,
+  tableWrapClass,
+  textActionClass,
+} from "@/components/ui/workspace";
 import { cn } from "@/lib/cn";
 import {
   CONNECTION_CASE_STATUS_FILTERS,
@@ -24,13 +35,13 @@ export function ConnectionsPage({ result }: { result: ConnectionCasesResult }) {
     return (
       <>
         <PageHeader title="Connections" eyebrow="Develop" subtitle="Connection process tracking — not a DSO portal" />
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <PageBody>
           <EmptyState
             title="No workspace yet"
             description="This account is not a member of an organisation. Create or join a workspace to see connection cases."
             action={<EmptyWorkspaceAction />}
           />
-        </div>
+        </PageBody>
       </>
     );
   }
@@ -39,12 +50,12 @@ export function ConnectionsPage({ result }: { result: ConnectionCasesResult }) {
     return (
       <>
         <PageHeader title="Connections" eyebrow="Develop" subtitle="Connection process tracking — not a DSO portal" />
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <PageBody>
           <ErrorState
             title="Could not load connection cases"
             description="Try again in a moment. If the problem continues, sign in again."
           />
-        </div>
+        </PageBody>
       </>
     );
   }
@@ -75,7 +86,7 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
     .length;
 
   const summaryBits = [
-    waitingCount ? `${waitingCount} with recorded waiting status` : null,
+    waitingCount ? `${waitingCount} waiting` : null,
     attentionCount ? `${attentionCount} at risk / overdue` : null,
     upcomingCount
       ? `${upcomingCount} upcoming deadline${upcomingCount === 1 ? "" : "s"}`
@@ -102,49 +113,27 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
           </>
         }
       />
-      <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-        <div className="flex flex-wrap gap-2">
-          <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
-            <span className="text-muted">Operator</span>
-            <select
-              value={operator}
-              onChange={(event) => setOperator(event.target.value)}
-              className="bg-transparent"
-            >
-              {operators.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
-            <span className="text-muted">Stage</span>
-            <select
-              value={stage}
-              onChange={(event) => setStage(event.target.value as OverviewPipelineStage | "All")}
-              className="bg-transparent"
-            >
-              <option>All</option>
-              {OVERVIEW_PIPELINE_STAGES.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
-            <span className="text-muted">Status</span>
-            <select
-              value={status}
-              onChange={(event) =>
-                setStatus(event.target.value as ConnectionCaseListStatus | "All")
-              }
-              className="bg-transparent"
-            >
-              <option>All</option>
-              {CONNECTION_CASE_STATUS_FILTERS.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-        </div>
+      <PageBody className="space-y-4">
+        <FilterBar>
+          <FilterSelect
+            label="Operator"
+            value={operator}
+            onChange={setOperator}
+            options={operators}
+          />
+          <FilterSelect
+            label="Stage"
+            value={stage}
+            onChange={(value) => setStage(value as OverviewPipelineStage | "All")}
+            options={["All", ...OVERVIEW_PIPELINE_STAGES]}
+          />
+          <FilterSelect
+            label="Status"
+            value={status}
+            onChange={(value) => setStatus(value as ConnectionCaseListStatus | "All")}
+            options={["All", ...CONNECTION_CASE_STATUS_FILTERS]}
+          />
+        </FilterBar>
 
         {summaryBits.length > 0 ? (
           <p className="text-sm text-muted">{summaryBits.join(" · ")}</p>
@@ -162,49 +151,44 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
             description="Clear filters to see all cases for this workspace."
           />
         ) : (
-          <div className="overflow-x-auto rounded-md border border-line bg-surface">
-            <table className="w-full min-w-[1100px] text-left text-sm">
-              <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
+          <div className={tableWrapClass}>
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className={tableHeadClass}>
                 <tr>
-                  <th className="px-4 py-2 font-medium">Project</th>
-                  <th className="px-4 py-2 font-medium">Grid Operator</th>
-                  <th className="px-4 py-2 font-medium">Case ID</th>
-                  <th className="px-4 py-2 font-medium">Stage</th>
-                  <th className="px-4 py-2 font-medium">Submitted</th>
-                  <th className="px-4 py-2 font-medium">Next Milestone</th>
-                  <th className="px-4 py-2 font-medium">Deadline</th>
-                  <th className="px-4 py-2 font-medium">Owner</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                  <th className="px-4 py-2 font-medium">Actions</th>
+                  <th className={tableHeadCellClass}>Project</th>
+                  <th className={tableHeadCellClass}>Grid operator</th>
+                  <th className={tableHeadCellClass}>Case ID</th>
+                  <th className={tableHeadCellClass}>Stage</th>
+                  <th className={tableHeadCellClass}>Submitted</th>
+                  <th className={tableHeadCellClass}>Next milestone</th>
+                  <th className={tableHeadCellClass}>Deadline</th>
+                  <th className={tableHeadCellClass}>Owner</th>
+                  <th className={tableHeadCellClass}>Status</th>
+                  <th className={tableHeadCellClass}><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-line last:border-0 hover:bg-canvas"
-                  >
-                    <td className="px-4 py-3 font-medium">
-                      <Link
-                        href={`/projects/${item.projectSlug}`}
-                        className="hover:text-teal"
-                      >
+                  <tr key={item.id} className={tableBodyRowClass}>
+                    <td className={`${tableCellClass} font-medium`}>
+                      <Link href={`/projects/${item.projectSlug}`} className="hover:text-teal">
                         {item.projectName}
                       </Link>
                     </td>
-                    <td className="px-4 py-3">{item.gridOperator || "—"}</td>
-                    <td className="px-4 py-3 font-mono text-[13px]">{item.caseId ?? "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className={tableCellClass}>{item.gridOperator || "—"}</td>
+                    <td className={`${tableCellClass} font-mono text-[13px]`}>{item.caseId ?? "—"}</td>
+                    <td className={tableCellClass}>
                       <StageBadge stage={item.stage} />
                     </td>
-                    <td className="px-4 py-3 text-muted">
+                    <td className={`${tableCellClass} whitespace-nowrap text-muted`}>
                       {item.submittedAt ? formatDate(item.submittedAt) : "—"}
                     </td>
-                    <td className="px-4 py-3">{item.nextMilestone || "—"}</td>
+                    <td className={tableCellClass}>{item.nextMilestone || "—"}</td>
                     <td
                       className={cn(
-                        "px-4 py-3",
-                        item.deadlineAttention === "overdue" && "text-critical",
+                        tableCellClass,
+                        "whitespace-nowrap",
+                        item.deadlineAttention === "overdue" && "font-medium text-critical",
                         item.deadlineAttention === "approaching" && "text-warning",
                         (item.deadlineAttention === "normal" || !item.deadlineAttention) &&
                           "text-muted",
@@ -219,25 +203,23 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
                     >
                       {item.deadline ? formatDate(item.deadline) : "—"}
                     </td>
-                    <td className="px-4 py-3">{item.ownerName ?? "Unassigned"}</td>
-                    <td className="px-4 py-3">
+                    <td className={tableCellClass}>{item.ownerName ?? "Unassigned"}</td>
+                    <td className={tableCellClass}>
                       <StatusBadge status={item.status} />
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Link
-                          href={`/projects/${item.projectSlug}/connection`}
-                          className={buttonClassName("secondary")}
-                        >
-                          Open workspace
-                        </Link>
-                        <Link
-                          href={`/projects/${item.projectSlug}/connection?edit=1`}
-                          className={buttonClassName("ghost")}
-                        >
-                          Edit case
-                        </Link>
-                      </div>
+                    <td className={`${tableCellClass} whitespace-nowrap text-right`}>
+                      <Link
+                        href={`/projects/${item.projectSlug}/connection`}
+                        className={textActionClass}
+                      >
+                        Open workspace →
+                      </Link>
+                      <Link
+                        href={`/projects/${item.projectSlug}/connection?edit=1`}
+                        className={`ml-3 ${quietActionClass}`}
+                      >
+                        Edit
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -245,7 +227,7 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
             </table>
           </div>
         )}
-      </div>
+      </PageBody>
     </>
   );
 }

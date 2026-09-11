@@ -11,9 +11,11 @@ import {
   FilterBar,
   FilterSelect,
   PageBody,
+  tableBodyRowClass,
   tableCellClass,
   tableHeadCellClass,
   tableHeadClass,
+  tableNumericClass,
   tableWrapClass,
 } from "@/components/ui/workspace";
 import { formatCapacity, formatDate, formatMWTotal, formatOutlookLabel } from "@/lib/format";
@@ -56,10 +58,25 @@ export function PortfolioPage({
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState(result.query);
-
   const pageCount = Math.max(1, Math.ceil(result.matchingCount / result.pageSize));
   const from = result.matchingCount === 0 ? 0 : (result.page - 1) * result.pageSize + 1;
   const to = Math.min(result.page * result.pageSize, result.matchingCount);
+  const filtersActive =
+    Boolean(result.query) ||
+    result.technology !== "All" ||
+    result.operator !== "All" ||
+    result.stage !== "All" ||
+    result.outlook !== "All" ||
+    result.attentionFilter !== "all" ||
+    result.sortKey === "attention";
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(filtersActive);
+  const [filtersWereActive, setFiltersWereActive] = useState(filtersActive);
+  if (filtersActive !== filtersWereActive) {
+    setFiltersWereActive(filtersActive);
+    if (filtersActive) {
+      setMoreFiltersOpen(true);
+    }
+  }
 
   function href(overrides: Record<string, string | null | undefined>): string {
     const params = new URLSearchParams();
@@ -101,7 +118,8 @@ export function PortfolioPage({
   }
 
   const subtitle = useMemo(() => {
-    const active = `${activeCount} active · ${formatMWTotal(activeMw)}`;
+    const mw = activeMw > 0 ? formatMWTotal(activeMw) : "requested MW not set";
+    const active = `${activeCount} active · ${mw}`;
     if (result.view === "archived") {
       return `${archivedCount} archived · ${active}`;
     }
@@ -135,38 +153,51 @@ export function PortfolioPage({
         }
       />
       <PageBody className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {(["active", "archived", "all"] as ArchiveView[]).map((view) => (
-            <Link
-              key={view}
-              href={href({ view, page: "1" })}
-              className={
-                result.view === view
-                  ? buttonClassName()
-                  : buttonClassName("secondary")
-              }
-            >
-              {view === "active" ? "Active" : view === "archived" ? "Archived" : "All"}
-            </Link>
-          ))}
-        </div>
         <form
-          className="flex flex-wrap gap-2"
+          className="space-y-2"
           onSubmit={(event) => {
             event.preventDefault();
             update({ q: query, page: "1" });
           }}
         >
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search project or location"
-            className="h-9 w-full rounded-md border border-line bg-surface px-3 text-sm sm:w-64"
-          />
-          <Button type="submit" variant="secondary">
-            Search
-          </Button>
-          <FilterBar>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-md border border-line bg-surface p-0.5 text-sm">
+              {(["active", "archived", "all"] as ArchiveView[]).map((view) => (
+                <Link
+                  key={view}
+                  href={href({ view, page: "1" })}
+                  className={
+                    result.view === view
+                      ? "rounded px-2.5 py-1 font-medium text-ink bg-canvas"
+                      : "rounded px-2.5 py-1 text-muted hover:text-ink"
+                  }
+                >
+                  {view === "active" ? "Active" : view === "archived" ? "Archived" : "All"}
+                </Link>
+              ))}
+            </div>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search project or location"
+              className="h-9 min-w-[12rem] flex-1 rounded-md border border-line bg-surface px-3 text-sm sm:max-w-xs"
+            />
+            <Button type="submit" variant="secondary">
+              Search
+            </Button>
+          </div>
+          <details
+            className="group"
+            open={moreFiltersOpen}
+            onToggle={(event) => setMoreFiltersOpen(event.currentTarget.open)}
+          >
+            <summary className="cursor-pointer list-none text-sm font-medium text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex items-center gap-1">
+                More filters
+                {filtersActive ? <span className="font-normal">· applied</span> : null}
+              </span>
+            </summary>
+            <FilterBar>
           <FilterSelect
             value={result.technology}
             onChange={(value) => update({ technology: value === "All" ? "" : value, page: "1" })}
@@ -220,7 +251,8 @@ export function PortfolioPage({
             labels={{ default: "Last update", attention: "Attention first" }}
             label="Sort"
           />
-          </FilterBar>
+            </FilterBar>
+          </details>
         </form>
         <p className="text-sm text-muted">
           {result.matchingCount === 0
@@ -286,7 +318,7 @@ export function PortfolioPage({
                 {result.projects.map((project) => (
                   <tr
                     key={project.projectId}
-                    className="cursor-pointer border-b border-line last:border-0 hover:bg-canvas"
+                    className={`${tableBodyRowClass} cursor-pointer`}
                     onClick={() => router.push(`/projects/${project.id}`)}
                   >
                     <td className={`${tableCellClass} font-medium`}>
@@ -308,9 +340,10 @@ export function PortfolioPage({
                     </td>
                     <td className={`${tableCellClass} text-muted`}>{project.location}</td>
                     <td className={tableCellClass}>{project.technology}</td>
-                    <td className={`${tableCellClass} font-mono text-[13px]`}>
-                      {formatCapacity(project)}
-                      <p className="font-sans text-[11px] text-muted">Customer entered</p>
+                    <td className={tableNumericClass}>
+                      <span className={project.importMW <= 0 && project.exportMW <= 0 ? "font-sans text-muted" : undefined}>
+                        {formatCapacity(project)}
+                      </span>
                     </td>
                     <td className={tableCellClass}>{project.gridOperator}</td>
                     <td className={tableCellClass}>
@@ -328,7 +361,7 @@ export function PortfolioPage({
                         <ConfidenceBadge confidence={project.confidence} />
                       </div>
                     </td>
-                    <td className={`${tableCellClass} text-muted`}>{formatDate(project.lastUpdated)}</td>
+                    <td className={`${tableCellClass} whitespace-nowrap text-muted`}>{formatDate(project.lastUpdated)}</td>
                   </tr>
                 ))}
               </tbody>

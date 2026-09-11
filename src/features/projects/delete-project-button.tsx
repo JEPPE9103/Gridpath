@@ -32,7 +32,7 @@ export function DeleteProjectButton({
 
   if (!open) {
     return (
-      <Button type="button" variant="danger" onClick={() => setOpen(true)}>
+      <Button type="button" variant="ghost" className="text-critical" onClick={() => setOpen(true)}>
         Permanently delete
       </Button>
     );

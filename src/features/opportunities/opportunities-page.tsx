@@ -9,10 +9,12 @@ import {
   MetricStrip,
   PageBody,
   SectionHeader,
+  tableBodyRowClass,
   tableCellClass,
   tableHeadCellClass,
   tableHeadClass,
   tableWrapClass,
+  textActionClass,
 } from "@/components/ui/workspace";
 import type {
   OpportunityListItem,
@@ -33,6 +35,7 @@ import { formatRelative } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function OpportunitiesPage({ overview }: { overview: OpportunityOverview }) {
   const [selected, setSelected] = useState<string[]>([]);
@@ -207,26 +210,59 @@ export function OpportunitiesPage({ overview }: { overview: OpportunityOverview 
 }
 
 function SearchRow({ search, now }: { search: OpportunitySearchListItem; now: Date }) {
+  const router = useRouter();
   const href =
     search.latestRunId
       ? `/opportunities/searches/${search.id}/runs/${search.latestRunId}`
       : "/opportunities/new";
   return (
-    <tr className="border-b border-line last:border-0 hover:bg-canvas">
+    <tr
+      className={cn(tableBodyRowClass, "cursor-pointer")}
+      onClick={() => router.push(href)}
+    >
       <td className={tableCellClass}>
-        <Link href={href} className="font-medium text-ink hover:underline">
-          {search.name}
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={href} className="font-medium text-ink hover:underline" onClick={(event) => event.stopPropagation()}>
+            {search.name}
+          </Link>
+          <span className="rounded-full bg-canvas px-2 py-0.5 text-[11px] text-muted">Screening run</span>
+        </div>
       </td>
       <td className={cn(tableCellClass, "text-muted")}>
         {opportunityTechnologyLabel(search.technology)}
       </td>
-      <td className={cn(tableCellClass, "text-muted")}>{search.latestRunStatus ?? "No run yet"}</td>
+      <td className={tableCellClass}>
+        <RunStatusChip status={search.latestRunStatus} />
+      </td>
       <td className={cn(tableCellClass, "tabular-nums")}>
         {search.returnedCount == null ? "—" : search.returnedCount}
       </td>
       <td className={cn(tableCellClass, "text-muted")}>{formatRelative(search.createdAt, now)}</td>
     </tr>
+  );
+}
+
+function RunStatusChip({ status }: { status: string | null }) {
+  if (!status) {
+    return <span className="text-muted">No run yet</span>;
+  }
+  const normalized = status.replaceAll("_", " ");
+  const label = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  const complete = status === "completed" || status === "complete";
+  const failed = status === "failed" || status.includes("fail");
+  const running = status === "running" || status === "queued";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+        complete && "bg-success-bg text-success",
+        failed && "bg-critical-bg text-critical",
+        running && "bg-teal-soft text-teal",
+        !complete && !failed && !running && "bg-canvas text-muted",
+      )}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -243,18 +279,19 @@ function OpportunityRow({
 }) {
   const location = [item.municipality, item.region, item.country].filter(Boolean).join(", ");
   return (
-    <li className="flex flex-wrap items-start gap-3 px-4 py-3">
-      <input type="checkbox" checked={selected} onChange={onToggle} className="mt-1 accent-teal" />
-      <div className="min-w-0 flex-1">
+    <li className={cn("flex flex-wrap items-start gap-3 px-4 py-3 hover:bg-canvas", selected && "bg-canvas")}>
+      <input type="checkbox" checked={selected} onChange={onToggle} className="mt-1 accent-teal" aria-label={`Select ${item.name}`} />
+      <Link href={`/opportunities/${item.slug}`} className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={`/opportunities/${item.slug}`} className="font-medium text-ink hover:underline">
-            {item.name}
-          </Link>
+          <span className="font-medium text-ink">{item.name}</span>
+          <span className="rounded-full bg-teal-soft px-2 py-0.5 text-[11px] font-medium text-teal">
+            Opportunity
+          </span>
           <span className="rounded-full bg-canvas px-2 py-0.5 text-[11px] text-muted">
             {opportunityStatusLabel(item.status)}
           </span>
           {item.promotedProjectSlug ? (
-            <span className="rounded-full bg-teal-soft px-2 py-0.5 text-[11px] text-teal">Project</span>
+            <span className="rounded-full bg-canvas px-2 py-0.5 text-[11px] text-muted">Promoted</span>
           ) : null}
         </div>
         <p className="mt-1 text-sm text-muted">
@@ -273,9 +310,9 @@ function OpportunityRow({
           Recommendation confidence: {opportunityConfidenceLabel(item.dataConfidence)}
           {item.ownerName ? ` · ${item.ownerName}` : ""} · Updated {formatRelative(item.lastUpdated, now)}
         </p>
-      </div>
-      <Link href={`/opportunities/${item.slug}`} className={buttonClassName("secondary")}>
-        Open
+      </Link>
+      <Link href={`/opportunities/${item.slug}`} className={textActionClass}>
+        Open →
       </Link>
     </li>
   );

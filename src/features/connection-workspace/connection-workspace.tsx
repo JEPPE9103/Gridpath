@@ -413,7 +413,8 @@ function DeleteCaseButton({
     <div className="mt-4">
       {error ? <p className="mb-2 text-sm text-critical">{error}</p> : null}
       <Button
-        variant="danger"
+        variant="ghost"
+        className="text-critical"
         disabled={pending}
         onClick={() => {
           if (

@@ -147,9 +147,11 @@ export type GridChangesResult =
       sourceHealth: Array<{
         slug: string;
         name: string;
+        publisher: string | null;
         healthLabel: string;
         delayed: boolean;
         changeLabel: string;
+        lastKnownAt: string | null;
       }>;
       canWrite: boolean;
     }

@@ -37,8 +37,8 @@ export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
       className={cn(
         base,
         confidence === "High" && "bg-teal-soft text-teal",
-        confidence === "Medium" && "bg-warning-bg text-warning",
-        (confidence === "Low" || confidence === "Unknown") && "bg-canvas text-muted",
+        (confidence === "Medium" || confidence === "Low" || confidence === "Unknown") &&
+          "bg-canvas text-muted",
       )}
     >
       {confidence}
@@ -72,11 +72,8 @@ export function StatusBadge({
   status: ConnectionCaseStatus | DocumentStatus | ChecklistStatus | "Complete" | "Cancelled";
 }) {
   const critical = status === "Overdue" || status === "Missing" || status === "At Risk";
-  const warning =
-    status === "In Progress" ||
-    status === "Incomplete" ||
-    status === "Waiting" ||
-    status === "Draft";
+  const warning = status === "Incomplete";
+  const progress = status === "In Progress" || status === "Waiting";
   const success = status === "Complete" || status === "On Track";
 
   return (
@@ -84,9 +81,10 @@ export function StatusBadge({
       className={cn(
         base,
         success && "bg-success-bg text-success",
+        progress && "bg-teal-soft text-teal",
         warning && "bg-warning-bg text-warning",
         critical && "bg-critical-bg text-critical",
-        !success && !warning && !critical && "bg-canvas text-muted",
+        !success && !progress && !warning && !critical && "bg-canvas text-muted",
       )}
     >
       {status}

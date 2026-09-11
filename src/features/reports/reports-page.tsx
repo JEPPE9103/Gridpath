@@ -1,12 +1,24 @@
 "use client";
 
 import { BellButton } from "@/components/layout/app-shell";
-import { OutlookBadge, StageBadge } from "@/components/ui/badges";
+import { OutlookBadge, StageBadge, StatusBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
 import { EmptyState, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { DevelopmentFunnel } from "@/features/opportunities/development-funnel";
-import { Metric, MetricStrip, PageBody } from "@/components/ui/workspace";
+import {
+  Metric,
+  MetricStrip,
+  PageBody,
+  Panel,
+  SectionHeader,
+  TechnicalDetails,
+  tableBodyRowClass,
+  tableCellClass,
+  tableHeadCellClass,
+  tableHeadClass,
+  tableWrapClass,
+} from "@/components/ui/workspace";
 import type { OpportunityFunnel } from "@/lib/data/opportunities";
 import type {
   PortfolioReportResult,
@@ -15,18 +27,9 @@ import type {
 } from "@/lib/data/report-types";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
 import { formatMWTotal } from "@/lib/format";
-import type { Outlook } from "@/types";
+import type { ConnectionCaseStatus, Outlook } from "@/types";
 import Link from "next/link";
-import { useMemo, type ReactNode } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip as RechartsTooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import type { ReactNode } from "react";
 
 export function ReportsPage({
   result,
@@ -75,21 +78,13 @@ function LoadedReportsPage({
   funnel: OpportunityFunnel;
 }) {
   const { summary, readiness } = report;
-  const stageData = useMemo(
-    () => report.stageCounts.map((row) => ({ stage: row.label, count: row.count })),
-    [report.stageCounts],
-  );
-  const operatorData = useMemo(
-    () => report.operatorMW.map((row) => ({ operator: row.operator, mw: row.mw })),
-    [report.operatorMW],
-  );
 
   return (
     <>
       <PageHeader
         eyebrow="Monitor"
         title="Reports"
-        subtitle={`${report.organizationName} · attention, pipeline and official-change hygiene. Not connection feasibility.`}
+        subtitle={`${report.organizationName} · portfolio status, pipeline and workflow hygiene. Not connection feasibility.`}
         actions={
           <>
             <Button variant="secondary" onClick={() => downloadPortfolioCsv(report.exportRows)}>
@@ -101,115 +96,113 @@ function LoadedReportsPage({
         }
       />
       <PageBody>
-        <MetricStrip className="sm:grid-cols-3 lg:grid-cols-6">
+        <MetricStrip className="sm:grid-cols-2 lg:grid-cols-4">
           <Metric label="Projects" value={String(summary.projectCount)} />
-          <Metric label="Requested MW" value={formatMWTotal(summary.portfolioMW)} hint="Customer entered" />
-          <Metric label="Action required" value={String(summary.needsAttention)} />
-          <Metric label="Open alerts" value={String(summary.openAlerts)} />
-          <Metric label="Active connection cases" value={String(summary.activeConnectionCases)} />
           <Metric
-            label="Workflow readiness"
-            value={
-              summary.averageReadinessPercent == null
-                ? "—"
-                : `${summary.averageReadinessPercent}%`
-            }
-            hint="Completeness, not capacity"
+            label="Requested MW"
+            value={summary.portfolioMW > 0 ? formatMWTotal(summary.portfolioMW) : "Not set"}
+            hint="Customer entered"
           />
+          <Metric label="Action required" value={String(summary.needsAttention)} />
+          <Metric label="Active connection cases" value={String(summary.activeConnectionCases)} />
         </MetricStrip>
 
         <DevelopmentFunnel funnel={funnel} />
 
-        <details className="rounded-md border border-line bg-surface p-5">
-          <summary className="cursor-pointer text-sm font-semibold">Supporting stage and operator counts</summary>
-          <p className="mt-1 text-xs text-muted">Stored portfolio counts only. Not available capacity.</p>
-        <section className="mt-4 grid gap-4 xl:grid-cols-2">
-          <ChartCard title="Projects by stage">
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={stageData} barSize={18}>
-                <CartesianGrid stroke="#E3E1DD" vertical={false} />
-                <XAxis
-                  dataKey="stage"
-                  tick={{ fontSize: 11, fill: "#5C6169" }}
-                  interval={0}
-                  angle={-20}
-                  textAnchor="end"
-                  height={50}
-                />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#5C6169" }} />
-                <RechartsTooltip />
-                <Bar dataKey="count" fill="#2A7A6F" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-          <ChartCard title="Portfolio MW by grid operator">
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={operatorData} layout="vertical" barSize={14} margin={{ left: 16 }}>
-                <CartesianGrid stroke="#E3E1DD" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11, fill: "#5C6169" }} />
-                <YAxis
-                  type="category"
-                  dataKey="operator"
-                  width={150}
-                  tick={{ fontSize: 11, fill: "#5C6169" }}
-                />
-                <RechartsTooltip />
-                <Bar dataKey="mw" fill="#1A1E24" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </section>
-        </details>
-
-        <section className="grid gap-4 xl:grid-cols-2">
-          <div className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Team outlook (customer-entered)</h2>
-            <p className="mt-1 text-xs text-muted">Stored project assessment — not live grid capacity.</p>
-            <ul className="mt-3 space-y-2">
-              {report.outlookCounts.map((row) => (
-                <li key={row.label} className="flex items-center justify-between text-sm">
-                  <OutlookBadge outlook={row.label as Outlook} />
-                  <span className="tabular-nums">{row.count}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Technology mix</h2>
-            <ul className="mt-3 space-y-2 text-sm">
-              {report.technologyMix.map((row) => (
-                <li key={row.technology} className="flex items-center justify-between gap-3">
-                  <span>{row.technology}</span>
-                  <span className="tabular-nums text-muted">
-                    {row.count} · {formatMWTotal(row.mw)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+        <section className="rounded-md border border-line bg-surface p-5">
+          <SectionHeader
+            title="Projects requiring attention"
+            description="Overdue workflow items, overdue connection deadlines, or open alerts. Not a connection-risk score."
+          />
+          {report.attentionProjects.length === 0 ? (
+            <p className="mt-4 text-sm text-muted">No projects currently require attention.</p>
+          ) : (
+            <div className={`mt-4 ${tableWrapClass}`}>
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className={tableHeadClass}>
+                  <tr>
+                    <th className={tableHeadCellClass}>Project</th>
+                    <th className={tableHeadCellClass}>Stage</th>
+                    <th className={tableHeadCellClass}>Outlook</th>
+                    <th className={tableHeadCellClass}>Readiness</th>
+                    <th className={tableHeadCellClass}>Open alerts</th>
+                    <th className={tableHeadCellClass}>Connection</th>
+                    <th className={tableHeadCellClass}>Next milestone / deadline</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.attentionProjects.map((project) => (
+                    <tr key={project.slug} className={tableBodyRowClass}>
+                      <td className={tableCellClass}>
+                        <Link
+                          href={`/projects/${project.slug}/connection`}
+                          className="font-medium hover:text-teal"
+                        >
+                          {project.name}
+                        </Link>
+                      </td>
+                      <td className={tableCellClass}>
+                        <StageBadge stage={project.stage} />
+                      </td>
+                      <td className={tableCellClass}>
+                        <OutlookBadge outlook={project.outlook} />
+                      </td>
+                      <td className={`${tableCellClass} tabular-nums`}>
+                        {project.readinessPercent == null ? "Not available" : `${project.readinessPercent}%`}
+                      </td>
+                      <td className={`${tableCellClass} text-muted`}>
+                        {alertSummary(project.openCriticalAlerts, project.openWarningAlerts)}
+                      </td>
+                      <td className={tableCellClass}>
+                        {project.connectionStatus ? (
+                          <StatusBadge status={project.connectionStatus as ConnectionCaseStatus} />
+                        ) : (
+                          <span className="text-muted">No case</span>
+                        )}
+                      </td>
+                      <td className={`${tableCellClass} text-muted`}>
+                        {milestoneDeadline(project.nextMilestone, project.deadline)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section className="grid gap-4 xl:grid-cols-2">
-          <div className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Connection health</h2>
+          <Panel>
+            <h2 className="text-base font-semibold">Connection process</h2>
             <p className="mt-1 text-xs text-muted">Active cases only. Complete and cancelled are excluded.</p>
             <ul className="mt-3 space-y-2 text-sm">
-              <CountLine label="On Track" value={report.connectionHealth.onTrack} />
-              <CountLine label="Waiting" value={report.connectionHealth.waiting} />
-              <CountLine label="At Risk" value={report.connectionHealth.atRisk} />
-              <CountLine label="Overdue" value={report.connectionHealth.overdue} />
+              <CountLine
+                label={<StatusBadge status="On Track" />}
+                value={report.connectionHealth.onTrack}
+              />
+              <CountLine
+                label={<StatusBadge status="Waiting" />}
+                value={report.connectionHealth.waiting}
+              />
+              <CountLine
+                label={<StatusBadge status="At Risk" />}
+                value={report.connectionHealth.atRisk}
+              />
+              <CountLine
+                label={<StatusBadge status="Overdue" />}
+                value={report.connectionHealth.overdue}
+              />
             </ul>
             <p className="mt-3 text-sm text-muted">
               {report.connectionHealth.upcomingDeadlines === 0
                 ? "No active case deadlines in the next 14 days."
                 : `${report.connectionHealth.upcomingDeadlines} upcoming deadline${report.connectionHealth.upcomingDeadlines === 1 ? "" : "s"} within 14 days.`}
             </p>
-          </div>
-          <div className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Workflow readiness</h2>
+          </Panel>
+          <Panel>
+            <h2 className="text-base font-semibold">Workflow completeness</h2>
             <p className="mt-1 text-xs text-muted">
-              Required items complete. Measures workflow completeness, not connection probability,
-              available grid capacity or technical feasibility.
+              Required items complete. Not connection probability, available capacity or feasibility.
             </p>
             <ul className="mt-3 space-y-2 text-sm">
               <CountLine
@@ -227,100 +220,64 @@ function LoadedReportsPage({
                 ? `${readiness.scoredCount} projects have required requirements.`
                 : `${readiness.notAvailable} project${readiness.notAvailable === 1 ? "" : "s"} with no required requirements — not available.`}
             </p>
-          </div>
-        </section>
-
-        <section className="rounded-md border border-line bg-surface p-5">
-          <h2 className="text-base font-semibold">Projects requiring attention</h2>
-          <p className="mt-1 text-xs text-muted">
-            Projects that need someone to look at them — overdue workflow items, overdue connection
-            deadlines, or open alerts. Not a connection-risk score.
-          </p>
-          {report.attentionProjects.length === 0 ? (
-            <p className="mt-4 text-sm text-muted">No projects currently require attention.</p>
-          ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
-                    <th className="py-2 pr-4 font-medium">Project</th>
-                    <th className="py-2 pr-4 font-medium">Stage</th>
-                    <th className="py-2 pr-4 font-medium">Outlook</th>
-                    <th className="py-2 pr-4 font-medium">Readiness</th>
-                    <th className="py-2 pr-4 font-medium">Open alerts</th>
-                    <th className="py-2 pr-4 font-medium">Connection</th>
-                    <th className="py-2 font-medium">Next milestone / deadline</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.attentionProjects.map((project) => (
-                    <tr key={project.slug} className="border-b border-line align-top last:border-b-0">
-                      <td className="py-2 pr-4">
-                        <Link
-                          href={`/projects/${project.slug}/connection`}
-                          className="font-medium hover:text-teal"
-                        >
-                          {project.name}
-                        </Link>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <StageBadge stage={project.stage} />
-                      </td>
-                      <td className="py-2 pr-4">
-                        <OutlookBadge outlook={project.outlook} />
-                      </td>
-                      <td className="py-2 pr-4 tabular-nums">
-                        {project.readinessPercent == null ? "Not available" : `${project.readinessPercent}%`}
-                      </td>
-                      <td className="py-2 pr-4 text-muted">
-                        {alertSummary(project.openCriticalAlerts, project.openWarningAlerts)}
-                      </td>
-                      <td className="py-2 pr-4">{project.connectionStatus ?? "No connection case"}</td>
-                      <td className="py-2 text-muted">
-                        {milestoneDeadline(project.nextMilestone, project.deadline)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          </Panel>
         </section>
 
         <section className="grid gap-4 xl:grid-cols-2">
-          <div className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Document health</h2>
-            <p className="mt-1 text-xs text-muted">
-              Customer-uploaded files are stored privately in NOXHEIM. Status counts also include
-              metadata-only records.
-            </p>
-            <ul className="mt-3 space-y-2 text-sm">
-              <CountLine label="Complete" value={report.documentHealth.complete} />
-              <CountLine label="In Progress" value={report.documentHealth.inProgress} />
-              <CountLine label="Draft" value={report.documentHealth.draft} />
-              <CountLine label="Missing" value={report.documentHealth.missing} />
+          <Panel>
+            <h2 className="text-base font-semibold">Team outlook</h2>
+            <p className="mt-1 text-xs text-muted">Customer-entered assessment — not live grid capacity.</p>
+            <ul className="mt-3 space-y-2">
+              {report.outlookCounts.map((row) => (
+                <li key={row.label} className="flex items-center justify-between text-sm">
+                  <OutlookBadge outlook={row.label as Outlook} />
+                  <span className="tabular-nums">{row.count}</span>
+                </li>
+              ))}
             </ul>
-          </div>
-          <div className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Operational activity</h2>
-            <p className="mt-1 text-xs text-muted">Counts from current workspace records.</p>
+          </Panel>
+          <Panel>
+            <h2 className="text-base font-semibold">Technology mix</h2>
             <ul className="mt-3 space-y-2 text-sm">
-              <CountLine label="Projects monitored" value={report.operational.projectsMonitored} />
-              <CountLine label="Open issues detected" value={report.operational.openIssues} />
-              <CountLine
-                label="Connection cases managed"
-                value={report.operational.connectionCasesManaged}
-              />
-              <CountLine label="Requirements tracked" value={report.operational.requirementsTracked} />
-              <CountLine label="Documents tracked" value={report.operational.documentsTracked} />
+              {report.technologyMix.map((row) => (
+                <li key={row.technology} className="flex items-center justify-between gap-3">
+                  <span>{row.technology}</span>
+                  <span className="tabular-nums text-muted">
+                    {row.count}
+                    {row.mw > 0 ? ` · ${formatMWTotal(row.mw)}` : ""}
+                  </span>
+                </li>
+              ))}
             </ul>
-          </div>
+          </Panel>
         </section>
+
+        <TechnicalDetails summary="Supporting counts">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-medium text-ink">Document status</p>
+              <ul className="mt-2 space-y-1">
+                <CountLine label="Complete" value={report.documentHealth.complete} />
+                <CountLine label="In Progress" value={report.documentHealth.inProgress} />
+                <CountLine label="Draft" value={report.documentHealth.draft} />
+                <CountLine label="Missing" value={report.documentHealth.missing} />
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-ink">Workspace volume</p>
+              <ul className="mt-2 space-y-1">
+                <CountLine label="Open alerts" value={report.operational.openIssues} />
+                <CountLine label="Requirements tracked" value={report.operational.requirementsTracked} />
+                <CountLine label="Documents tracked" value={report.operational.documentsTracked} />
+              </ul>
+            </div>
+          </div>
+        </TechnicalDetails>
 
         <p className="text-xs leading-5 text-muted">
           Portfolio reporting uses project and workflow data stored in NOXHEIM. Official Ei Grid
-          Intelligence (local-network and NUP context) is available on each project Grid tab — it is
-          not rolled into these KPIs as capacity or feasibility.
+          Intelligence is on each project Grid tab — it is not rolled into these KPIs as capacity
+          or feasibility.
         </p>
       </PageBody>
     </>
@@ -411,20 +368,11 @@ function csvCell(value: string): string {
   return value;
 }
 
-function CountLine({ label, value }: { label: string; value: string | number }) {
+function CountLine({ label, value }: { label: ReactNode; value: string | number }) {
   return (
     <li className="flex items-center justify-between gap-3">
       <span>{label}</span>
       <span className="tabular-nums text-muted">{value}</span>
     </li>
-  );
-}
-
-function ChartCard({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="min-w-0 overflow-hidden rounded-md border border-line bg-surface p-4 sm:p-5">
-      <h2 className="mb-3 text-base font-semibold">{title}</h2>
-      <div className="min-w-0">{children}</div>
-    </div>
   );
 }

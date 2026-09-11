@@ -147,7 +147,9 @@ export function OverviewPage({
             </MetricStrip>
 
             <p className="text-xs text-muted">
-              {kpis.activeSites} active sites · {formatMWTotal(kpis.totalMW)} requested (customer-entered)
+              {kpis.activeSites} active sites ·{" "}
+              {kpis.totalMW > 0 ? `${formatMWTotal(kpis.totalMW)} requested` : "requested MW not set"}{" "}
+              (customer-entered)
               {kpis.connectionEnquiries > 0 ? ` · ${kpis.connectionEnquiries} connection enquiries` : ""}
               {kpis.gridStudiesOpen > 0 ? ` · ${kpis.gridStudiesOpen} grid studies open` : ""}
             </p>
@@ -290,16 +292,20 @@ function PipelineStrip({ projects }: { projects: OverviewProject[] }) {
           </Link>
         }
       />
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-        {OVERVIEW_PIPELINE_STAGES.map((stage) => {
+      <div className="mt-3 flex overflow-x-auto rounded-md border border-line bg-surface">
+        {OVERVIEW_PIPELINE_STAGES.map((stage, index) => {
           const count = projects.filter((project) => project.stage === stage).length;
           return (
             <Link
               key={stage}
               href={`/portfolio?stage=${encodeURIComponent(stage)}`}
-              className="min-w-[7.5rem] shrink-0 rounded-md border border-line bg-surface px-3 py-2.5 hover:border-teal"
+              className={cn(
+                "min-w-[6.75rem] flex-1 px-3 py-2.5 hover:bg-canvas",
+                index < OVERVIEW_PIPELINE_STAGES.length - 1 && "border-r border-line",
+              )}
             >
-              <p className="text-[11px] uppercase tracking-wide text-muted">{stage}</p>
+              <p className="text-[10px] tabular-nums text-muted">{index + 1}</p>
+              <p className="mt-0.5 text-[11px] uppercase tracking-wide text-muted">{stage}</p>
               <p className="mt-1 text-lg font-semibold tabular-nums">{count}</p>
             </Link>
           );

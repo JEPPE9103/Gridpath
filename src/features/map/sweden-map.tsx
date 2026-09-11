@@ -65,6 +65,7 @@ export const SwedenMap = memo(function SwedenMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
   const collectionsRef = useRef({ localNetwork, planningArea });
   const onSelectProjectRef = useRef(onSelectProject);
   const onSelectOpportunityRef = useRef(onSelectOpportunity);
@@ -91,43 +92,69 @@ export const SwedenMap = memo(function SwedenMap({
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || mapRef.current) return;
+    if (!container) {
+      setInitError("Map container was not ready. Refresh the page.");
+      return;
+    }
 
-    ensureMapLibreWorker();
-    const map = new MapLibreMap({
-      container,
-      style: STYLE,
-      center: [16.2, 62.2],
-      zoom: 4.35,
-      minZoom: 3.8,
-      maxZoom: 12,
-      attributionControl: { compact: true },
-      renderWorldCopies: false,
-      fadeDuration: 0,
-      dragRotate: false,
-      pitchWithRotate: false,
-      maxPitch: 0,
-    });
+    let cancelled = false;
+    let map: MapLibreMap | null = null;
+    const markers = markersRef.current;
+    const opportunityMarkers = opportunityMarkersRef.current;
+
+    try {
+      ensureMapLibreWorker();
+      map = new MapLibreMap({
+        container,
+        style: STYLE,
+        center: [16.2, 62.2],
+        zoom: 4.35,
+        minZoom: 3.8,
+        maxZoom: 12,
+        attributionControl: { compact: true },
+        renderWorldCopies: false,
+        fadeDuration: 0,
+        dragRotate: false,
+        pitchWithRotate: false,
+        maxPitch: 0,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Map failed to start.";
+      console.error("SwedenMap failed to initialize", error);
+      setInitError(message);
+      return;
+    }
+
+    if (!map) return;
+
     map.touchZoomRotate.disableRotation();
     map.addControl(new NavigationControl({ showCompass: false }), "bottom-left");
     const unbindResize = bindMapResize(map, container);
-    const markers = markersRef.current;
-    const opportunityMarkers = opportunityMarkersRef.current;
     mapRef.current = map;
     map.once("load", () => {
+      if (cancelled || !map) return;
       addOfficialLayers(map);
       setSourceData(map, LOCAL_SOURCE, collectionsRef.current.localNetwork);
       setSourceData(map, NUP_SOURCE, collectionsRef.current.planningArea);
       setMapReady(true);
     });
+
     return () => {
-      unbindResize();
+      cancelled = true;
+      setMapReady(false);
+      unbindResize?.();
       markers.forEach((marker) => marker.remove());
       markers.clear();
       opportunityMarkers.forEach((marker) => marker.remove());
       opportunityMarkers.clear();
-      map.remove();
-      mapRef.current = null;
+      try {
+        map?.remove();
+      } catch {
+        // Fast Refresh can detach the container before MapLibre finishes teardown.
+      }
+      if (mapRef.current === map) {
+        mapRef.current = null;
+      }
     };
   }, []);
 
@@ -527,7 +554,16 @@ export const SwedenMap = memo(function SwedenMap({
     });
   }, [selectedId, mapReady, projects]);
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  return (
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="h-full w-full bg-[#e4e9ee]" />
+      {initError ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-surface p-6 text-center text-sm text-muted">
+          Could not start the map. Refresh the page. If it continues, restart the local app.
+        </div>
+      ) : null}
+    </div>
+  );
 });
 
 function addOfficialLayers(map: MapLibreMap) {

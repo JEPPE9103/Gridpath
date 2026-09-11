@@ -46,7 +46,7 @@ import {
   type Outlook,
   type Technology,
 } from "@/types";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -170,6 +170,8 @@ function LoadedMapPage({
   const [selectedSlug, setSelectedSlug] = useState<string | null>(initialProjectSlug);
   const [compareOpen, setCompareOpen] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
+  const [layersCollapsed, setLayersCollapsed] = useState(false);
+  const [panelsHidden, setPanelsHidden] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [layers, setLayers] = useState(DEFAULT_OFFICIAL_MAP_LAYERS);
@@ -313,6 +315,7 @@ function LoadedMapPage({
         }
       />
       <div className="relative min-h-0 flex-1 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
+        {panelsHidden ? null : (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Select
             label="Technology"
@@ -372,9 +375,21 @@ function LoadedMapPage({
           <Button variant="ghost" onClick={() => { setFilters(EMPTY_FILTERS); setUnmatchedOnly(false); }} disabled={!filtersActive}>
             Reset filters
           </Button>
+          <Button variant="secondary" onClick={() => setPanelsHidden(true)}>
+            <Maximize2 size={14} />
+            Hide panels
+          </Button>
         </div>
+        )}
 
-        <div className="relative h-[calc(100dvh-14.5rem)] min-h-[360px] overflow-hidden rounded-md border border-line bg-surface sm:h-[calc(100vh-220px)] sm:min-h-[520px]">
+        <div
+          className={cn(
+            "relative overflow-hidden rounded-md border border-line bg-surface",
+            panelsHidden
+              ? "h-[calc(100dvh-8rem)] min-h-[420px] sm:h-[calc(100vh-9rem)] sm:min-h-[560px]"
+              : "h-[calc(100dvh-14.5rem)] min-h-[360px] sm:h-[calc(100vh-220px)] sm:min-h-[520px]",
+          )}
+        >
           <SwedenMap
             projects={mapped}
             opportunities={opportunities}
@@ -390,15 +405,44 @@ function LoadedMapPage({
             onSelectOfficial={selectOfficial}
           />
 
-          <div className="absolute left-3 top-3 z-10 flex max-h-[42%] max-w-[min(100%-1.5rem,20rem)] flex-col gap-2 overflow-auto sm:left-[16.5rem] sm:max-h-[calc(100%-1.5rem)] sm:max-w-[16rem]">
-            <MapLayerControl layers={layers} onChange={setLayers} />
-            <MapLegend />
-            <MapSpatialSummary
-              summary={spatialSummary}
-              unmatchedActive={unmatchedOnly}
-              onToggleUnmatched={() => setUnmatchedOnly((current) => !current)}
-            />
+          {panelsHidden ? (
+            <button
+              type="button"
+              onClick={() => setPanelsHidden(false)}
+              className="absolute left-3 top-3 z-20 flex items-center gap-1 rounded-md border border-line bg-surface/95 px-2 py-2 text-xs text-muted shadow-sm backdrop-blur-sm hover:text-ink"
+            >
+              <Minimize2 size={14} />
+              Show panels
+            </button>
+          ) : (
+          <div
+            className={cn(
+              "absolute top-3 z-10 flex max-h-[42%] max-w-[min(100%-1.5rem,20rem)] flex-col gap-2 overflow-auto sm:max-h-[calc(100%-1.5rem)] sm:max-w-[16rem]",
+              listCollapsed ? "left-3 sm:left-[4.75rem]" : "left-3 sm:left-[16.5rem]",
+            )}
+          >
+            {layersCollapsed ? (
+              <button
+                type="button"
+                onClick={() => setLayersCollapsed(false)}
+                className="flex items-center gap-1 rounded-md border border-line bg-surface px-2 py-2 text-xs text-muted hover:text-ink"
+              >
+                <ChevronRight size={14} />
+                Layers
+              </button>
+            ) : (
+              <>
+                <MapLayerControl layers={layers} onChange={setLayers} onCollapse={() => setLayersCollapsed(true)} />
+                <MapLegend />
+                <MapSpatialSummary
+                  summary={spatialSummary}
+                  unmatchedActive={unmatchedOnly}
+                  onToggleUnmatched={() => setUnmatchedOnly((current) => !current)}
+                />
+              </>
+            )}
           </div>
+          )}
 
           {mapped.length === 0 ? (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
@@ -413,6 +457,7 @@ function LoadedMapPage({
             </div>
           ) : null}
 
+          {panelsHidden ? null : (
           <div
             className={cn(
               "absolute left-3 top-3 hidden max-h-[calc(100%-1.5rem)] w-[240px] flex-col overflow-hidden rounded-md border border-line bg-surface sm:flex",
@@ -489,8 +534,9 @@ function LoadedMapPage({
               </>
             )}
           </div>
+          )}
 
-          {officialPreview && officialAreaId ? (
+          {panelsHidden ? null : officialPreview && officialAreaId ? (
             <MapOfficialPanel
               preview={officialPreview}
               context={officialContext}
@@ -566,6 +612,7 @@ function LoadedMapPage({
           ) : null}
         </div>
 
+        {panelsHidden ? null : (
         <div className="mt-3 space-y-1">
           <p className="text-[11px] uppercase tracking-[0.12em] text-muted">
             Customer / project data
@@ -595,6 +642,7 @@ function LoadedMapPage({
             </div>
           ) : null}
         </div>
+        )}
       </div>
 
       {compareOpen ? (

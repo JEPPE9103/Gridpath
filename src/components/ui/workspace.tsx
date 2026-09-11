@@ -185,3 +185,13 @@ export const tableHeadClass = "border-b border-line bg-canvas text-[11px] upperc
 export const tableHeadCellClass = "px-3 py-2 font-medium";
 
 export const tableCellClass = "px-3 py-2.5 align-middle";
+
+export const tableBodyRowClass = "border-b border-line last:border-0 hover:bg-canvas";
+
+export const tableNumericClass = `${tableCellClass} text-right font-mono text-[13px] tabular-nums`;
+
+export const textActionClass = "text-sm font-medium text-teal hover:underline";
+
+export const quietActionClass = "text-xs text-muted hover:text-ink";
+
+export const destructiveActionClass = "text-xs text-muted hover:text-critical";

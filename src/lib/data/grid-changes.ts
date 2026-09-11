@@ -617,9 +617,11 @@ export async function getGridChangesForCurrentOrganization(): Promise<GridChange
     sourceHealth: health.map((item) => ({
       slug: item.slug,
       name: item.name,
+      publisher: item.publisher,
       healthLabel: item.healthLabel,
       delayed: isOfficialSourceUpdateDelayed(item.health),
       changeLabel: item.changeLabel,
+      lastKnownAt: item.lastSnapshotAt ?? item.lastFullIngestAt ?? item.lastSuccessAt,
     })),
     canWrite: canReviewOfficialChangeImpacts(organization.role),
   };
