@@ -1,27 +1,23 @@
 "use client";
 
-import { MarketingMap, type MarketingMapSite } from "@/components/marketing/marketing-map";
+import { DiscoveryMap } from "@/components/marketing/discovery-map";
 import { useEffect, useRef, useState } from "react";
 
-export function DeferredMarketingMap({
-  sites,
-  selectedId,
+export function DeferredDiscoveryMap({
   size = "full",
   eager = false,
+  showZones = true,
 }: {
-  sites: MarketingMapSite[];
-  selectedId: string;
-  size?: "hero" | "default" | "full";
+  size?: "hero" | "full";
   eager?: boolean;
+  showZones?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [intersected, setIntersected] = useState(false);
   const ready = eager || intersected;
 
   useEffect(() => {
-    if (eager) {
-      return;
-    }
+    if (eager) return;
 
     const node = ref.current;
     if (!node) return;
@@ -42,15 +38,13 @@ export function DeferredMarketingMap({
 
   const placeholderClass =
     size === "full"
-      ? "h-[280px] bg-[#e4ebe8] sm:h-[400px] lg:h-[520px]"
-      : size === "hero"
-        ? "h-[196px] bg-[#e4ebe8] sm:h-[236px] lg:h-[268px]"
-        : "h-[240px] bg-[#e4ebe8] sm:h-[300px] lg:h-[340px]";
+      ? "h-[280px] bg-[#e4ebe8] sm:h-[400px] lg:h-[460px]"
+      : "h-[220px] bg-[#e4ebe8] sm:h-[280px] lg:h-[320px]";
 
   return (
     <div ref={ref}>
       {ready ? (
-        <MarketingMap selectedId={selectedId} sites={sites} size={size} />
+        <DiscoveryMap showZones={showZones} size={size} />
       ) : (
         <div className={placeholderClass} aria-hidden />
       )}

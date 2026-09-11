@@ -1,5 +1,26 @@
 import { expect, test } from "@playwright/test";
 
+test.describe("public marketing", () => {
+  test("landing page presents development intelligence", async ({ page }) => {
+    await page.goto("/");
+    await expect(page).toHaveTitle(/Development Intelligence/i);
+    await expect(
+      page.getByRole("heading", { level: 1, name: /find stronger development opportunities/i }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /book a demo/i }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /search a geography/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /does not hide missing evidence/i })).toBeVisible();
+  });
+
+  test("about page matches development intelligence category", async ({ page }) => {
+    await page.goto("/about");
+    await expect(
+      page.getByRole("heading", { name: /development intelligence for bess/i }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /book a demo/i }).first()).toBeVisible();
+  });
+});
+
 test.describe("public authentication routes", () => {
   test("unauthenticated protected routes redirect to login", async ({ page }) => {
     await page.goto("/overview");

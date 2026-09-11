@@ -26,7 +26,7 @@ export function CtaLink({
     className,
   );
 
-  if (href.startsWith("http")) {
+  if (href.startsWith("http") || href.includes("#")) {
     return (
       <a href={href} className={classes} onClick={onClick}>
         {children}

@@ -9,15 +9,15 @@ export function DesignPartnerSection() {
         <div className="rounded-md border border-line bg-surface px-6 py-10 sm:px-10 sm:py-12 lg:px-14">
           <Eyebrow>Design partner</Eyebrow>
           <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight sm:text-[40px] sm:leading-[1.15]">
-            Help shape the development intelligence layer you actually need.
+            Help shape Development Intelligence against real Swedish sites.
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-7 text-muted">
             We are working with a small number of Swedish BESS and renewable development teams to
-            validate Noxheim against real portfolios and real grid-connection workflows.
+            validate Noxheim on real geographies, real evidence gaps and real connection workflows.
           </p>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-            Design partners get direct onboarding, close support and the opportunity to influence
-            which intelligence layers Noxheim develops next.
+            Design partners get a guided workspace, close support, and a say in which evidence layers
+            Noxheim develops next. This is not instant national self-service.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <CtaLink href="/#demo" className="w-full px-5 sm:w-auto">

@@ -22,9 +22,9 @@ export function DemoCTA() {
             See Noxheim on a real development workflow.
           </h2>
           <p className="mt-5 max-w-md text-base leading-7 text-muted">
-            Tell us a little about your development portfolio and we&apos;ll show how Noxheim
-            identifies which projects need attention, with official grid context and the connection
-            workflow in one workspace.
+            Tell us about the geographies you develop. We&apos;ll walk Search Area to Candidate
+            Sites, evidence coverage, Opportunity to Project, and the connection tracking that
+            follows — in the same workspace you would use.
           </p>
         </Reveal>
         <Reveal delay={80}>

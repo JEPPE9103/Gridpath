@@ -7,25 +7,32 @@ import { useState } from "react";
 
 const CASES = [
   {
-    id: "bess",
-    label: "BESS portfolio screening",
-    title: "BESS portfolio screening",
-    copy: "Bring official grid-development context into every prospective battery project and see which sites need attention next.",
-    outputs: ["10 active sites", "370 MW portfolio", "2 action required"],
+    id: "discovery",
+    label: "Geographic opportunity discovery",
+    title: "Find Candidate Sites in a Search Area",
+    copy: "Select a geography, derive Opportunity Zones from qualifying land, and identify Candidate Sites worth investigating — before a project record exists.",
+    outputs: ["Search Area", "Opportunity Zones", "Candidate Sites"],
   },
   {
-    id: "connection",
-    label: "Grid connection management",
-    title: "Grid connection management",
-    copy: "Keep connection stages, requirements, references and project status together instead of across spreadsheets and inboxes.",
-    outputs: ["Stockholm North BESS", "Grid Study", "4 / 8 required · 50% readiness"],
+    id: "screening",
+    label: "Candidate Site screening",
+    title: "Screen and compare on the same evidence",
+    copy: "See evaluated versus missing evidence, compare Candidate Sites, then shortlist, reject, reopen or save an Opportunity.",
+    outputs: ["Evidence coverage", "Compare", "Save as Opportunity"],
   },
   {
-    id: "changes",
-    label: "Portfolio change review",
-    title: "Portfolio change review",
-    copy: "When a supported official publication changes, see which projects have a geographic match for your team to review. That match is not a technical impact verdict.",
-    outputs: ["Source snapshot", "Geographic match", "2 projects to review"],
+    id: "lifecycle",
+    label: "Opportunity to Project",
+    title: "Carry the site into development",
+    copy: "Promote a kept Opportunity to a Project so origin, evidence and covering geography follow the decision.",
+    outputs: ["Opportunity", "Promote", "Project"],
+  },
+  {
+    id: "connect",
+    label: "Connection and monitoring",
+    title: "Track connection work and official-source change",
+    copy: "After promotion, keep connection stages, requirements and documents on the project, and review official-source changes with a geographic match. That match is not a technical verdict.",
+    outputs: ["Connection tracking", "Portfolio Attention", "Official Source"],
   },
 ];
 
@@ -40,6 +47,11 @@ export function UseCases() {
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-[40px] sm:leading-[1.15]">
           Built for BESS and renewable development teams.
         </h2>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
+          For Swedish battery, solar, wind and hybrid development — including consultants working
+          those same projects. Not positioned today for data centres, industry, hydrogen or
+          municipalities.
+        </p>
       </Reveal>
       <Reveal delay={70}>
         <div className="mt-10 grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -77,7 +89,6 @@ export function UseCases() {
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-[11px] uppercase tracking-wide text-muted">Sample</p>
           </div>
         </div>
       </Reveal>

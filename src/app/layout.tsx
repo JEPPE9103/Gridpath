@@ -22,18 +22,18 @@ const jetbrainsMono = JetBrains_Mono({
 
 const siteUrl = getPublicSiteUrl();
 const siteDescription =
-  "See which grid-connected projects need attention, why, and what to do next — with official grid context and your connection workflow in one workspace.";
+  "Development Intelligence for Swedish BESS and renewable development teams. Search geography, identify Candidate Sites, understand the evidence, and carry opportunities into development.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "NOXHEIM — Grid Development Intelligence",
+    default: "NOXHEIM — Development Intelligence",
     template: "%s · NOXHEIM",
   },
   description: siteDescription,
   icons: { icon: "/favicon.svg" },
   openGraph: {
-    title: "NOXHEIM — Grid Development Intelligence",
+    title: "NOXHEIM — Development Intelligence",
     description: siteDescription,
     type: "website",
     locale: "en_GB",

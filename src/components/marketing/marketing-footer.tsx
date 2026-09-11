@@ -7,7 +7,7 @@ export function MarketingFooter() {
         <div>
           <p className="text-[13px] font-semibold tracking-[0.18em]">NOXHEIM</p>
           <p className="mt-3 max-w-sm text-sm leading-6 text-muted">
-            Grid Development Intelligence
+            Development Intelligence for Swedish BESS and renewable development teams.
           </p>
         </div>
         <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
@@ -22,9 +22,6 @@ export function MarketingFooter() {
           </Link>
           <Link href="/login" className="text-muted hover:text-ink">
             Sign in
-          </Link>
-          <Link href="/signup" className="text-muted hover:text-ink">
-            Get started
           </Link>
           <Link href="/#demo" className="text-muted hover:text-ink">
             Book a demo

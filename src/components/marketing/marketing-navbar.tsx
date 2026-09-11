@@ -8,9 +8,9 @@ import { useEffect, useState } from "react";
 
 const LINKS = [
   { href: "/#product", label: "Product" },
-  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#evidence", label: "Evidence" },
+  { href: "/#develop", label: "Develop" },
   { href: "/#use-cases", label: "Use cases" },
-  { href: "/#why", label: "Why Noxheim" },
 ];
 
 export function MarketingNavbar() {
@@ -51,15 +51,15 @@ export function MarketingNavbar() {
               compact ? "hidden sm:block sm:h-0 sm:overflow-hidden sm:opacity-0" : "mt-0.5",
             )}
           >
-            Grid Development Intelligence
+            Development Intelligence
           </p>
         </Link>
 
         <nav className="hidden items-center gap-7 text-sm text-muted lg:flex">
           {LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal">
+            <a key={link.href} href={link.href} className="hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal">
               {link.label}
-            </Link>
+            </a>
           ))}
         </nav>
 
@@ -67,10 +67,7 @@ export function MarketingNavbar() {
           <Link href="/login" className="text-sm text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal">
             Sign in
           </Link>
-          <Link href="/#demo" className="text-sm text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal">
-            Book a demo
-          </Link>
-          <CtaLink href="/signup">Get started</CtaLink>
+          <CtaLink href="/#demo">Book a demo</CtaLink>
         </div>
 
         <button
@@ -87,25 +84,30 @@ export function MarketingNavbar() {
         <div className="border-t border-line bg-canvas px-5 py-5 lg:hidden">
           <nav className="flex flex-col gap-3 text-sm">
             {LINKS.map((link) => (
-              <Link
+              <a
                 key={link.href}
                 href={link.href}
                 className="py-1 text-ink"
                 onClick={() => setOpen(false)}
               >
                 {link.label}
-              </Link>
+              </a>
             ))}
             <Link href="/login" className="py-1 text-ink" onClick={() => setOpen(false)}>
               Sign in
             </Link>
           </nav>
           <div className="mt-5 flex flex-col gap-2">
-            <CtaLink href="/signup" className="w-full" onClick={() => setOpen(false)}>
-              Get started
-            </CtaLink>
-            <CtaLink href="/#demo" variant="secondary" className="w-full" onClick={() => setOpen(false)}>
+            <CtaLink href="/#demo" className="w-full" onClick={() => setOpen(false)}>
               Book a demo
+            </CtaLink>
+            <CtaLink
+              href="/#design-partner"
+              variant="secondary"
+              className="w-full"
+              onClick={() => setOpen(false)}
+            >
+              Become a design partner
             </CtaLink>
           </div>
         </div>

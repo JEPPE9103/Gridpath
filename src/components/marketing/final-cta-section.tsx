@@ -7,18 +7,18 @@ export function FinalCtaSection() {
     <MarketingSection className="bg-surface">
       <Reveal>
         <h2 className="max-w-3xl text-3xl font-semibold tracking-tight sm:text-[42px] sm:leading-[1.12]">
-          Your grid data is fragmented. Your portfolio doesn&apos;t have to be.
+          Find sites worth investigating. Stop the rest with the evidence still attached.
         </h2>
         <p className="mt-5 max-w-xl text-base leading-7 text-muted">
-          Bring screening, connection workflow, official change review and portfolio attention into
-          one development workspace.
+          Development Intelligence for Swedish BESS and renewable teams — from Search Area through
+          Candidate Site, Opportunity, Project, connection tracking and official-source monitoring.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <CtaLink href="/signup" className="w-full px-5 sm:w-auto">
-            Get started
-          </CtaLink>
-          <CtaLink href="/#demo" variant="secondary" className="w-full px-5 sm:w-auto">
+          <CtaLink href="/#demo" className="w-full px-5 sm:w-auto">
             Book a demo
+          </CtaLink>
+          <CtaLink href="/#design-partner" variant="secondary" className="w-full px-5 sm:w-auto">
+            Become a design partner
           </CtaLink>
         </div>
       </Reveal>

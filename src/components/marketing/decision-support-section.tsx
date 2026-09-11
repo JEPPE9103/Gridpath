@@ -10,10 +10,11 @@ export function DecisionSupportSection() {
           Decision support, not a grid connection guarantee.
         </h2>
         <p className="mt-5 max-w-2xl text-base leading-7 text-muted">
-          Noxheim helps development teams organise published information, connection workflow and
-          which recorded items need attention. It does not replace formal network-operator
-          assessments, connection studies or binding capacity offers, and it does not estimate
-          connection probability or which projects deserve capital.
+          Noxheim helps development teams find sites worth investigating, see missing evidence, and
+          keep that context through connection tracking and official-source review. It does not
+          replace formal network-operator assessments, connection studies or binding capacity offers.
+          It does not estimate available MW, connection probability, planning approval, or which
+          sites deserve capital.
         </p>
       </Reveal>
     </MarketingSection>
