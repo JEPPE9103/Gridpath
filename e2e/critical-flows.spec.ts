@@ -51,12 +51,17 @@ test.describe("Noxheim V1 critical flows", () => {
       test.skip(true, "Empty tenant onboarding is environment-specific.");
     }
     await page.goto("/portfolio");
-    const create = page.getByRole("link", { name: /new project|add project|create project/i });
-    if (!(await create.count())) {
+    await expect(page.getByRole("heading", { name: /^Portfolio$/i })).toBeVisible();
+    const create = page.getByRole("link", { name: "Add project", exact: true });
+    try {
+      await expect(create).toBeVisible({ timeout: 10_000 });
+    } catch {
       test.skip(true, "Create-project control not visible for this fixture user.");
     }
-    await create.first().click();
-    await expect(page.getByLabel(/name/i).or(page.getByText(/project name/i)).first()).toBeVisible();
+    await create.click();
+    await page.waitForURL(/\/projects\/new/);
+    await expect(page.getByRole("heading", { name: /^Add project$/i })).toBeVisible();
+    await expect(page.getByText("Project name", { exact: true })).toBeVisible();
   });
 
   test("viewer cannot reach operator internals as a customer page", async ({ page }) => {
