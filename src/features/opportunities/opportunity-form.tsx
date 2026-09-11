@@ -9,6 +9,7 @@ import { originLabel, type ScreeningProfileRecord } from "@/lib/opportunities/sc
 import type { OpportunityFormInput } from "@/lib/opportunities/validation";
 import Link from "next/link";
 import { useActionState, useState, type ReactNode } from "react";
+import { SearchAreaPicker } from "@/features/opportunities/search-area-picker";
 
 const INITIAL: OpportunityMutationState = {};
 
@@ -78,6 +79,12 @@ export function OpportunityForm({
   const values = { ...EMPTY, ...state.values };
   const errors = state.fieldErrors ?? {};
   const [searchMode, setSearchMode] = useState(values.searchMode === "point" ? "point" : "geography");
+  const [bbox, setBbox] = useState({
+    west: values.west,
+    south: values.south,
+    east: values.east,
+    north: values.north,
+  });
 
   return (
     <form action={formAction} className="relative max-w-3xl space-y-6">
@@ -125,7 +132,8 @@ export function OpportunityForm({
           <h2 className="text-sm font-semibold">Core screening parameters</h2>
           <p className="mt-1 text-sm text-muted">
             Geographic screening returns ranked Candidate Sites grown to your target footprint inside
-            broader Opportunity Zones. Results are not land parcels. Official environmental layers and
+            broader Opportunity Zones. Discovery screening identifies Candidate Sites from coarse
+            official evidence. Results are not land parcels. Official environmental layers and
             NMD 2023 land cover are applied when ingested.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -173,27 +181,62 @@ export function OpportunityForm({
           <section className="mt-6 rounded-md border border-line bg-surface p-5">
             <h2 className="text-sm font-semibold">Search area</h2>
             <p className="mt-1 text-sm text-muted">
-              Enter the west, south, east and north edges of the area to screen, in decimal degrees
-              (WGS84). This is a rectangular envelope, not a municipality or drawn polygon. Clipped to
-              Sweden. Maximum 15 000 km².
+              Draw a rectangular envelope on the map, or enter coordinates. This is not a municipality
+              or cadastral polygon. Clipped to Sweden. Maximum 15 000 km².
             </p>
-            <p className="mt-2 text-xs text-muted">
+            <div className="mt-4">
+              <SearchAreaPicker
+                west={bbox.west}
+                south={bbox.south}
+                east={bbox.east}
+                north={bbox.north}
+                onChange={setBbox}
+              />
+            </div>
+            <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted">Manual coordinates</p>
+            <p className="mt-1 text-xs text-muted">
               Examples: Hallsberg — west 14.9, south 59.1, east 15.4, north 59.4. Västerås — west 16.30,
               south 59.47, east 16.90, north 59.73.
             </p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <Field label="West" error={errors.west}>
-                <input name="west" defaultValue={values.west} className={inputClass} inputMode="decimal" />
+                <input
+                  name="west"
+                  value={bbox.west}
+                  onChange={(event) => setBbox((current) => ({ ...current, west: event.target.value }))}
+                  className={inputClass}
+                  inputMode="decimal"
+                />
               </Field>
               <Field label="South" error={errors.south}>
-                <input name="south" defaultValue={values.south} className={inputClass} inputMode="decimal" />
+                <input
+                  name="south"
+                  value={bbox.south}
+                  onChange={(event) => setBbox((current) => ({ ...current, south: event.target.value }))}
+                  className={inputClass}
+                  inputMode="decimal"
+                />
               </Field>
               <Field label="East" error={errors.east}>
-                <input name="east" defaultValue={values.east} className={inputClass} inputMode="decimal" />
+                <input
+                  name="east"
+                  value={bbox.east}
+                  onChange={(event) => setBbox((current) => ({ ...current, east: event.target.value }))}
+                  className={inputClass}
+                  inputMode="decimal"
+                />
               </Field>
               <Field label="North" error={errors.north}>
-                <input name="north" defaultValue={values.north} className={inputClass} inputMode="decimal" />
+                <input
+                  name="north"
+                  value={bbox.north}
+                  onChange={(event) => setBbox((current) => ({ ...current, north: event.target.value }))}
+                  className={inputClass}
+                  inputMode="decimal"
+                />
               </Field>
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <Field
                 label="Minimum usable area (ha)"
                 error={errors.minSiteAreaHa}

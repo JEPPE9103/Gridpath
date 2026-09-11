@@ -13,7 +13,25 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-start rounded-md border border-dashed border-line bg-surface px-6 py-10">
+    <div className="flex flex-col items-start rounded-md border border-dashed border-line bg-surface px-5 py-8">
+      <h2 className="text-base font-semibold text-ink">{title}</h2>
+      <p className="mt-1 max-w-lg text-sm text-muted">{description}</p>
+      {action ? <div className="mt-4">{action}</div> : null}
+    </div>
+  );
+}
+
+export function ErrorState({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-start rounded-md border border-critical/25 bg-critical-bg/50 px-5 py-6" role="alert">
       <h2 className="text-base font-semibold text-ink">{title}</h2>
       <p className="mt-1 max-w-lg text-sm text-muted">{description}</p>
       {action ? <div className="mt-4">{action}</div> : null}
@@ -32,7 +50,10 @@ export function EmptyWorkspaceAction() {
 export function EmptyProjectsAction() {
   return (
     <div className="flex flex-wrap gap-2">
-      <Link href="/projects/new" className={buttonClassName()}>
+      <Link href="/opportunities/new" className={buttonClassName()}>
+        New search
+      </Link>
+      <Link href="/projects/new" className={buttonClassName("secondary")}>
         Add project
       </Link>
       <Link href="/portfolio/import" className={buttonClassName("secondary")}>

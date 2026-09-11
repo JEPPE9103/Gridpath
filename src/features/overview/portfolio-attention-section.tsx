@@ -30,7 +30,7 @@ export function PortfolioAttentionSection({
     <section id="portfolio-attention" aria-labelledby="portfolio-attention-heading">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="portfolio-attention-heading" className="text-lg font-semibold tracking-tight">
+          <h2 id="portfolio-attention-heading" className="text-base font-semibold tracking-tight">
             Do next
           </h2>
           <p className="mt-1 max-w-xl text-sm text-muted">

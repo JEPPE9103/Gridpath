@@ -45,6 +45,22 @@ export type SearchBbox = {
   north: number;
 };
 
+export function bboxFromCorners(
+  a: { lng: number; lat: number },
+  b: { lng: number; lat: number },
+): SearchBbox {
+  return {
+    west: Math.min(a.lng, b.lng),
+    south: Math.min(a.lat, b.lat),
+    east: Math.max(a.lng, b.lng),
+    north: Math.max(a.lat, b.lat),
+  };
+}
+
+export function formatBboxCoordinate(value: number): string {
+  return value.toFixed(4);
+}
+
 export type BboxValidation =
   | { ok: true; bbox: SearchBbox; areaKm2: number; cellSizeMeters: number }
   | { ok: false; error: string; field?: keyof SearchBbox };

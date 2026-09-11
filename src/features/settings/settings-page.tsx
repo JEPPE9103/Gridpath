@@ -36,7 +36,8 @@ export function SettingsPage({
     <>
       <PageHeader
         title="Settings"
-        subtitle="Your profile, workspace and team"
+        eyebrow="Workspace"
+        subtitle="Profile, organisation, notifications, and official source health"
         actions={
           <>
             <BellButton />

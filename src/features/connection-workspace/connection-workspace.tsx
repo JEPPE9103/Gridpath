@@ -80,8 +80,8 @@ export function ConnectionWorkspace({
 function WorkspaceHeader({ project }: { project: ProjectDetailViewModel }) {
   return (
     <PageHeader
-      title="Connection application"
-      subtitle={`${project.name} · customer-entered workflow`}
+      title="Connection process"
+      subtitle={`${project.name} · customer-entered workflow tracking, not a DSO application portal`}
       actions={
         <>
           <Link href={`/projects/${project.slug}`} className={buttonClassName("secondary")}>
@@ -153,7 +153,7 @@ function LoadedConnectionWorkspace({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
-              Connection application
+              Connection process
             </p>
             <h2 className="mt-1 text-xl font-semibold">
               {standalone ? project.name : "Connection case"}

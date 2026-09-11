@@ -3,8 +3,9 @@
 import { DocumentTable } from "@/features/documents/document-table";
 import { DocumentUploadForm } from "@/features/documents/document-upload-form";
 import { BellButton } from "@/components/layout/app-shell";
-import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction } from "@/components/ui/empty-state";
+import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar, FilterSelect, PageBody } from "@/components/ui/workspace";
 import {
   DOCUMENT_CATEGORY_FILTERS,
   DOCUMENT_STATUS_FILTERS,
@@ -21,14 +22,14 @@ export function DocumentsPage({ result }: { result: DocumentsResult }) {
   if (result.kind === "no_organization") {
     return (
       <>
-        <PageHeader title="Documents" subtitle="Portfolio document workspace" />
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader eyebrow="Monitor" title="Documents" subtitle="Development evidence and document control" />
+        <PageBody>
           <EmptyState
             title="No workspace yet"
             description="This account is not a member of an organisation. Create or join a workspace to see documents."
             action={<EmptyWorkspaceAction />}
           />
-        </div>
+        </PageBody>
       </>
     );
   }
@@ -36,13 +37,13 @@ export function DocumentsPage({ result }: { result: DocumentsResult }) {
   if (result.kind === "error") {
     return (
       <>
-        <PageHeader title="Documents" subtitle="Portfolio document workspace" />
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
-          <EmptyState
+        <PageHeader eyebrow="Monitor" title="Documents" subtitle="Development evidence and document control" />
+        <PageBody>
+          <ErrorState
             title="Could not load documents"
             description="Try again in a moment. If the problem continues, sign in again."
           />
-        </div>
+        </PageBody>
       </>
     );
   }
@@ -94,8 +95,9 @@ function LoadedDocumentsPage({
   return (
     <>
       <PageHeader
+        eyebrow="Monitor"
         title="Documents"
-        subtitle={`${documents.length} customer-provided documents across ${projects.length} projects`}
+        subtitle="Customer-provided files stored against projects. Filename matching is not an official requirement link."
         actions={
           <>
             <BellButton />
@@ -103,66 +105,42 @@ function LoadedDocumentsPage({
           </>
         }
       />
-      <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+      <PageBody className="space-y-4">
         {canWrite ? <DocumentUploadForm projects={projects} /> : null}
 
-        <div className="flex flex-wrap gap-2">
+        <FilterBar>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search document or project"
             className="h-9 w-full rounded-md border border-line bg-surface px-3 text-sm sm:w-64"
           />
-          <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
-            <span className="text-muted">Project</span>
-            <select
-              value={projectFilter}
-              onChange={(event) => setProjectFilter(event.target.value)}
-              className="bg-transparent"
-            >
-              {projectOptions.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
-            <span className="text-muted">Category</span>
-            <select
-              value={categoryFilter}
-              onChange={(event) =>
-                setCategoryFilter(event.target.value as DocumentListCategory | "All")
-              }
-              className="bg-transparent"
-            >
-              <option>All</option>
-              {DOCUMENT_CATEGORY_FILTERS.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
-            <span className="text-muted">Status</span>
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value as DocumentStatus | "All")
-              }
-              className="bg-transparent"
-            >
-              <option>All</option>
-              {DOCUMENT_STATUS_FILTERS.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-        </div>
+          <FilterSelect
+            value={projectFilter}
+            onChange={setProjectFilter}
+            options={projectOptions}
+            label="Project"
+          />
+          <FilterSelect
+            value={categoryFilter}
+            onChange={(value) => setCategoryFilter(value as DocumentListCategory | "All")}
+            options={["All", ...DOCUMENT_CATEGORY_FILTERS]}
+            label="Category"
+          />
+          <FilterSelect
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value as DocumentStatus | "All")}
+            options={["All", ...DOCUMENT_STATUS_FILTERS]}
+            label="Status"
+          />
+        </FilterBar>
 
         {documents.length === 0 ? (
           <EmptyState
-            title="No documents"
+            title="No development documents yet"
             description={
               canWrite
-                ? "Upload a PDF, Word, Excel, or image file to store it privately on a project."
+                ? "Upload a PDF, Word, Excel, or image file to keep it with a project. This is workspace document control, not a shared drive."
                 : "No project documents have been uploaded in this workspace yet."
             }
             action={projects.length === 0 ? <EmptyProjectsAction /> : undefined}
@@ -175,7 +153,7 @@ function LoadedDocumentsPage({
         ) : (
           <DocumentTable rows={rows} canWrite={canWrite} showProject />
         )}
-      </div>
+      </PageBody>
     </>
   );
 }

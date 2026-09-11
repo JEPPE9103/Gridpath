@@ -1,6 +1,8 @@
 "use client";
 
 import { EmptyState } from "@/components/ui/empty-state";
+import { TechnicalDetails } from "@/components/ui/workspace";
+import { cn } from "@/lib/cn";
 import { formatDateTime } from "@/lib/format";
 import type { SourceHealthView } from "@/lib/data/source-health";
 
@@ -15,14 +17,10 @@ export function SourceHealthSection({
     <section className="max-w-3xl rounded-md border border-line bg-surface p-5">
       <h2 className="text-base font-semibold">Data sources</h2>
       <p className="mt-2 text-sm leading-6 text-muted">
-        Noxheim periodically refreshes supported official sources (Ei covering geography,
-        Naturvårdsverket protected-area / Natura 2000 / NMD 2023, Copernicus DEM slope summaries,
-        Trafikverket RoadLink, and SCB administrative geography) when ingest is configured.
-        Lantmäteriet 1 m DTM and Marktäcke vectors are on-demand when Geotorget credentials exist;
-        otherwise Copernicus remains the coarse terrain fallback and NMD remains the land-cover source.
-        Failed or never-ingested providers reduce screening data confidence. This is not real-time grid
-        monitoring, and it does not mean available connection capacity. Residential building data remains
-        licence-blocked.
+        Status of supported official sources used by Development Intelligence. Available means the
+        last successful ingest is within the expected cadence. Degraded means stale or failed.
+        Not configured means no successful ingest yet. This is not real-time grid monitoring, and
+        it does not mean available connection capacity.
       </p>
       {sources.length === 0 ? (
         <div className="mt-4">
@@ -42,11 +40,33 @@ export function SourceHealthSection({
                     <p className="text-xs text-muted">{source.publisher}</p>
                   ) : null}
                 </div>
-                <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-ink">
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                    source.isRunning && "bg-info-bg text-info",
+                    !source.isRunning && source.health === "healthy" && "bg-success-bg text-success",
+                    !source.isRunning &&
+                      (source.health === "stale" || source.health === "failed") &&
+                      "bg-warning-bg text-warning",
+                    !source.isRunning && source.health === "never_ingested" && "bg-canvas text-muted",
+                  )}
+                >
                   {source.isRunning ? "Refresh running" : source.healthLabel}
                 </span>
               </div>
               <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                {source.health === "failed" ? (
+                  <HealthRow label="Condition" value="Last refresh failed" />
+                ) : source.health === "stale" ? (
+                  <HealthRow label="Condition" value="Ingest is older than the expected cadence" />
+                ) : source.health === "never_ingested" ? (
+                  <HealthRow label="Condition" value="Not configured / never ingested" />
+                ) : (
+                  <HealthRow label="Condition" value="Last successful ingest is current" />
+                )}
+              </dl>
+              <TechnicalDetails summary="Technical details">
+              <dl className="grid gap-2 sm:grid-cols-2">
                 <HealthRow label="Last attempt" value={formatMaybe(source.lastAttemptAt)} />
                 <HealthRow
                   label="Last successful full ingest"
@@ -84,6 +104,7 @@ export function SourceHealthSection({
                   />
                 ) : null}
               </dl>
+              </TechnicalDetails>
               <p className="mt-3 text-xs leading-5 text-muted">{source.changeLabel}</p>
               {source.slug === "nv-nmd-2023" ? (
                 <p className="mt-2 text-xs leading-5 text-muted">

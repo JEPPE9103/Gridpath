@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageBody, tableWrapClass } from "@/components/ui/workspace";
 import type { OpportunityListItem } from "@/lib/data/opportunities";
 import {
   assessmentDimensionLabel,
@@ -9,23 +10,33 @@ import {
   opportunityTechnologyLabel,
 } from "@/lib/opportunities/catalog";
 import { canCompareOpportunities, compareRecommendation } from "@/lib/opportunities/compare";
+import { buildEvidenceCoverageFromAssessments } from "@/lib/opportunities/evidence-coverage";
+import { cn } from "@/lib/cn";
 import Link from "next/link";
+
+type CompareAssessment = {
+  dimension: string;
+  result: string;
+  explanation: string;
+  completeness?: string;
+  sourceKind?: string;
+};
 
 export function OpportunityComparePage({
   items,
   assessmentsById,
 }: {
   items: OpportunityListItem[];
-  assessmentsById: Map<string, Array<{ dimension: string; result: string; explanation: string }>>;
+  assessmentsById: Map<string, CompareAssessment[]>;
 }) {
   const allowed = canCompareOpportunities(items.length);
   if (!allowed.ok) {
     return (
       <>
-        <PageHeader title="Compare opportunities" />
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader eyebrow="Discover" title="Compare opportunities" />
+        <PageBody>
           <EmptyState title="Select opportunities to compare" description={allowed.error} />
-        </div>
+        </PageBody>
       </>
     );
   }
@@ -47,23 +58,26 @@ export function OpportunityComparePage({
   return (
     <>
       <PageHeader
+        eyebrow="Discover"
         title="Compare opportunities"
-        subtitle="Why one candidate ranks above another, based on stored evidence — not a success score."
+        subtitle="Why investigate one site instead of another, from stored evidence — not a success score."
       />
-      <div className="space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+      <PageBody>
         {leader && ranked[1] ? (
           <p className="text-sm">
-            {leader.name} ranks above {ranked[1].name} because its stored recommendation is
-            “{opportunityRecommendationLabel(leader.recommendation)}” versus “
-            {opportunityRecommendationLabel(ranked[1].recommendation)}”. This is current evidence,
-            not a prediction of connection.
+            <span className="font-medium">{leader.name}</span> ranks above {ranked[1].name} because
+            its stored recommendation is “{opportunityRecommendationLabel(leader.recommendation)}”
+            versus “{opportunityRecommendationLabel(ranked[1].recommendation)}”. This is current
+            evidence, not a prediction of connection.
           </p>
         ) : null}
-        <div className="overflow-x-auto">
+        <div className={tableWrapClass}>
           <table className="min-w-full border-collapse text-sm">
-            <thead>
+            <thead className="bg-canvas">
               <tr>
-                <th className="border-b border-line px-3 py-2 text-left font-medium text-muted">Dimension</th>
+                <th className="border-b border-line px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted">
+                  Dimension
+                </th>
                 {items.map((item) => (
                   <th key={item.id} className="border-b border-line px-3 py-2 text-left">
                     <Link href={`/opportunities/${item.slug}`} className="text-teal hover:underline">
@@ -74,55 +88,52 @@ export function OpportunityComparePage({
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td className="border-b border-line px-3 py-2 text-muted">Technology</td>
-                {items.map((item) => (
-                  <td key={item.id} className="border-b border-line px-3 py-2">
-                    {opportunityTechnologyLabel(item.technology)}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="border-b border-line px-3 py-2 text-muted">Status</td>
-                {items.map((item) => (
-                  <td key={item.id} className="border-b border-line px-3 py-2">
-                    {opportunityStatusLabel(item.status)}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="border-b border-line px-3 py-2 text-muted">Recommendation</td>
-                {items.map((item) => (
-                  <td key={item.id} className="border-b border-line px-3 py-2">
-                    {opportunityRecommendationLabel(item.recommendation)}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="border-b border-line px-3 py-2 text-muted">Recommendation confidence</td>
-                {items.map((item) => (
-                  <td key={item.id} className="border-b border-line px-3 py-2">
-                    {opportunityConfidenceLabel(item.dataConfidence)}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="border-b border-line px-3 py-2 text-muted">Network area</td>
-                {items.map((item) => (
-                  <td key={item.id} className="border-b border-line px-3 py-2">
-                    Official covering geography — not an indication of available connection capacity.
-                    {item.keyPositive ? ` ${item.keyPositive}` : ""}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="border-b border-line px-3 py-2 text-muted">Target MW</td>
-                {items.map((item) => (
-                  <td key={item.id} className="border-b border-line px-3 py-2">
-                    {item.targetMw ?? "—"}
-                  </td>
-                ))}
-              </tr>
+              <CompareRow label="Technology" items={items}>
+                {(item) => opportunityTechnologyLabel(item.technology)}
+              </CompareRow>
+              <CompareRow label="Status" items={items}>
+                {(item) => opportunityStatusLabel(item.status)}
+              </CompareRow>
+              <CompareRow label="Recommendation" items={items} emphasize>
+                {(item) => opportunityRecommendationLabel(item.recommendation)}
+              </CompareRow>
+              <CompareRow label="Recommendation confidence" items={items}>
+                {(item) => opportunityConfidenceLabel(item.dataConfidence)}
+              </CompareRow>
+              <CompareRow label="Usable area" items={items}>
+                {(item) =>
+                  item.contiguousAreaHa != null ? `${item.contiguousAreaHa.toFixed(1)} ha` : "—"
+                }
+              </CompareRow>
+              <CompareRow label="Target MW" items={items}>
+                {(item) =>
+                  item.targetMw != null ? `${item.targetMw} MW (customer-entered)` : "Not set"
+                }
+              </CompareRow>
+              <CompareRow label="Evidence coverage" items={items}>
+                {(item) => {
+                  const coverage = coverageFor(item.id, assessmentsById);
+                  return `${coverage.evaluatedCount}/${coverage.totalCount} evaluated`;
+                }}
+              </CompareRow>
+              <CompareRow label="Unresolved evidence" items={items}>
+                {(item) => {
+                  const coverage = coverageFor(item.id, assessmentsById);
+                  return coverage.missingLabels.length > 0
+                    ? coverage.missingLabels.join(", ")
+                    : "None recorded";
+                }}
+              </CompareRow>
+              <CompareRow label="Network geography" items={items}>
+                {(item) =>
+                  item.keyPositive
+                    ? `${item.keyPositive} Official covering geography — not available capacity.`
+                    : "Official covering geography — not an indication of available connection capacity."
+                }
+              </CompareRow>
+              <CompareRow label="Key risk" items={items}>
+                {(item) => item.keyRisk ?? "No stored risk yet."}
+              </CompareRow>
               {dimensions.map((dimension) => (
                 <tr key={dimension}>
                   <td className="border-b border-line px-3 py-2 text-muted">
@@ -130,9 +141,17 @@ export function OpportunityComparePage({
                   </td>
                   {items.map((item) => {
                     const row = assessmentsById.get(item.id)?.find((entry) => entry.dimension === dimension);
+                    const missing = !row || row.completeness === "insufficient" || row.result === "unknown";
                     return (
-                      <td key={item.id} className="border-b border-line px-3 py-2 align-top">
-                        {row ? row.result.replaceAll("_", " ") : "—"}
+                      <td
+                        key={item.id}
+                        className={cn(
+                          "border-b border-line px-3 py-2 align-top",
+                          missing && "text-muted",
+                        )}
+                      >
+                        {row ? row.result.replaceAll("_", " ") : "Not evaluated"}
+                        {row?.completeness === "insufficient" ? " · missing evidence" : ""}
                       </td>
                     );
                   })}
@@ -141,7 +160,47 @@ export function OpportunityComparePage({
             </tbody>
           </table>
         </div>
-      </div>
+      </PageBody>
     </>
+  );
+}
+
+function coverageFor(
+  id: string,
+  assessmentsById: Map<string, CompareAssessment[]>,
+) {
+  return buildEvidenceCoverageFromAssessments({
+    assessments: (assessmentsById.get(id) ?? []).map((row) => ({
+      dimension: row.dimension,
+      completeness: row.completeness ?? "insufficient",
+      sourceKind: row.sourceKind ?? "derived",
+      explanation: row.explanation,
+    })),
+  });
+}
+
+function CompareRow({
+  label,
+  items,
+  emphasize,
+  children,
+}: {
+  label: string;
+  items: OpportunityListItem[];
+  emphasize?: boolean;
+  children: (item: OpportunityListItem) => string;
+}) {
+  return (
+    <tr>
+      <td className="border-b border-line px-3 py-2 text-muted">{label}</td>
+      {items.map((item) => (
+        <td
+          key={item.id}
+          className={cn("border-b border-line px-3 py-2 align-top", emphasize && "font-medium")}
+        >
+          {children(item)}
+        </td>
+      ))}
+    </tr>
   );
 }

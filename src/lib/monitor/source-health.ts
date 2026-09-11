@@ -38,13 +38,13 @@ export function deriveSourceHealth(input: SourceHealthInput): SourceHealthStatus
 export function sourceHealthLabel(status: SourceHealthStatus): string {
   switch (status) {
     case "healthy":
-      return "Healthy";
+      return "Available";
     case "stale":
-      return "Stale";
+      return "Degraded";
     case "failed":
-      return "Failed";
+      return "Degraded";
     case "never_ingested":
-      return "Never ingested";
+      return "Not configured";
   }
 }
 

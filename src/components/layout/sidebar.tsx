@@ -25,16 +25,34 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV = [
-  { href: "/overview", label: "Overview", icon: LayoutGrid, match: ["/overview"] },
-  { href: "/opportunities", label: "Opportunities", icon: Compass, match: ["/opportunities"] },
-  { href: "/portfolio", label: "Portfolio", icon: Briefcase, match: ["/portfolio", "/projects"] },
-  { href: "/map", label: "Map & Compare", icon: Map, match: ["/map", "/compare"] },
-  { href: "/connections", label: "Connections", icon: Zap, match: ["/connections"] },
-  { href: "/changes", label: "Changes", icon: Radio, match: ["/changes"] },
-  { href: "/documents", label: "Documents", icon: FileText, match: ["/documents"] },
-  { href: "/reports", label: "Reports", icon: BarChart3, match: ["/reports"] },
-];
+const NAV_GROUPS = [
+  {
+    label: "Command",
+    items: [{ href: "/overview", label: "Overview", icon: LayoutGrid, match: ["/overview"] }],
+  },
+  {
+    label: "Discover",
+    items: [
+      { href: "/opportunities", label: "Opportunities", icon: Compass, match: ["/opportunities"] },
+      { href: "/map", label: "Map", icon: Map, match: ["/map", "/compare"] },
+    ],
+  },
+  {
+    label: "Develop",
+    items: [
+      { href: "/portfolio", label: "Portfolio", icon: Briefcase, match: ["/portfolio", "/projects"] },
+      { href: "/connections", label: "Connections", icon: Zap, match: ["/connections"] },
+    ],
+  },
+  {
+    label: "Monitor",
+    items: [
+      { href: "/changes", label: "Changes", icon: Radio, match: ["/changes"] },
+      { href: "/documents", label: "Documents", icon: FileText, match: ["/documents"] },
+      { href: "/reports", label: "Reports", icon: BarChart3, match: ["/reports"] },
+    ],
+  },
+] as const;
 
 export function Sidebar({
   collapsed,
@@ -67,6 +85,9 @@ export function Sidebar({
       <div className={cn("flex items-start justify-between px-4 pt-6", collapsed && "px-3")}>
         <div className={cn(collapsed && "sr-only")}>
           <p className="text-[15px] font-semibold tracking-[0.18em]">NOXHEIM</p>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-sidebar-muted">
+            Development Intelligence
+          </p>
           <WorkspaceSwitcher
             activeOrganization={activeOrganization}
             organizations={organizations}
@@ -93,49 +114,54 @@ export function Sidebar({
         </div>
       ) : null}
 
-      <p
-        className={cn(
-          "mt-8 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-muted",
-          collapsed && "sr-only",
-        )}
-      >
-        Workspace
-      </p>
-
-      <nav className="mt-2 flex-1 space-y-0.5 px-2">
-        {NAV.map((item) => {
-          const active = item.match.some(
-            (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-          );
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={item.label}
-              onClick={onNavigate}
+      <nav className="mt-6 flex-1 space-y-4 overflow-y-auto px-2 pb-2">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label}>
+            <p
               className={cn(
-                "relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors",
-                active
-                  ? "bg-sidebar-hover text-white"
-                  : "text-sidebar-muted hover:bg-sidebar-hover hover:text-white",
-                collapsed && "justify-center px-2",
+                "px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-muted",
+                collapsed && "sr-only",
               )}
             >
-              {active ? (
-                <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r bg-teal" />
-              ) : null}
-              <Icon
-                size={16}
-                strokeWidth={1.75}
-                className={cn(active ? "text-teal" : "text-current")}
-              />
-              {collapsed ? null : (
-                <span className={cn("flex-1", active && "text-white")}>{item.label}</span>
-              )}
-            </Link>
-          );
-        })}
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const active = item.match.some(
+                  (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+                );
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.label}
+                    onClick={onNavigate}
+                    className={cn(
+                      "relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors",
+                      active
+                        ? "bg-sidebar-hover text-white"
+                        : "text-sidebar-muted hover:bg-sidebar-hover hover:text-white",
+                      collapsed && "justify-center px-2",
+                    )}
+                  >
+                    {active ? (
+                      <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r bg-teal" />
+                    ) : null}
+                    <Icon
+                      size={16}
+                      strokeWidth={1.75}
+                      className={cn(active ? "text-teal" : "text-current")}
+                    />
+                    {collapsed ? null : (
+                      <span className={cn("flex-1", active && "text-white")}>{item.label}</span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div className="px-2 pb-2">

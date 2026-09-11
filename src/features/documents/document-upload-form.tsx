@@ -63,8 +63,8 @@ export function DocumentUploadForm({
     <form
       className={
         compact
-          ? "space-y-3 rounded-md border border-line bg-surface p-4"
-          : "flex flex-wrap items-end gap-2 rounded-md border border-line bg-surface p-4"
+          ? "space-y-3 rounded-md border border-dashed border-line bg-canvas p-4"
+          : "flex flex-wrap items-end gap-2 rounded-md border border-dashed border-line bg-canvas p-4"
       }
       onSubmit={onSubmit}
     >

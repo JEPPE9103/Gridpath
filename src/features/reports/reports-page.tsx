@@ -3,9 +3,10 @@
 import { BellButton } from "@/components/layout/app-shell";
 import { OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
-import { EmptyState, EmptyWorkspaceAction } from "@/components/ui/empty-state";
+import { EmptyState, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { DevelopmentFunnel } from "@/features/opportunities/development-funnel";
+import { Metric, MetricStrip, PageBody } from "@/components/ui/workspace";
 import type { OpportunityFunnel } from "@/lib/data/opportunities";
 import type {
   PortfolioReportResult,
@@ -37,14 +38,14 @@ export function ReportsPage({
   if (result.kind === "no_organization") {
     return (
       <>
-        <PageHeader title="Reports" subtitle="Portfolio reporting" />
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader eyebrow="Monitor" title="Reports" subtitle="Portfolio reporting" />
+        <PageBody>
           <EmptyState
             title="No workspace yet"
             description="This account is not a member of an organisation. Create or join a workspace to see portfolio reports."
             action={<EmptyWorkspaceAction />}
           />
-        </div>
+        </PageBody>
       </>
     );
   }
@@ -52,13 +53,13 @@ export function ReportsPage({
   if (result.kind === "error") {
     return (
       <>
-        <PageHeader title="Reports" subtitle="Portfolio reporting" />
-        <div className="px-4 py-8 sm:px-6 lg:px-8">
-          <EmptyState
+        <PageHeader eyebrow="Monitor" title="Reports" subtitle="Portfolio reporting" />
+        <PageBody>
+          <ErrorState
             title="Could not load reports"
             description="Try again in a moment. If the problem continues, sign in again."
           />
-        </div>
+        </PageBody>
       </>
     );
   }
@@ -86,8 +87,9 @@ function LoadedReportsPage({
   return (
     <>
       <PageHeader
+        eyebrow="Monitor"
         title="Reports"
-        subtitle={`${report.organizationName} · active portfolio reporting. Attention is workflow hygiene, not connection feasibility.`}
+        subtitle={`${report.organizationName} · attention, pipeline and official-change hygiene. Not connection feasibility.`}
         actions={
           <>
             <Button variant="secondary" onClick={() => downloadPortfolioCsv(report.exportRows)}>
@@ -98,29 +100,30 @@ function LoadedReportsPage({
           </>
         }
       />
-      <div className="space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-          <Stat label="Projects" value={summary.projectCount} />
-          <Stat label="Portfolio MW" value={formatMWTotal(summary.portfolioMW)} />
-          <Stat label="Active connection cases" value={summary.activeConnectionCases} />
-          <Stat
-            label="Action required"
-            value={summary.needsAttention}
-          />
-          <Stat label="Open alerts" value={summary.openAlerts} />
-          <Stat
-            label="Average workflow readiness"
+      <PageBody>
+        <MetricStrip className="sm:grid-cols-3 lg:grid-cols-6">
+          <Metric label="Projects" value={String(summary.projectCount)} />
+          <Metric label="Requested MW" value={formatMWTotal(summary.portfolioMW)} hint="Customer entered" />
+          <Metric label="Action required" value={String(summary.needsAttention)} />
+          <Metric label="Open alerts" value={String(summary.openAlerts)} />
+          <Metric label="Active connection cases" value={String(summary.activeConnectionCases)} />
+          <Metric
+            label="Workflow readiness"
             value={
               summary.averageReadinessPercent == null
-                ? "Not available"
+                ? "—"
                 : `${summary.averageReadinessPercent}%`
             }
+            hint="Completeness, not capacity"
           />
-        </section>
+        </MetricStrip>
 
         <DevelopmentFunnel funnel={funnel} />
 
-        <section className="grid gap-4 xl:grid-cols-2">
+        <details className="rounded-md border border-line bg-surface p-5">
+          <summary className="cursor-pointer text-sm font-semibold">Supporting stage and operator counts</summary>
+          <p className="mt-1 text-xs text-muted">Stored portfolio counts only. Not available capacity.</p>
+        <section className="mt-4 grid gap-4 xl:grid-cols-2">
           <ChartCard title="Projects by stage">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={stageData} barSize={18}>
@@ -156,6 +159,7 @@ function LoadedReportsPage({
             </ResponsiveContainer>
           </ChartCard>
         </section>
+        </details>
 
         <section className="grid gap-4 xl:grid-cols-2">
           <div className="rounded-md border border-line bg-surface p-5">
@@ -318,7 +322,7 @@ function LoadedReportsPage({
           Intelligence (local-network and NUP context) is available on each project Grid tab — it is
           not rolled into these KPIs as capacity or feasibility.
         </p>
-      </div>
+      </PageBody>
     </>
   );
 }
@@ -405,15 +409,6 @@ function csvCell(value: string): string {
     return `"${value.replaceAll('"', '""')}"`;
   }
   return value;
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-md border border-line bg-surface p-4">
-      <p className="text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
-      <p className="mt-1 text-xs text-muted">{label}</p>
-    </div>
-  );
 }
 
 function CountLine({ label, value }: { label: string; value: string | number }) {

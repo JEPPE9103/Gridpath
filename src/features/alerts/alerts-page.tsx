@@ -3,7 +3,7 @@
 import { BellButton } from "@/components/layout/alert-center";
 import { CountBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
-import { EmptyState, EmptyWorkspaceAction } from "@/components/ui/empty-state";
+import { EmptyState, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { dismissOrganizationAlert } from "@/lib/alerts/actions";
 import { cn } from "@/lib/cn";
@@ -50,8 +50,8 @@ export function AlertsPage({
   if (kind === "no_organization") {
     return (
       <>
-        <PageHeader title="Alerts" subtitle="Workspace notifications. This is not the workflow Action required count." />
-        <div className="px-4 py-8">
+        <PageHeader title="Alerts" eyebrow="Monitor" subtitle="Workspace notifications. This is not the workflow Action required count." />
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState title="No workspace yet" description="Join a workspace to see alerts." action={<EmptyWorkspaceAction />} />
         </div>
       </>
@@ -61,9 +61,9 @@ export function AlertsPage({
   if (kind === "error") {
     return (
       <>
-        <PageHeader title="Alerts" subtitle="Workspace notifications. This is not the workflow Action required count." />
-        <div className="px-4 py-8">
-          <EmptyState title="Could not load alerts" description="Try again in a moment." />
+        <PageHeader title="Alerts" eyebrow="Monitor" subtitle="Workspace notifications. This is not the workflow Action required count." />
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
+          <ErrorState title="Could not load alerts" description="Try again in a moment. If it continues, sign in again." />
         </div>
       </>
     );
@@ -92,7 +92,8 @@ export function AlertsPage({
     <>
       <PageHeader
         title="Alerts"
-        subtitle="Open notifications for this workspace. This is not the workflow Action required count."
+        eyebrow="Monitor"
+        subtitle="Workspace notifications. Distinct from official source changes and from workflow Action required."
         actions={
           <>
             <BellButton />

@@ -2,7 +2,7 @@
 
 import { BellButton } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
-import { EmptyState, EmptyWorkspaceAction } from "@/components/ui/empty-state";
+import { EmptyState, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast-provider";
 import { updateChangeImpactReview } from "@/lib/changes/actions";
@@ -53,7 +53,7 @@ export function ChangesPage({
   if (result.kind === "no_organization") {
     return (
       <>
-        <PageHeader title="Changes" subtitle={inboxSubtitle()} actions={<HeaderDate date={headerDate} />} />
+        <PageHeader title="Changes" eyebrow="Monitor" subtitle={inboxSubtitle()} actions={<HeaderDate date={headerDate} />} />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
             title="No workspace yet"
@@ -68,9 +68,9 @@ export function ChangesPage({
   if (result.kind === "error") {
     return (
       <>
-        <PageHeader title="Changes" subtitle={inboxSubtitle()} actions={<HeaderDate date={headerDate} />} />
+        <PageHeader title="Changes" eyebrow="Monitor" subtitle={inboxSubtitle()} actions={<HeaderDate date={headerDate} />} />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
-          <EmptyState
+          <ErrorState
             title="Could not load changes"
             description="Try again in a moment. If the problem continues, sign in again."
           />
@@ -147,6 +147,7 @@ function LoadedChangesPage({
     <>
       <PageHeader
         title="Changes"
+        eyebrow="Monitor"
         subtitle={inboxSubtitle()}
         actions={
           <>

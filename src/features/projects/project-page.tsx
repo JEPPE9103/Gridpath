@@ -56,7 +56,7 @@ const MiniMap = dynamic(() => import("@/features/map/mini-map").then((mod) => mo
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "grid", label: "Grid Intelligence" },
-  { id: "connection", label: "Connection Application" },
+  { id: "connection", label: "Connection" },
   { id: "documents", label: "Documents" },
   { id: "activity", label: "Activity" },
 ] as const;
@@ -176,6 +176,7 @@ function LoadedProjectPage({
   return (
     <>
       <PageHeader
+        eyebrow="Develop"
         title={project.name}
         subtitle={`${project.archivedAt ? "Archived · " : ""}${project.technology} · ${formatImportExport(project)} · ${project.location}`}
         actions={
@@ -225,7 +226,9 @@ function LoadedProjectPage({
                 </Link>
               }
             />
-          ) : null}
+          ) : (
+            <Meta label="Originating opportunity" value="Not promoted from an Opportunity" />
+          )}
         </dl>
       </div>
 

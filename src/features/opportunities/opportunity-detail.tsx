@@ -3,6 +3,7 @@
 import { BellButton } from "@/components/layout/app-shell";
 import { Button, buttonClassName } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { Metric, MetricStrip, PageBody, SectionHeader } from "@/components/ui/workspace";
 import { SourceBadge } from "@/components/ui/badges";
 import { EvidenceCoveragePanel, NetworkCoveringNote, ProvenanceChip } from "@/features/opportunities/evidence-coverage-panel";
 import type { OpportunityListItem } from "@/lib/data/opportunities";
@@ -30,7 +31,17 @@ import {
   recommendationConfidenceCaption,
 } from "@/lib/opportunities/evidence-coverage";
 import type { DataSourceKind } from "@/types";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+
+const MiniMap = dynamic(() => import("@/features/map/mini-map").then((mod) => mod.MiniMap), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-56 items-center justify-center rounded-md border border-line bg-canvas text-sm text-muted">
+      Loading map…
+    </div>
+  ),
+});
 
 function sourceKindToBadge(value: string): DataSourceKind {
   if (value === "official") return "Official";
@@ -83,6 +94,7 @@ export function OpportunityDetailPage({
   return (
     <>
       <PageHeader
+        eyebrow="Discover"
         title={item.name}
         subtitle={`${opportunityTechnologyLabel(item.technology)} · ${location || "Location not set"}${item.ownerName ? ` · ${item.ownerName}` : ""}`}
         actions={
@@ -94,17 +106,21 @@ export function OpportunityDetailPage({
           </>
         }
       />
-      <div className="space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-        <section className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-3 lg:grid-cols-5">
-          <Fact label="Status" value={opportunityStatusLabel(item.status)} />
-          <Fact label="Target" value={item.targetMw != null ? `${item.targetMw} MW` : "Not set"} />
-          <Fact label="Energy" value={item.targetMwh != null ? `${item.targetMwh} MWh` : "Not set"} />
-          <Fact label="Recommendation confidence" value={opportunityConfidenceLabel(item.dataConfidence)} />
-          <Fact label="Recommendation" value={opportunityRecommendationLabel(item.recommendation)} />
-        </section>
+      <PageBody>
+        <MetricStrip className="sm:grid-cols-3 lg:grid-cols-5">
+          <Metric label="Status" value={opportunityStatusLabel(item.status)} />
+          <Metric
+            label="Requested MW"
+            value={item.targetMw != null ? `${item.targetMw} MW` : "Not set"}
+            hint={item.targetMw != null ? "Customer entered" : undefined}
+          />
+          <Metric label="Energy" value={item.targetMwh != null ? `${item.targetMwh} MWh` : "Not set"} />
+          <Metric label="Recommendation confidence" value={opportunityConfidenceLabel(item.dataConfidence)} />
+          <Metric label="Recommendation" value={opportunityRecommendationLabel(item.recommendation)} />
+        </MetricStrip>
 
         <section className="rounded-md border border-line bg-surface p-5">
-          <h2 className="text-base font-semibold">Why NOXHEIM ranks this</h2>
+          <SectionHeader title="Why this is interesting" />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <ProvenanceChip label="Noxheim Derived" />
             {item.targetMw != null ? <ProvenanceChip label="Customer Entered" /> : null}
@@ -114,7 +130,7 @@ export function OpportunityDetailPage({
           <div className="mt-4 grid gap-4 lg:grid-cols-3">
             <SignalList title="Positive signals" items={positives.map((row) => row.explanation)} empty="No official or customer-positive signal stored yet." />
             <SignalList title="Risks" items={risks.map((row) => row.explanation)} empty="No stored risk dimension." />
-            <SignalList title="Uncertainties" items={gaps.map((row) => row.explanation)} empty="No evidence gaps recorded." />
+            <SignalList title="Open questions" items={gaps.map((row) => row.explanation)} empty="No evidence gaps recorded." />
           </div>
           <div className="mt-4">
             <NetworkCoveringNote
@@ -124,6 +140,16 @@ export function OpportunityDetailPage({
             />
           </div>
         </section>
+
+        {item.latitude != null && item.longitude != null ? (
+          <section className="overflow-hidden rounded-md border border-line bg-surface">
+            <div className="border-b border-line px-5 py-3">
+              <h2 className="text-base font-semibold">Location</h2>
+              <p className="mt-1 text-xs text-muted">Screening location. Not a cadastral parcel.</p>
+            </div>
+            <MiniMap latitude={item.latitude} longitude={item.longitude} outlook="Unknown" />
+          </section>
+        ) : null}
 
         <EvidenceCoveragePanel coverage={coverage} />
 
@@ -251,7 +277,11 @@ export function OpportunityDetailPage({
 
         {canWrite ? (
           <section className="rounded-md border border-line bg-surface p-5">
-            <h2 className="text-base font-semibold">Decisions</h2>
+            <h2 className="text-base font-semibold">Development decisions</h2>
+            <p className="mt-1 text-sm text-muted">
+              Shortlist, reject, reopen, or promote. These are team workflow actions, not official
+              approval.
+            </p>
             {item.status !== "promoted" && item.status !== "rejected" ? (
               <div className="mt-4 flex flex-wrap gap-2">
                 <form action={updateOpportunityStatusAction}>
@@ -325,7 +355,7 @@ export function OpportunityDetailPage({
         )}
 
         <section className="rounded-md border border-line bg-surface p-5">
-          <h2 className="text-base font-semibold">Decision history</h2>
+          <h2 className="text-base font-semibold">Assessment history</h2>
           {events.length === 0 ? (
             <p className="mt-2 text-sm text-muted">No stored activity yet.</p>
           ) : (
@@ -340,17 +370,8 @@ export function OpportunityDetailPage({
             </ol>
           )}
         </section>
-      </div>
+      </PageBody>
     </>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-surface px-4 py-3.5">
-      <p className="text-[11px] uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-1 text-sm font-semibold leading-5">{value}</p>
-    </div>
   );
 }
 

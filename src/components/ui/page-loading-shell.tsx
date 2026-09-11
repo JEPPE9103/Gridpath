@@ -20,14 +20,15 @@ export function PageLoadingShell({
           <div className="h-[min(70vh,36rem)] animate-pulse rounded-md bg-line" />
         </div>
       ) : (
-        <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="h-20 animate-pulse rounded-md bg-line" />
-            <div className="h-20 animate-pulse rounded-md bg-line" />
-            <div className="h-20 animate-pulse rounded-md bg-line" />
-            <div className="h-20 animate-pulse rounded-md bg-line" />
+        <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-4">
+            <div className="h-[4.5rem] animate-pulse bg-surface" />
+            <div className="h-[4.5rem] animate-pulse bg-surface" />
+            <div className="h-[4.5rem] animate-pulse bg-surface" />
+            <div className="h-[4.5rem] animate-pulse bg-surface" />
           </div>
-          <div className="mt-8 h-48 animate-pulse rounded-md bg-line" />
+          <div className="mt-6 h-10 w-64 animate-pulse rounded-md bg-line" />
+          <div className="mt-3 h-40 animate-pulse rounded-md border border-line bg-surface" />
         </div>
       )}
     </div>

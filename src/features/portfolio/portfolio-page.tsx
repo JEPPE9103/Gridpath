@@ -3,12 +3,27 @@
 import { BellButton } from "@/components/layout/app-shell";
 import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button, buttonClassName } from "@/components/ui/button";
-import { EmptyState, EmptyProjectsAction } from "@/components/ui/empty-state";
+import { EmptyState, EmptyProjectsAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
+import {
+  AttentionDot,
+  FilterBar,
+  FilterSelect,
+  PageBody,
+  tableCellClass,
+  tableHeadCellClass,
+  tableHeadClass,
+  tableWrapClass,
+} from "@/components/ui/workspace";
 import { formatCapacity, formatDate, formatMWTotal, formatOutlookLabel } from "@/lib/format";
+import { attentionBandLabel } from "@/lib/intelligence";
 import type { ListProjectsResult, PortfolioSortKey } from "@/lib/data/projects";
 import { PORTFOLIO_PAGE_SIZE } from "@/lib/data/paged-select";
+import {
+  EMPTY_OVERVIEW_DESCRIPTION,
+  EMPTY_OVERVIEW_TITLE,
+} from "@/lib/opportunities/evidence-coverage";
 import type { ArchiveView } from "@/lib/projects/archive-scope";
 import {
   OUTLOOKS,
@@ -99,8 +114,9 @@ export function PortfolioPage({
   return (
     <>
       <PageHeader
+        eyebrow="Develop"
         title="Portfolio"
-        subtitle={subtitle}
+        subtitle={`${subtitle} · requested MW is customer-entered`}
         actions={
           <>
             {canImport ? (
@@ -118,7 +134,7 @@ export function PortfolioPage({
           </>
         }
       />
-      <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+      <PageBody className="space-y-4">
         <div className="flex flex-wrap gap-2">
           {(["active", "archived", "all"] as ArchiveView[]).map((view) => (
             <Link
@@ -150,25 +166,26 @@ export function PortfolioPage({
           <Button type="submit" variant="secondary">
             Search
           </Button>
-          <Select
+          <FilterBar>
+          <FilterSelect
             value={result.technology}
             onChange={(value) => update({ technology: value === "All" ? "" : value, page: "1" })}
             options={["All", ...TECHNOLOGIES]}
             label="Technology"
           />
-          <Select
+          <FilterSelect
             value={result.operator}
             onChange={(value) => update({ operator: value === "All" ? "" : value, page: "1" })}
             options={["All", ...result.operators]}
             label="Operator"
           />
-          <Select
+          <FilterSelect
             value={result.stage}
             onChange={(value) => update({ stage: value === "All" ? "" : value, page: "1" })}
             options={["All", ...PIPELINE_STAGES]}
             label="Stage"
           />
-          <Select
+          <FilterSelect
             value={result.outlook}
             onChange={(value) => update({ outlook: value === "All" ? "" : value, page: "1" })}
             options={["All", ...OUTLOOKS]}
@@ -178,7 +195,7 @@ export function PortfolioPage({
             }}
             label="Team outlook"
           />
-          <Select
+          <FilterSelect
             value={result.attentionFilter}
             onChange={(value) => update({ attention: value === "all" ? "" : value, page: "1" })}
             options={["all", "action", "needs_attention", "official_changes"]}
@@ -190,7 +207,7 @@ export function PortfolioPage({
             }}
             label="Attention"
           />
-          <Select
+          <FilterSelect
             value={result.sortKey === "attention" ? "attention" : "default"}
             onChange={(value) =>
               update({
@@ -203,6 +220,7 @@ export function PortfolioPage({
             labels={{ default: "Last update", attention: "Attention first" }}
             label="Sort"
           />
+          </FilterBar>
         </form>
         <p className="text-sm text-muted">
           {result.matchingCount === 0
@@ -211,19 +229,19 @@ export function PortfolioPage({
         </p>
 
         {blockedByRls ? (
-          <EmptyState
+          <ErrorState
             title="Could not load projects"
-            description="Sign in to a workspace to view the organization portfolio."
+            description="Sign in to a workspace to view the organisation portfolio."
           />
         ) : error ? (
-          <EmptyState title="Could not load projects" description={error} />
+          <ErrorState title="Could not load projects" description={error} />
         ) : result.matchingCount === 0 && !result.query && result.technology === "All" && result.operator === "All" && result.stage === "All" && result.outlook === "All" && result.attentionFilter === "all" ? (
           <EmptyState
-            title={result.view === "archived" ? "No archived projects" : "No projects yet"}
+            title={result.view === "archived" ? "No archived projects" : EMPTY_OVERVIEW_TITLE}
             description={
               result.view === "archived"
                 ? "Archived projects will appear here. Active projects remain in the Active view."
-                : "Add your first development project to start building your portfolio."
+                : EMPTY_OVERVIEW_DESCRIPTION
             }
             action={
               canCreate && result.view === "active" ? <EmptyProjectsAction /> : undefined
@@ -235,9 +253,9 @@ export function PortfolioPage({
             description="Clear search or filters to see all projects in this workspace."
           />
         ) : (
-          <div className="overflow-x-auto rounded-md border border-line bg-surface">
-            <table className="w-full min-w-[1280px] text-left text-sm">
-              <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
+          <div className={tableWrapClass}>
+            <table className="w-full min-w-[1100px] text-left text-sm">
+              <thead className={tableHeadClass}>
                 <tr>
                   <Th onClick={() => toggleSort("name")} active={result.sortKey === "name"} dir={result.sortDir}>
                     Project
@@ -249,7 +267,7 @@ export function PortfolioPage({
                     Technology
                   </Th>
                   <Th onClick={() => toggleSort("capacity")} active={result.sortKey === "capacity"} dir={result.sortDir}>
-                    Capacity
+                    Requested MW
                   </Th>
                   <Th onClick={() => toggleSort("gridOperator")} active={result.sortKey === "gridOperator"} dir={result.sortDir}>
                     Grid Operator
@@ -259,12 +277,8 @@ export function PortfolioPage({
                   </Th>
                   <Th>Next action</Th>
                   <Th>Team outlook</Th>
-                  <Th>Team confidence</Th>
-                  <Th onClick={() => toggleSort("targetCOD")} active={result.sortKey === "targetCOD"} dir={result.sortDir}>
-                    Target COD
-                  </Th>
                   <Th onClick={() => toggleSort("lastUpdated")} active={result.sortKey === "lastUpdated"} dir={result.sortDir}>
-                    Last Update
+                    Last update
                   </Th>
                 </tr>
               </thead>
@@ -275,36 +289,46 @@ export function PortfolioPage({
                     className="cursor-pointer border-b border-line last:border-0 hover:bg-canvas"
                     onClick={() => router.push(`/projects/${project.id}`)}
                   >
-                    <td className="px-4 py-3 font-medium">
+                    <td className={`${tableCellClass} font-medium`}>
                       <span className="inline-flex items-center gap-2">
                         <AttentionDot band={project.attentionBand} />
                         {project.name}
                       </span>
+                      {project.attentionBand && project.attentionBand !== "clear" ? (
+                        <p className="mt-0.5 pl-4 text-[11px] text-muted">
+                          {attentionBandLabel(project.attentionBand)}
+                          {(project.unreviewedOfficialChangeCount ?? 0) > 0
+                            ? ` · ${project.unreviewedOfficialChangeCount} official change${project.unreviewedOfficialChangeCount === 1 ? "" : "s"}`
+                            : ""}
+                        </p>
+                      ) : null}
                       {project.archivedAt ? (
                         <span className="ml-2 text-xs font-normal text-muted">Archived</span>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-muted">{project.location}</td>
-                    <td className="px-4 py-3">{project.technology}</td>
-                    <td className="px-4 py-3 font-mono text-[13px]">{formatCapacity(project)}</td>
-                    <td className="px-4 py-3">{project.gridOperator}</td>
-                    <td className="px-4 py-3">
+                    <td className={`${tableCellClass} text-muted`}>{project.location}</td>
+                    <td className={tableCellClass}>{project.technology}</td>
+                    <td className={`${tableCellClass} font-mono text-[13px]`}>
+                      {formatCapacity(project)}
+                      <p className="font-sans text-[11px] text-muted">Customer entered</p>
+                    </td>
+                    <td className={tableCellClass}>{project.gridOperator}</td>
+                    <td className={tableCellClass}>
                       <StageBadge stage={project.stage} />
                       {project.daysInCurrentStage != null ? (
                         <p className="mt-1 text-xs text-muted">{project.daysInCurrentStage} days in stage</p>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-muted">
+                    <td className={`${tableCellClass} text-muted`}>
                       {project.nextActionTitle ?? "—"}
                     </td>
-                    <td className="px-4 py-3">
-                      <OutlookBadge outlook={project.outlook} />
+                    <td className={tableCellClass}>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <OutlookBadge outlook={project.outlook} />
+                        <ConfidenceBadge confidence={project.confidence} />
+                      </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <ConfidenceBadge confidence={project.confidence} />
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[13px]">{project.targetCOD}</td>
-                    <td className="px-4 py-3 text-muted">{formatDate(project.lastUpdated)}</td>
+                    <td className={`${tableCellClass} text-muted`}>{formatDate(project.lastUpdated)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -321,6 +345,9 @@ export function PortfolioPage({
             >
               Previous
             </Link>
+            <span className="text-sm text-muted">
+              Page {result.page} of {pageCount}
+            </span>
             <Link
               href={href({ page: String(Math.min(pageCount, result.page + 1)) })}
               className={buttonClassName("secondary")}
@@ -330,54 +357,9 @@ export function PortfolioPage({
             </Link>
           </div>
         ) : null}
-      </div>
+      </PageBody>
     </>
   );
-}
-
-function Select({
-  value,
-  onChange,
-  options,
-  label,
-  labels,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-  label: string;
-  labels?: Record<string, string>;
-}) {
-  return (
-    <label className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2 text-sm">
-      <span className="text-muted">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="bg-transparent text-ink"
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {labels?.[option] ?? option}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function AttentionDot({ band }: { band?: "action" | "attention" | "review" | "clear" }) {
-  const tone =
-    band === "action" ? "bg-critical" : band === "attention" ? "bg-warning" : band === "review" ? "bg-info" : "bg-line";
-  const label =
-    band === "action"
-      ? "Action required"
-      : band === "attention"
-        ? "Watch"
-        : band === "review"
-          ? "Review"
-          : "No immediate action";
-  return <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${tone}`} title={label} aria-label={label} />;
 }
 
 function Th({
@@ -392,10 +374,10 @@ function Th({
   dir?: "asc" | "desc";
 }) {
   if (!onClick) {
-    return <th className="px-4 py-2 font-medium">{children}</th>;
+    return <th className={tableHeadCellClass}>{children}</th>;
   }
   return (
-    <th className="px-4 py-2 font-medium">
+    <th className={tableHeadCellClass}>
       <button type="button" onClick={onClick} className="hover:text-ink">
         {children}
         {active ? (dir === "asc" ? " ↑" : " ↓") : ""}

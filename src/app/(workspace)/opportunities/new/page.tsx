@@ -18,8 +18,9 @@ export default async function Page() {
   return (
     <>
       <PageHeader
+        eyebrow="Discover"
         title="New opportunity search"
-        subtitle="Define a bounded Swedish search and a reusable screening profile. Discovery screening identifies Candidate Sites from coarse official evidence. Promising sites can then be refined with higher-resolution land cover and terrain before they are saved as Opportunities."
+        subtitle="Profile-first geographic screening. Candidate Sites are investigation footprints, not land parcels or approved projects."
       />
       <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         {canWrite ? (

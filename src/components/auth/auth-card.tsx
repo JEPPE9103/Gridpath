@@ -13,7 +13,7 @@ export function AuthCard({
       <div className="w-full max-w-[380px] rounded-md border border-line bg-surface p-8">
         <Link href="/" className="inline-block">
           <p className="text-[15px] font-semibold tracking-[0.18em] text-ink">NOXHEIM</p>
-          <p className="mt-1 text-[11px] tracking-wide text-muted">Grid Intelligence</p>
+          <p className="mt-1 text-[11px] tracking-wide text-muted">Development Intelligence</p>
         </Link>
         <h1 className="mt-6 text-lg font-semibold text-ink">{title}</h1>
         {children}

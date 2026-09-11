@@ -7,7 +7,7 @@ import { SWEDEN_MAP_BOUNDS } from "@/lib/domain/official-map";
 import { MapPage } from "@/features/map/map-page";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Map & Compare" };
+export const metadata: Metadata = { title: "Map" };
 export const dynamic = "force-dynamic";
 
 export default async function Page({

@@ -6,7 +6,7 @@ import { SavedComparisonsList } from "@/features/compare/saved-comparisons-list"
 import { BellButton } from "@/components/layout/app-shell";
 import { ConfidenceBadge, OutlookBadge, StageBadge } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
-import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction } from "@/components/ui/empty-state";
+import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { MapGridContextCard } from "@/features/map/map-grid-context";
 import { MapLayerControl } from "@/features/map/map-layer-control";
@@ -85,7 +85,7 @@ export function MapPage({
   if (result.kind === "no_organization") {
     return (
       <>
-        <PageHeader title="Map & Compare" subtitle="Portfolio map" />
+        <PageHeader eyebrow="Discover" title="Map" subtitle="Portfolio geography and official covering layers" />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
             title="No workspace yet"
@@ -100,9 +100,9 @@ export function MapPage({
   if (result.kind === "error") {
     return (
       <>
-        <PageHeader title="Map & Compare" subtitle="Portfolio map" />
+        <PageHeader eyebrow="Discover" title="Map" subtitle="Portfolio geography and official covering layers" />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
-          <EmptyState
+          <ErrorState
             title="Could not load map"
             description="Try again in a moment. If the problem continues, sign in again."
           />
@@ -114,11 +114,11 @@ export function MapPage({
   if (result.projects.length === 0 && opportunities.length === 0) {
     return (
       <>
-        <PageHeader title="Map & Compare" subtitle="Portfolio map" />
+        <PageHeader eyebrow="Discover" title="Map" subtitle="Portfolio geography and official covering layers" />
         <div className="space-y-4 px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
-            title="No projects in this workspace"
-            description="Add a project, or create an opportunity, to place it on Map & Compare. Saved team comparisons still appear below."
+            title="No projects or opportunities on the map yet"
+            description="Add a project, or run a search and save a Candidate Site, to place it on the Map. Saved team comparisons still appear below."
             action={<EmptyProjectsAction />}
           />
           {savedComparisons.kind === "ok" ? (
@@ -297,7 +297,8 @@ function LoadedMapPage({
   return (
     <>
       <PageHeader
-        title="Map & Compare"
+        title="Map"
+        eyebrow="Discover"
         subtitle="Official Ei geography on your portfolio · covering areas, not connection capacity"
         actions={
           <>

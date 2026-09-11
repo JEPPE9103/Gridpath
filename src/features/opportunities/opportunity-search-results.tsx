@@ -119,6 +119,7 @@ export function OpportunitySearchResults({
   return (
     <>
       <PageHeader
+        eyebrow="Discover"
         title={view.searchName}
         subtitle={`${opportunityTechnologyLabel(view.technology)}${view.electricityArea ? ` · ${view.electricityArea} recorded as intent, not a spatial clip` : ""} · Candidate Sites are the decision objects; Opportunity Zones are broader surviving geography`}
         actions={

@@ -52,6 +52,16 @@ export type OpportunityFunnel = {
   promoted: number;
 };
 
+export type OpportunitySearchListItem = {
+  id: string;
+  name: string;
+  technology: string;
+  createdAt: string;
+  latestRunId: string | null;
+  latestRunStatus: string | null;
+  returnedCount: number | null;
+};
+
 export type OpportunityOverview = {
   kind: "ok" | "no_organization" | "error";
   error: string | null;
@@ -59,6 +69,7 @@ export type OpportunityOverview = {
   funnel: OpportunityFunnel;
   ranked: OpportunityListItem[];
   recentRejected: OpportunityListItem[];
+  recentSearches: OpportunitySearchListItem[];
 };
 
 type OpportunityRow = {
@@ -207,6 +218,62 @@ export const getOpportunityFunnel = cache(async (): Promise<OpportunityFunnel> =
   return funnel;
 });
 
+const EMPTY_SEARCHES: OpportunitySearchListItem[] = [];
+
+type SearchRow = {
+  id: string;
+  name: string | null;
+  technology: string;
+  created_at: string;
+  latest_run_id: string | null;
+};
+
+async function listRecentOpportunitySearches(organizationId: string): Promise<OpportunitySearchListItem[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("opportunity_searches")
+    .select("id, name, technology, created_at, latest_run_id")
+    .eq("organization_id", organizationId)
+    .order("created_at", { ascending: false })
+    .limit(8);
+  if (error) {
+    console.error("listRecentOpportunitySearches failed", error.message);
+    return [];
+  }
+  const rows = (data ?? []) as SearchRow[];
+  const runIds = rows.map((row) => row.latest_run_id).filter((id): id is string => Boolean(id));
+  const runMeta = new Map<string, { status: string; returnedCount: number | null }>();
+  if (runIds.length > 0) {
+    const { data: runs, error: runError } = await supabase
+      .from("opportunity_search_runs")
+      .select("id, status, returned_count")
+      .eq("organization_id", organizationId)
+      .in("id", runIds);
+    if (runError) {
+      console.error("listRecentOpportunitySearches runs failed", runError.message);
+    } else {
+      for (const run of runs ?? []) {
+        runMeta.set(run.id, {
+          status: run.status,
+          returnedCount: run.returned_count == null ? null : toNumber(run.returned_count),
+        });
+      }
+    }
+  }
+  return rows.map((row) => {
+    const run = row.latest_run_id ? runMeta.get(row.latest_run_id) : undefined;
+    return {
+      id: row.id,
+      name: row.name?.trim() || "Untitled search",
+      technology: row.technology,
+      createdAt: row.created_at,
+      latestRunId: row.latest_run_id,
+      latestRunStatus: run?.status ?? null,
+      returnedCount: run?.returnedCount ?? null,
+    };
+  });
+}
+
 export async function getOpportunityOverview(): Promise<OpportunityOverview> {
   const organization = await getCurrentOrganization();
   if (!organization) {
@@ -217,11 +284,13 @@ export async function getOpportunityOverview(): Promise<OpportunityOverview> {
       funnel: EMPTY_FUNNEL,
       ranked: [],
       recentRejected: [],
+      recentSearches: EMPTY_SEARCHES,
     };
   }
-  const [list, funnel] = await Promise.all([
+  const [list, funnel, recentSearches] = await Promise.all([
     listOpportunitiesForCurrentOrganization(),
     getOpportunityFunnel(),
+    listRecentOpportunitySearches(organization.id),
   ]);
   if (list.error) {
     return {
@@ -231,19 +300,24 @@ export async function getOpportunityOverview(): Promise<OpportunityOverview> {
       funnel: EMPTY_FUNNEL,
       ranked: [],
       recentRejected: [],
+      recentSearches: EMPTY_SEARCHES,
     };
   }
-  const active = list.items.filter((item) => item.status !== "rejected" && item.status !== "promoted");
-  const ranked = [...active].sort((left, right) => {
-    const rank: Record<string, number> = {
-      prioritise: 0,
-      investigate: 1,
-      secondary: 2,
-      low_priority: 3,
-      insufficient_evidence: 4,
-    };
-    return (rank[left.recommendation] ?? 9) - (rank[right.recommendation] ?? 9);
-  });
+  const ranked = list.items
+    .filter((item) => item.status !== "rejected")
+    .sort((left, right) => {
+      if ((left.status === "promoted") !== (right.status === "promoted")) {
+        return left.status === "promoted" ? 1 : -1;
+      }
+      const rank: Record<string, number> = {
+        prioritise: 0,
+        investigate: 1,
+        secondary: 2,
+        low_priority: 3,
+        insufficient_evidence: 4,
+      };
+      return (rank[left.recommendation] ?? 9) - (rank[right.recommendation] ?? 9);
+    });
   return {
     kind: "ok",
     error: null,
@@ -251,6 +325,7 @@ export async function getOpportunityOverview(): Promise<OpportunityOverview> {
     funnel,
     ranked,
     recentRejected: list.items.filter((item) => item.status === "rejected").slice(0, 5),
+    recentSearches,
   };
 }
 

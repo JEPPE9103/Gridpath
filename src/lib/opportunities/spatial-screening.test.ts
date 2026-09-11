@@ -6,6 +6,8 @@ import {
   SCREENING_CELL_MIN_METERS,
   SCREENING_METHODOLOGY,
   bboxAreaKm2,
+  bboxFromCorners,
+  formatBboxCoordinate,
   describeRunDelta,
   electricityAreaSpatialWarning,
   parseElectricityArea,
@@ -81,5 +83,14 @@ describe("spatial screening geography", () => {
     const area = bboxAreaKm2({ west: 15, south: 59, east: 15.1, north: 59.1 });
     assert.ok(area > 0);
     assert.ok(area < 200);
+  });
+
+  it("builds a rectangle bbox from two map corners", () => {
+    const box = bboxFromCorners({ lng: 15.4, lat: 59.4 }, { lng: 14.9, lat: 59.1 });
+    assert.equal(box.west, 14.9);
+    assert.equal(box.south, 59.1);
+    assert.equal(box.east, 15.4);
+    assert.equal(box.north, 59.4);
+    assert.equal(formatBboxCoordinate(14.9), "14.9000");
   });
 });

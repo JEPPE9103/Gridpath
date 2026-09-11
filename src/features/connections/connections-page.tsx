@@ -4,7 +4,7 @@ import { BellButton } from "@/components/layout/app-shell";
 import { StageBadge, StatusBadge } from "@/components/ui/badges";
 import { buttonClassName } from "@/components/ui/button";
 import { ClientHeaderDate } from "@/components/ui/client-header-date";
-import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction } from "@/components/ui/empty-state";
+import { EmptyState, EmptyProjectsAction, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/cn";
 import {
@@ -23,7 +23,7 @@ export function ConnectionsPage({ result }: { result: ConnectionCasesResult }) {
   if (result.kind === "no_organization") {
     return (
       <>
-        <PageHeader title="Connections" subtitle="Workspace connections" />
+        <PageHeader title="Connections" eyebrow="Develop" subtitle="Connection process tracking — not a DSO portal" />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
           <EmptyState
             title="No workspace yet"
@@ -38,9 +38,9 @@ export function ConnectionsPage({ result }: { result: ConnectionCasesResult }) {
   if (result.kind === "error") {
     return (
       <>
-        <PageHeader title="Connections" subtitle="Workspace connections" />
+        <PageHeader title="Connections" eyebrow="Develop" subtitle="Connection process tracking — not a DSO portal" />
         <div className="px-4 py-8 sm:px-6 lg:px-8">
-          <EmptyState
+          <ErrorState
             title="Could not load connection cases"
             description="Try again in a moment. If the problem continues, sign in again."
           />
@@ -93,7 +93,8 @@ function LoadedConnectionsPage({ cases }: { cases: ConnectionCaseListItem[] }) {
     <>
       <PageHeader
         title="Connections"
-        subtitle={`${activeCases.length} active connection cases`}
+        eyebrow="Develop"
+        subtitle={`${activeCases.length} active cases · connection process tracking, not a DSO portal`}
         actions={
           <>
             <BellButton />

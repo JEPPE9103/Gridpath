@@ -2,8 +2,10 @@
 
 import { BellButton } from "@/components/layout/app-shell";
 import { CountBadge, OutlookBadge } from "@/components/ui/badges";
-import { EmptyState, EmptyWorkspaceAction } from "@/components/ui/empty-state";
+import { buttonClassName } from "@/components/ui/button";
+import { EmptyState, EmptyWorkspaceAction, ErrorState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { Metric, MetricStrip, PageBody, Panel, SectionHeader } from "@/components/ui/workspace";
 import { dismissOrganizationAlert } from "@/lib/alerts/actions";
 import { cn } from "@/lib/cn";
 import {
@@ -21,7 +23,6 @@ import {
   EMPTY_OVERVIEW_DESCRIPTION,
   EMPTY_OVERVIEW_TITLE,
 } from "@/lib/opportunities/evidence-coverage";
-import { buttonClassName } from "@/components/ui/button";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -75,6 +76,7 @@ export function OverviewPage({
   const criticalCount = alerts.filter((alert) => alert.severity === "critical").length;
   const now = useMemo(() => new Date(), []);
   const visibleAlerts = alerts.slice(0, MAX_ALERT_ROWS);
+  const emptyWorkspace = funnel.total === 0 && kpis.activeSites === 0 && funnel.searches === 0;
 
   function onDismiss(alertId: string) {
     setPendingAlertId(alertId);
@@ -90,16 +92,17 @@ export function OverviewPage({
   return (
     <>
       <PageHeader
+        eyebrow="Command"
         title="Overview"
         subtitle={
           overview.kind === "ok"
-            ? `${overview.organizationName} · ${kpis.activeSites} sites · ${formatMWTotal(kpis.totalMW)}`
-            : "What to do next in this workspace"
+            ? `${overview.organizationName} · what needs attention, what changed, what to do next`
+            : "Development command center for this workspace"
         }
         actions={<BellButton />}
       />
 
-      <div className="space-y-8 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+      <PageBody>
         {overview.kind === "no_organization" ? (
           <EmptyState
             title="No workspace yet"
@@ -107,53 +110,49 @@ export function OverviewPage({
             action={<EmptyWorkspaceAction />}
           />
         ) : overview.kind === "error" ? (
-          <EmptyState
+          <ErrorState
             title="Could not load overview"
-            description="Portfolio data is temporarily unavailable. Try again in a moment."
+            description="Portfolio data is temporarily unavailable. Try again in a moment. If it continues, sign in again."
+          />
+        ) : emptyWorkspace ? (
+          <EmptyState
+            title={EMPTY_OVERVIEW_TITLE}
+            description={EMPTY_OVERVIEW_DESCRIPTION}
+            action={
+              <Link href="/opportunities/new" className={buttonClassName()}>
+                New search
+              </Link>
+            }
           />
         ) : (
           <>
-            <section className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-4">
-              <Fact
+            <MetricStrip>
+              <Metric
                 label="Action required"
                 value={String(portfolioAttention.actionRequiredCount)}
                 tone={portfolioAttention.actionRequiredCount > 0 ? "critical" : undefined}
               />
-              <Fact
+              <Metric
                 label="Watch"
                 value={String(portfolioAttention.upcomingCount)}
                 tone={portfolioAttention.upcomingCount > 0 ? "warning" : undefined}
               />
-              <Fact
-                label="To review"
+              <Metric
+                label="Official changes"
                 value={String(overview.officialChanges.unreviewed)}
                 href="/changes"
+                hint="To review"
               />
-              <Fact label="Open alerts" value={String(alerts.length)} href="/alerts" />
-            </section>
+              <Metric label="Open alerts" value={String(alerts.length)} href="/alerts" />
+            </MetricStrip>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-muted">
-                Screen opportunities before they become projects. Ranking is current evidence, not
-                success.
-              </p>
-              <Link href="/opportunities" className="text-sm text-teal hover:underline">
-                Open Opportunities
-              </Link>
-            </div>
+            <p className="text-xs text-muted">
+              {kpis.activeSites} active sites · {formatMWTotal(kpis.totalMW)} requested (customer-entered)
+              {kpis.connectionEnquiries > 0 ? ` · ${kpis.connectionEnquiries} connection enquiries` : ""}
+              {kpis.gridStudiesOpen > 0 ? ` · ${kpis.gridStudiesOpen} grid studies open` : ""}
+            </p>
+
             <DevelopmentFunnel funnel={funnel} />
-
-            {funnel.total === 0 && kpis.activeSites === 0 ? (
-              <EmptyState
-                title={EMPTY_OVERVIEW_TITLE}
-                description={EMPTY_OVERVIEW_DESCRIPTION}
-                action={
-                  <Link href="/opportunities/new" className={buttonClassName()}>
-                    New search
-                  </Link>
-                }
-              />
-            ) : null}
 
             <PortfolioAttentionSection
               attention={portfolioAttention}
@@ -169,7 +168,7 @@ export function OverviewPage({
                 sourceDelayMessage={overview.officialSourceDelayMessage}
               />
 
-              <section className="rounded-md border border-line bg-surface">
+              <Panel padded={false}>
                 <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
                   <h2 className="text-base font-semibold">Open alerts</h2>
                   {criticalCount > 0 ? (
@@ -227,18 +226,20 @@ export function OverviewPage({
                     })}
                   </ul>
                 )}
-              </section>
+              </Panel>
             </div>
 
             <PipelineStrip projects={projects} />
 
             <section>
-              <div className="flex items-baseline justify-between gap-3">
-                <h2 className="text-base font-semibold">Recently updated</h2>
-                <Link href="/portfolio" className="text-sm font-medium text-teal hover:underline">
-                  Portfolio
-                </Link>
-              </div>
+              <SectionHeader
+                title="Recently updated"
+                action={
+                  <Link href="/portfolio" className="text-sm font-medium text-teal hover:underline">
+                    Portfolio
+                  </Link>
+                }
+              />
               {recentProjects.length === 0 ? (
                 <p className="mt-3 text-sm text-muted">Updated projects will appear here.</p>
               ) : (
@@ -269,46 +270,9 @@ export function OverviewPage({
             </section>
           </>
         )}
-      </div>
+      </PageBody>
     </>
   );
-}
-
-function Fact({
-  label,
-  value,
-  href,
-  tone,
-}: {
-  label: string;
-  value: string;
-  href?: string;
-  tone?: "critical" | "warning";
-}) {
-  const content = (
-    <>
-      <p className="text-[11px] uppercase tracking-wide text-muted">{label}</p>
-      <p
-        className={cn(
-          "mt-1 text-2xl font-semibold tabular-nums text-ink",
-          tone === "critical" && value !== "0" && "text-critical",
-          tone === "warning" && value !== "0" && "text-warning",
-        )}
-      >
-        {value}
-      </p>
-    </>
-  );
-
-  const className = "bg-surface px-4 py-3.5";
-  if (href) {
-    return (
-      <Link href={href} className={`${className} hover:bg-canvas`}>
-        {content}
-      </Link>
-    );
-  }
-  return <div className={className}>{content}</div>;
 }
 
 function PipelineStrip({ projects }: { projects: OverviewProject[] }) {
@@ -318,12 +282,14 @@ function PipelineStrip({ projects }: { projects: OverviewProject[] }) {
 
   return (
     <section>
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold">Pipeline</h2>
-        <Link href="/portfolio" className="text-sm font-medium text-teal hover:underline">
-          Open Portfolio
-        </Link>
-      </div>
+      <SectionHeader
+        title="Development pipeline"
+        action={
+          <Link href="/portfolio" className="text-sm font-medium text-teal hover:underline">
+            Open Portfolio
+          </Link>
+        }
+      />
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
         {OVERVIEW_PIPELINE_STAGES.map((stage) => {
           const count = projects.filter((project) => project.stage === stage).length;
