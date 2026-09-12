@@ -8,6 +8,7 @@ import {
   opportunityFootprintsCollection,
   isPromotedMapOpportunity,
   parseAreaGeometry,
+  latestCompletedDiscoveryRunId,
   parseDiscoveryFeatureCollection,
   pickRankedMapFeatureId,
   screeningLayerFilter,
@@ -36,6 +37,21 @@ describe("map discovery helpers", () => {
     });
     assert.equal(collection.features[0]?.properties.kind, "search-boundary");
     assert.equal(collection.features[0]?.properties.candidateKind, undefined);
+  });
+
+  it("picks the newest completed Discovery run so Map can show Candidate Sites", () => {
+    assert.equal(
+      latestCompletedDiscoveryRunId([
+        { latestRunId: "running", latestRunStatus: "ranking" },
+        { latestRunId: "done", latestRunStatus: "completed" },
+        { latestRunId: "older", latestRunStatus: "complete" },
+      ]),
+      "done",
+    );
+    assert.equal(
+      latestCompletedDiscoveryRunId([{ latestRunId: null, latestRunStatus: "completed" }]),
+      null,
+    );
   });
 
   it("keeps Opportunity Zones off unless explicitly enabled", () => {

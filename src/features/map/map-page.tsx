@@ -350,6 +350,13 @@ function LoadedMapPage({
     [router, selectedRunId, selectedSlug, selectedOpportunitySlug, selectedCandidateId],
   );
 
+  useEffect(() => {
+    if (!selectedRunId || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("run") === selectedRunId || params.get("change")) return;
+    persistMapUrl({ run: selectedRunId });
+  }, [selectedRunId, persistMapUrl]);
+
   const toggleChrome = useCallback((panel: "filters" | "layers" | "legend" | "projects") => {
     setChromePanel((current) => (current === panel ? null : panel));
   }, []);
@@ -772,6 +779,12 @@ function LoadedMapPage({
             <Link href="/opportunities/new">
               <Button className="h-7 px-2 text-xs">New search</Button>
             </Link>
+          </div>
+        ) : discoverySearches.length > 0 && !selectedRunId ? (
+          <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2">
+            <div className="rounded-md border border-line bg-surface px-3 py-2 text-xs text-muted">
+              Select a Discovery run to show Candidate Sites on the Map.
+            </div>
           </div>
         ) : activeDiscovery && activeDiscovery.candidateCount === 0 ? (
           <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2">

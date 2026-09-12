@@ -7,6 +7,7 @@ import {
   getOrganizationOfficialSpatialMatchesLoad,
 } from "@/lib/data/official-map";
 import { getSavedComparisonsForCurrentOrganization } from "@/lib/data/portfolio-comparisons";
+import { latestCompletedDiscoveryRunId } from "@/lib/domain/map-discovery";
 import { SWEDEN_MAP_BOUNDS } from "@/lib/domain/official-map";
 import { MapPage } from "@/features/map/map-page";
 import type { Metadata } from "next";
@@ -58,7 +59,10 @@ export default async function Page({
           ? { areaId: changeTarget.areaId, layer: changeTarget.layer }
           : null
       }
-      initialRunId={params.run ?? null}
+      initialRunId={
+        params.run ??
+        (params.change ? null : latestCompletedDiscoveryRunId(discoverySearches))
+      }
       initialOpportunitySlug={params.opportunity ?? null}
       initialCandidateId={params.candidate ?? null}
     />

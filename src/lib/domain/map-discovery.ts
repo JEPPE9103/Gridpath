@@ -117,6 +117,18 @@ export function isCompletedDiscoveryRun(status: string | null | undefined): bool
   return status === "completed" || status === "complete";
 }
 
+/** Newest completed screening first. Used so Map opens with Candidate Sites visible. */
+export function latestCompletedDiscoveryRunId(
+  searches: ReadonlyArray<Pick<MapDiscoverySearch, "latestRunId" | "latestRunStatus">>,
+): string | null {
+  for (const search of searches) {
+    if (search.latestRunId && isCompletedDiscoveryRun(search.latestRunStatus)) {
+      return search.latestRunId;
+    }
+  }
+  return null;
+}
+
 export function opportunityFootprintFilter(showSaved: boolean, showRejected: boolean): unknown {
   if (showSaved && showRejected) return ["has", "slug"];
   if (showSaved) return ["!=", ["get", "footprintStyle"], "rejected"];
