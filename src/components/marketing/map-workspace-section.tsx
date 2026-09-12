@@ -8,8 +8,8 @@ const LAYERS = [
   "Candidate Sites",
   "Opportunities",
   "Projects",
-  "Official Ei covering geography",
-  "Environmental / land-cover evidence",
+  "Local network · covering",
+  "NUP · planning context",
 ];
 
 export function MapWorkspaceSection() {
@@ -21,12 +21,13 @@ export function MapWorkspaceSection() {
           One spatial workspace from screening to development.
         </h2>
         <p className="mt-4 max-w-xl text-base leading-7 text-muted">
-          Search Areas, Candidate Sites, Opportunities, Projects, official Ei covering geography and
-          environmental context sit together on the Map.
+          Search Areas, Candidate Sites, Opportunities, Projects and official Ei covering geography
+          sit together on the Map.
         </p>
         <p className="mt-3 max-w-xl text-sm leading-6 text-muted">
-          Covering geography is not available capacity. Layer availability depends on the geography
-          you search.
+          Covering geography is not available capacity. Protection and land-cover evidence sit on
+          Evidence Coverage for each Candidate Site — not as extra map layers. Layer availability
+          depends on the geography you search.
         </p>
       </Reveal>
 

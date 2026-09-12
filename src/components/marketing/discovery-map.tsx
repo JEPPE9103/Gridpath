@@ -232,7 +232,7 @@ function WorkspaceLegend() {
     <>
       <p className="font-medium">Sample Map</p>
       <LegendDash label="Search Area" />
-      <LegendPatch color={LOCAL_NETWORK_FILL} label="Local network area · Ei" />
+      <LegendPatch color={LOCAL_NETWORK_FILL} label="Local network · covering" />
       <LegendSwatch color="#176C4A" label="Candidate Site" />
       <LegendSwatch color="#2A7A6F" label="Opportunity" />
       <LegendDot color="#176C4A" label="Project" />

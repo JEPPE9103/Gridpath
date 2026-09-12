@@ -4,7 +4,7 @@ import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 const OUTCOMES = [
   "Find areas worth investigating earlier",
   "Stop weak sites when evidence is missing",
-  "Compare opportunities on one standard",
+  "Compare Candidate Sites on one standard",
   "Keep the decision attached into the Project",
 ];
 

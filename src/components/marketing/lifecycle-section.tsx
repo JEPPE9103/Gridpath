@@ -8,11 +8,11 @@ const STAGES = [
   },
   {
     title: "Opportunity",
-    copy: "A site your team chose to keep. Shortlist, reject or reopen without losing the screening record.",
+    copy: "A Candidate Site your team chose to keep. Shortlist, reject, reopen, or promote to a Project without losing the screening record.",
   },
   {
     title: "Project",
-    copy: "Promote when the site is worth developing. Origin, evidence and covering geography follow into the project record.",
+    copy: "Promote when the site is worth developing. Origin, Evidence Coverage and covering geography follow into the project record.",
   },
 ];
 
@@ -30,7 +30,7 @@ export function LifecycleSection() {
         </p>
       </Reveal>
 
-      <div className="mt-12 grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-3">
+      <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3">
         {STAGES.map((stage, index) => (
           <Reveal key={stage.title} delay={index * 50} className="h-full">
             <article className="h-full bg-surface px-5 py-6">

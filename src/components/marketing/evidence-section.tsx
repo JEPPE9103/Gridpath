@@ -36,7 +36,7 @@ export function EvidenceSection() {
           </p>
           <p className="mt-4 max-w-md text-sm leading-6 text-muted">
             {SAMPLE_SELECTED_CANDIDATE.name} in this sample has {SAMPLE_EVIDENCE_COVERAGE.summary}.
-            Road access and detailed terrain remain not evaluated.
+            Road proximity and detailed terrain remain not evaluated.
           </p>
         </Reveal>
         <Reveal delay={80} fade>

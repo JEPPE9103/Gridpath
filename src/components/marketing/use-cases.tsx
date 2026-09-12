@@ -17,15 +17,15 @@ const CASES = [
     id: "screening",
     label: "Candidate Site screening",
     title: "Screen and compare on the same evidence",
-    copy: "See evaluated versus missing evidence, compare Candidate Sites, then shortlist, reject, reopen or save an Opportunity.",
-    outputs: ["Evidence Coverage", "Compare", "Save as Opportunity"],
+    copy: "See evaluated versus missing evidence, compare Candidate Sites, then save one as an Opportunity.",
+    outputs: ["Evidence Coverage", "Compare", "Save as opportunity"],
   },
   {
     id: "lifecycle",
     label: "Opportunity to Project",
     title: "Carry the site into development",
     copy: "Promote a kept Opportunity to a Project so origin, evidence and covering geography follow the decision.",
-    outputs: ["Opportunity", "Promote", "Project"],
+    outputs: ["Opportunity", "Promote to project", "Project"],
   },
   {
     id: "connect",
