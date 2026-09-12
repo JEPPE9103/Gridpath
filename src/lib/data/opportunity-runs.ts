@@ -85,6 +85,18 @@ export type OpportunityRunZone = {
   usableAreaHa: number | null;
 };
 
+export type OpportunitySearchCriteriaView = {
+  minSiteAreaHa: number | null;
+  targetSiteAreaHa: number | null;
+  maxCandidateAreaHa: number | null;
+  maxSlopeDegrees: number | null;
+  slopeMode: "preference" | "hard";
+  maxRoadDistanceM: number | null;
+  roadMode: "preference" | "hard";
+  excludeProtected: boolean;
+  excludeNatura: boolean;
+};
+
 export type OpportunitySearchRunView = {
   kind: "ok" | "missing" | "error";
   searchId: string;
@@ -111,6 +123,7 @@ export type OpportunitySearchRunView = {
   south: number | null;
   east: number | null;
   north: number | null;
+  searchCriteria: OpportunitySearchCriteriaView;
   candidates: OpportunityRunCandidate[];
   zones: OpportunityRunZone[];
   geojson: unknown;
@@ -141,7 +154,9 @@ export const getOpportunitySearchRun = cache(
 
     const searchQuery = supabase
       .from("opportunity_searches")
-      .select("id, name, technology, electricity_area")
+      .select(
+        "id, name, technology, electricity_area, min_site_area_ha, target_site_area_ha, max_candidate_area_ha, max_slope_degrees, slope_mode, max_road_distance_m, road_mode, exclude_protected, exclude_natura",
+      )
       .eq("id", searchId)
       .eq("organization_id", organization.id)
       .maybeSingle();
@@ -220,6 +235,17 @@ export const getOpportunitySearchRun = cache(
       south: toNumber(run.south),
       east: toNumber(run.east),
       north: toNumber(run.north),
+      searchCriteria: {
+        minSiteAreaHa: toNumber(search?.min_site_area_ha),
+        targetSiteAreaHa: toNumber(search?.target_site_area_ha),
+        maxCandidateAreaHa: toNumber(search?.max_candidate_area_ha),
+        maxSlopeDegrees: toNumber(search?.max_slope_degrees),
+        slopeMode: search?.slope_mode === "hard" ? "hard" : "preference",
+        maxRoadDistanceM: toNumber(search?.max_road_distance_m),
+        roadMode: search?.road_mode === "hard" ? "hard" : "preference",
+        excludeProtected: search?.exclude_protected !== false,
+        excludeNatura: search?.exclude_natura !== false,
+      },
       candidates: (candidates ?? []).map((row) => ({
         id: row.id,
         name: row.name,

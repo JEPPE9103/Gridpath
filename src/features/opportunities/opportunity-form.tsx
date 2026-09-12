@@ -3,9 +3,15 @@
 import { Button, buttonClassName } from "@/components/ui/button";
 import { ScreeningProgressOverlay } from "@/features/opportunities/screening-progress";
 import type { OpportunityMutationState } from "@/lib/opportunities/actions";
-import { OPPORTUNITY_TECHNOLOGY_VALUES, opportunityTechnologyLabel } from "@/lib/opportunities/catalog";
+import { OPPORTUNITY_TECHNOLOGY_VALUES, isOpportunityTechnology, opportunityTechnologyLabel } from "@/lib/opportunities/catalog";
 import { LAND_COVER_GROUPS, LAND_COVER_RULES } from "@/lib/opportunities/land-cover";
-import { originLabel, type ScreeningProfileRecord } from "@/lib/opportunities/screening-profiles";
+import {
+  defaultScreeningProfile,
+  originLabel,
+  screeningPackFormDefaults,
+  screeningProfileMaturity,
+  type ScreeningProfileRecord,
+} from "@/lib/opportunities/screening-profiles";
 import type { OpportunityFormInput } from "@/lib/opportunities/validation";
 import Link from "next/link";
 import { useActionState, useState, type ReactNode } from "react";
@@ -30,24 +36,11 @@ const EMPTY: OpportunityFormInput = {
   targetMw: "",
   targetMwh: "",
   siteAreaHa: "",
-  minSiteAreaHa: "8",
-  targetSiteAreaHa: "15",
-  maxCandidateAreaHa: "30",
-  maxReturnedCandidates: "25",
+  ...screeningPackFormDefaults("battery_storage"),
   maxDistanceKm: "",
   excludeProtected: "on",
   excludeNatura: "on",
   maxSlopePercent: "",
-  maxSlopeDegrees: "5",
-  slopeMode: "preference",
-  maxRoadDistanceM: "1000",
-  roadMode: "preference",
-  landCoverWater: "excluded",
-  landCoverWetland: "excluded",
-  landCoverForest: "neutral",
-  landCoverAgriculture: "deprioritised",
-  landCoverOpen: "preferred",
-  landCoverDeveloped: "deprioritised",
   profileId: "",
   saveProfileName: "",
   investigationBudgetNote: "",
@@ -85,6 +78,29 @@ export function OpportunityForm({
     east: values.east,
     north: values.north,
   });
+  const [technology, setTechnology] = useState(
+    isOpportunityTechnology(values.technology) ? values.technology : "battery_storage",
+  );
+  const pack = defaultScreeningProfile(technology);
+  const packFields = screeningPackFormDefaults(technology);
+  const posted = Boolean(state.values) && state.values?.technology === technology;
+  const footprint = {
+    minSiteAreaHa: posted ? values.minSiteAreaHa : packFields.minSiteAreaHa,
+    targetSiteAreaHa: posted ? values.targetSiteAreaHa : packFields.targetSiteAreaHa,
+    maxCandidateAreaHa: posted ? values.maxCandidateAreaHa : packFields.maxCandidateAreaHa,
+    maxReturnedCandidates: posted ? values.maxReturnedCandidates : packFields.maxReturnedCandidates,
+    maxSlopeDegrees: posted ? values.maxSlopeDegrees : packFields.maxSlopeDegrees,
+    slopeMode: posted ? values.slopeMode : packFields.slopeMode,
+    maxRoadDistanceM: posted ? values.maxRoadDistanceM : packFields.maxRoadDistanceM,
+    roadMode: posted ? values.roadMode : packFields.roadMode,
+    landCoverWater: posted ? values.landCoverWater : packFields.landCoverWater,
+    landCoverWetland: posted ? values.landCoverWetland : packFields.landCoverWetland,
+    landCoverForest: posted ? values.landCoverForest : packFields.landCoverForest,
+    landCoverAgriculture: posted ? values.landCoverAgriculture : packFields.landCoverAgriculture,
+    landCoverOpen: posted ? values.landCoverOpen : packFields.landCoverOpen,
+    landCoverDeveloped: posted ? values.landCoverDeveloped : packFields.landCoverDeveloped,
+  };
+  const maturity = screeningProfileMaturity(technology);
 
   return (
     <form action={formAction} className="relative max-w-3xl space-y-6">
@@ -100,8 +116,8 @@ export function OpportunityForm({
         <section className="rounded-md border border-line bg-surface p-5">
           <h2 className="text-sm font-semibold">Screening profile</h2>
           <p className="mt-1 text-sm text-muted">
-            Start from the NOXHEIM Sweden BESS default or reuse an organisation profile. Defaults are
-            suggestions, not engineering rules.
+            Start from the technology screening pack, or reuse an organisation profile. Defaults are
+            screening assumptions, not engineering rules. Target MW does not change Candidate geometry.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field
@@ -131,20 +147,40 @@ export function OpportunityForm({
         <section className="mt-6 rounded-md border border-line bg-surface p-5">
           <h2 className="text-sm font-semibold">Core screening parameters</h2>
           <p className="mt-1 text-sm text-muted">
-            Geographic screening returns ranked Candidate Sites grown to your target footprint inside
-            broader Opportunity Zones. Discovery screening identifies Candidate Sites from coarse
+            Geographic screening returns ranked Candidate Sites grown to your screening footprint
+            inside broader Opportunity Zones. Discovery screening identifies Candidate Sites from coarse
             official evidence. Results are not land parcels. Official environmental layers and
-            NMD 2023 land cover are applied when ingested.
+            NMD land cover are applied when ingested.
           </p>
+          {maturity === "beta" ? (
+            <p className="mt-3 rounded-md border border-line bg-canvas px-3 py-2 text-sm text-muted">
+              {pack.name} is BETA. {pack.assumptionNote}
+            </p>
+          ) : (
+            <p className="mt-3 text-xs text-muted">{pack.assumptionNote}</p>
+          )}
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="Search name" error={errors.name} className="sm:col-span-2">
               <input name="name" defaultValue={values.name} required className={inputClass} />
             </Field>
             <Field label="Project type" error={errors.technology}>
-              <select name="technology" defaultValue={values.technology} className={inputClass}>
+              <select
+                name="technology"
+                value={technology}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (isOpportunityTechnology(next)) setTechnology(next);
+                }}
+                className={inputClass}
+              >
                 {OPPORTUNITY_TECHNOLOGY_VALUES.map((value) => (
                   <option key={value} value={value}>
                     {opportunityTechnologyLabel(value)}
+                    {screeningProfileMaturity(value) === "beta"
+                      ? " (BETA)"
+                      : screeningProfileMaturity(value) === "unsupported"
+                        ? " (label only)"
+                        : ""}
                   </option>
                 ))}
               </select>
@@ -179,10 +215,12 @@ export function OpportunityForm({
 
         {searchMode === "geography" ? (
           <section className="mt-6 rounded-md border border-line bg-surface p-5">
-            <h2 className="text-sm font-semibold">Search area</h2>
+            <h2 className="text-sm font-semibold">Screening footprint profile</h2>
             <p className="mt-1 text-sm text-muted">
               Draw a rectangular envelope on the map, or enter coordinates. This is not a municipality
-              or cadastral polygon. Clipped to Sweden. Maximum 15 000 km².
+              or cadastral polygon. Clipped to Sweden. Maximum 15 000 km². Footprint hectares below
+              are the {pack.name} screening envelope. Project target MW is a separate customer input
+              and does not drive this geometry.
             </p>
             <div className="mt-4">
               <SearchAreaPicker
@@ -236,22 +274,22 @@ export function OpportunityForm({
                 />
               </Field>
             </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2" key={`footprint-${technology}`}>
               <Field
                 label="Minimum usable area (ha)"
                 error={errors.minSiteAreaHa}
-                hint="Largest contiguous remaining area inside a Candidate Site. Default 8 ha."
+                hint={`${pack.name} default ${packFields.minSiteAreaHa} ha.`}
               >
-                <input name="minSiteAreaHa" defaultValue={values.minSiteAreaHa} className={inputClass} inputMode="decimal" />
+                <input name="minSiteAreaHa" defaultValue={footprint.minSiteAreaHa} className={inputClass} inputMode="decimal" />
               </Field>
               <Field
                 label="Target site area (ha)"
                 error={errors.targetSiteAreaHa}
-                hint="Investigation footprint preference. Extra hectares above this do not automatically rank higher. Default 15 ha."
+                hint="Investigation footprint preference. Extra hectares above this do not automatically rank higher. Not derived from target MW."
               >
                 <input
                   name="targetSiteAreaHa"
-                  defaultValue={values.targetSiteAreaHa}
+                  defaultValue={footprint.targetSiteAreaHa}
                   className={inputClass}
                   inputMode="decimal"
                 />
@@ -259,11 +297,11 @@ export function OpportunityForm({
               <Field
                 label="Maximum site area (ha)"
                 error={errors.maxCandidateAreaHa}
-                hint="Cap so a surviving region is not returned as one site. Default 30 ha."
+                hint="Cap so a surviving region is not returned as one site."
               >
                 <input
                   name="maxCandidateAreaHa"
-                  defaultValue={values.maxCandidateAreaHa}
+                  defaultValue={footprint.maxCandidateAreaHa}
                   className={inputClass}
                   inputMode="decimal"
                 />
@@ -284,13 +322,13 @@ export function OpportunityForm({
                 <input name="siteAreaHa" defaultValue={values.siteAreaHa} className={inputClass} inputMode="decimal" />
               </Field>
               <Field label="Minimum usable area (ha)" error={errors.minSiteAreaHa}>
-                <input name="minSiteAreaHa" defaultValue={values.minSiteAreaHa} className={inputClass} inputMode="decimal" />
+                <input name="minSiteAreaHa" defaultValue={footprint.minSiteAreaHa} className={inputClass} inputMode="decimal" />
               </Field>
             </div>
           </section>
         )}
 
-        <details className="mt-6 rounded-md border border-line bg-surface p-5">
+        <details className="mt-6 rounded-md border border-line bg-surface p-5" key={`advanced-${technology}`}>
           <summary className="cursor-pointer text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
             Advanced screening settings
           </summary>
@@ -310,7 +348,7 @@ export function OpportunityForm({
               Exclude Natura 2000 when a supported layer exists
             </label>
             <Field label="Slope mode">
-              <select name="slopeMode" defaultValue={values.slopeMode} className={inputClass}>
+              <select name="slopeMode" defaultValue={footprint.slopeMode} className={inputClass}>
                 <option value="preference">Preference</option>
                 <option value="hard">Hard exclusion</option>
               </select>
@@ -320,14 +358,20 @@ export function OpportunityForm({
               error={errors.maxSlopeDegrees}
               hint="Prefer degrees. Legacy percent is still accepted if set."
             >
-              <input name="maxSlopeDegrees" defaultValue={values.maxSlopeDegrees} className={inputClass} inputMode="decimal" />
+              <input name="maxSlopeDegrees" defaultValue={footprint.maxSlopeDegrees} className={inputClass} inputMode="decimal" />
             </Field>
             <Field label="Legacy maximum slope (%)" error={errors.maxSlopePercent}>
               <input name="maxSlopePercent" defaultValue={values.maxSlopePercent} className={inputClass} inputMode="decimal" />
             </Field>
             {LAND_COVER_FIELDS.map((item) => (
               <Field key={item.key} label={`Land cover: ${item.group}`}>
-                <select name={item.key} defaultValue={String(values[item.key] ?? "")} className={inputClass}>
+                <select
+                  name={item.key}
+                  defaultValue={String(
+                    (footprint as Record<string, string>)[item.key] ?? values[item.key] ?? "",
+                  )}
+                  className={inputClass}
+                >
                   {LAND_COVER_RULES.map((rule) => (
                     <option key={rule} value={rule}>
                       {rule}
@@ -337,13 +381,13 @@ export function OpportunityForm({
               </Field>
             ))}
             <Field label="Road distance mode">
-              <select name="roadMode" defaultValue={values.roadMode} className={inputClass}>
+              <select name="roadMode" defaultValue={footprint.roadMode} className={inputClass}>
                 <option value="preference">Preference</option>
                 <option value="hard">Hard exclusion</option>
               </select>
             </Field>
             <Field label="Maximum distance to supported road (m)" error={errors.maxRoadDistanceM}>
-              <input name="maxRoadDistanceM" defaultValue={values.maxRoadDistanceM} className={inputClass} inputMode="decimal" />
+              <input name="maxRoadDistanceM" defaultValue={footprint.maxRoadDistanceM} className={inputClass} inputMode="decimal" />
             </Field>
             <Field
               label="Minimum distance from residential (m)"
@@ -364,7 +408,7 @@ export function OpportunityForm({
             >
               <input
                 name="maxReturnedCandidates"
-                defaultValue={values.maxReturnedCandidates}
+                defaultValue={footprint.maxReturnedCandidates}
                 className={inputClass}
                 inputMode="decimal"
               />
@@ -385,10 +429,18 @@ export function OpportunityForm({
             <Field label="Municipality">
               <input name="municipality" defaultValue={values.municipality} className={inputClass} />
             </Field>
-            <Field label="Target MW" error={errors.targetMw}>
+            <Field
+              label="Project target (MW)"
+              error={errors.targetMw}
+              hint="Customer-entered project intent. Does not change Candidate geometry or land requirement."
+            >
               <input name="targetMw" defaultValue={values.targetMw} className={inputClass} inputMode="decimal" />
             </Field>
-            <Field label="Target MWh" error={errors.targetMwh}>
+            <Field
+              label="Project target (MWh)"
+              error={errors.targetMwh}
+              hint="Customer-entered energy intent. Not coupled to footprint hectares."
+            >
               <input name="targetMwh" defaultValue={values.targetMwh} className={inputClass} inputMode="decimal" />
             </Field>
             <Field label="Max preliminary investigation distance (km)" error={errors.maxDistanceKm}>

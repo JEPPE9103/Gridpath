@@ -2,6 +2,8 @@ import { cache } from "react";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import {
   parseScreeningProfileCriteria,
+  screeningProfileAssumptionNote,
+  screeningProfileMaturity,
   type ScreeningProfileRecord,
 } from "@/lib/opportunities/screening-profiles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -16,13 +18,18 @@ export const getOpportunityScreeningProfiles = cache(async (): Promise<Screening
     .eq("organization_id", organization.id)
     .order("updated_at", { ascending: false });
   if (error || !data) return [];
-  return data.map((row) => ({
-    id: row.id,
-    name: row.name,
-    origin: row.origin === "noxheim_default" ? "noxheim_default" : "customer",
-    criteria: {
-      ...parseScreeningProfileCriteria(row.criteria),
-      technology: row.technology as ScreeningProfileRecord["criteria"]["technology"],
-    },
-  }));
+  return data.map((row) => {
+    const technology = row.technology as ScreeningProfileRecord["criteria"]["technology"];
+    return {
+      id: row.id,
+      name: row.name,
+      origin: row.origin === "noxheim_default" ? "noxheim_default" : "customer",
+      maturity: screeningProfileMaturity(technology),
+      assumptionNote: screeningProfileAssumptionNote(technology),
+      criteria: {
+        ...parseScreeningProfileCriteria({ ...(row.criteria as object), technology }),
+        technology,
+      },
+    };
+  });
 });

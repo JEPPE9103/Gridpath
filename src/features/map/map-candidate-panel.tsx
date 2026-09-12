@@ -7,8 +7,12 @@ import {
   candidateToEvidenceInput,
   networkCoveringCopy,
   screeningFootprintQuality,
-  whyCandidateRanks,
 } from "@/lib/opportunities/evidence-coverage";
+import {
+  buildCandidateIntelligence,
+  intelligenceCriteriaForTechnology,
+  intelligenceHeadline,
+} from "@/lib/opportunities/candidate-intelligence";
 import { opportunityRecommendationLabel } from "@/lib/opportunities/catalog";
 import { MapFact, MapObjectPanel, MapPanelNote } from "@/features/map/map-object-panel";
 import Link from "next/link";
@@ -18,12 +22,23 @@ export function MapCandidatePanel({
   searchId,
   runId,
   providerAvailability,
+  technology = "battery_storage",
+  searchCriteria = null,
   onClose,
 }: {
   candidate: OpportunityRunCandidate;
   searchId: string;
   runId: string;
   providerAvailability: Record<string, boolean>;
+  technology?: string;
+  searchCriteria?: {
+    maxSlopeDegrees: number | null;
+    slopeMode: "preference" | "hard";
+    maxRoadDistanceM: number | null;
+    roadMode: "preference" | "hard";
+    excludeProtected: boolean;
+    excludeNatura: boolean;
+  } | null;
   onClose: () => void;
 }) {
   const coverage = buildEvidenceCoverage(candidateToEvidenceInput(candidate, { providerAvailability }));
@@ -34,7 +49,11 @@ export function MapCandidatePanel({
     queried: candidate.coveringQueried,
   });
   const area = candidate.contiguousAreaHa ?? candidate.usableAreaHa ?? candidate.grossAreaHa;
-  const reasons = whyCandidateRanks(candidate);
+  const intelligence = buildCandidateIntelligence(
+    candidate,
+    intelligenceCriteriaForTechnology(technology, searchCriteria),
+  );
+  const next = intelligence.nextInvestigations[0];
 
   return (
     <MapObjectPanel
@@ -59,12 +78,14 @@ export function MapCandidatePanel({
         />
         <MapFact label="Footprint quality" value={footprint.label} />
         <MapFact label="Network covering" value={covering.title} />
+        <MapFact label="Constraints" value={intelligenceHeadline(intelligence)} />
+        <MapFact label="Next investigation" value={next ? next.action : "None generated"} />
       </dl>
-      {reasons.length > 0 ? (
+      {intelligence.rankPositives.length > 0 ? (
         <div className="mt-3">
           <p className="text-xs font-medium">Why this ranks</p>
           <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-muted">
-            {reasons.map((reason) => (
+            {intelligence.rankPositives.slice(0, 3).map((reason) => (
               <li key={reason}>{reason}</li>
             ))}
           </ul>

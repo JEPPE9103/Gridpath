@@ -1,5 +1,6 @@
 import { OpportunityComparePage } from "@/features/opportunities/opportunity-compare";
 import { getOpportunityBySlug, listOpportunitiesForCurrentOrganization } from "@/lib/data/opportunities";
+import { parseFrozenIntelligence } from "@/lib/opportunities/candidate-intelligence";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Compare opportunities" };
@@ -24,5 +25,10 @@ export default async function Page({
       .filter((detail) => detail.item)
       .map((detail) => [detail.item!.id, detail.assessments]),
   );
-  return <OpportunityComparePage items={items} assessmentsById={assessmentsById} />;
+  const intelligenceById = new Map(
+    details
+      .filter((detail) => detail.item)
+      .map((detail) => [detail.item!.id, parseFrozenIntelligence(detail.screeningSnapshot)]),
+  );
+  return <OpportunityComparePage items={items} assessmentsById={assessmentsById} intelligenceById={intelligenceById} />;
 }

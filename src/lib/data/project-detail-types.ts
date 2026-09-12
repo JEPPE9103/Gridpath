@@ -78,6 +78,18 @@ export type ProjectConnectionCase = {
   gridOperatorName: string | null;
 };
 
+export type OriginatingOpportunityContext = {
+  slug: string;
+  name: string;
+  recommendation: string | null;
+  recommendationSummary: string | null;
+  dataConfidence: string | null;
+  keyRisk: string | null;
+  contiguousAreaHa: number | null;
+  originatingSearchId: string | null;
+  screeningSnapshot: unknown;
+};
+
 export type ProjectDetailViewModel = {
   id: string;
   slug: string;
@@ -118,7 +130,7 @@ export type ProjectDetailViewModel = {
   officialGridAreaContext: OfficialGridAreaContext | null;
   officialNetworkDevelopmentPlanContext: OfficialNupContext | null;
   officialChanges: OfficialChangeImpactCounts;
-  originatingOpportunity: { slug: string; name: string } | null;
+  originatingOpportunity: OriginatingOpportunityContext | null;
 };
 
 export type ProjectDetailResult =

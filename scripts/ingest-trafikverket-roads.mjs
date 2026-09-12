@@ -225,6 +225,7 @@ set snapshot_id = excluded.snapshot_id, geom = excluded.geom, road_class = exclu
   });
   console.log(JSON.stringify({ event: "ingest.roads.complete", features: processed, bbox }));
 } catch (error) {
+  const message = error instanceof Error ? error.message : "failed";
   if (ingestionRunId) {
     try {
       completeIngestionRun(query, quoteSql, quoteSqlNullable, {
@@ -237,13 +238,21 @@ set snapshot_id = excluded.snapshot_id, geom = excluded.geom, road_class = exclu
         impactsCreated: null,
         errorCode: classifyIngestError(error),
         errorMessage:
-          (error instanceof Error ? error.message : "failed") +
-          " Trafikverket open geodata is published via Lastkajen. Create an operator account, download the RoadLink GeoPackage, and set TRAFIKVERKET_ROADLINK_GPKG. Until then road context stays insufficient evidence and does not block site generation.",
-        metadata: { dataset: SLUG, bbox },
+          message +
+          " Trafikverket open WFS is not a reliable production feed (HTTP 400 / ExceptionReport in live proof). Official RoadLink is published via Lastkajen. Set TRAFIKVERKET_ROADLINK_GPKG when an operator GeoPackage is available. Until then road access stays not evaluated and does not block Candidate generation.",
+        metadata: { dataset: SLUG, bbox, blocker: "trafikverket_wfs_http_400" },
       });
     } catch {
       // ignore
     }
   }
-  throw error;
+  console.log(
+    JSON.stringify({
+      event: "ingest.roads.unavailable",
+      bbox,
+      blocker: "Trafikverket INSPIRE WFS HTTP 400 / ExceptionReport. No OSM fallback. Road access not evaluated.",
+      message: message.slice(0, 240),
+    }),
+  );
+  process.exit(0);
 }

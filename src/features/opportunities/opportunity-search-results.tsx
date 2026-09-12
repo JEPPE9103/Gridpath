@@ -2,7 +2,7 @@
 
 import { Button, buttonClassName } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
-import { EvidenceCoveragePanel, NetworkCoveringNote, ProvenanceChip } from "@/features/opportunities/evidence-coverage-panel";
+import { EvidenceCoveragePanel, ProvenanceChip } from "@/features/opportunities/evidence-coverage-panel";
 import { RefinePendingNotice } from "@/features/opportunities/refine-pending-notice";
 import { ScreeningResultsMap } from "@/features/opportunities/screening-results-map";
 import type { OpportunityRunCandidate, OpportunitySearchRunView } from "@/lib/data/opportunity-runs";
@@ -20,8 +20,15 @@ import {
   recommendationConfidenceCaption,
   runSourceNotes,
   screeningFootprintQuality,
-  whyCandidateRanks,
 } from "@/lib/opportunities/evidence-coverage";
+import { CandidateIntelligenceBlock } from "@/features/opportunities/candidate-intelligence-block";
+import {
+  buildCandidateIntelligence,
+  constraintTitlesForCompare,
+  intelligenceCriteriaForTechnology,
+  intelligenceHeadline,
+  nextInvestigationForCompare,
+} from "@/lib/opportunities/candidate-intelligence";
 import { describeRunDelta, UNSUPPORTED_SCREENING_DIMENSIONS } from "@/lib/opportunities/spatial-screening";
 import {
   landCoverEvidenceLabel,
@@ -115,6 +122,10 @@ export function OpportunitySearchResults({
   const selectedFootprint = selected
     ? screeningFootprintQuality(selected.geometryQuality, selected.geometryQualityReason)
     : null;
+  const intelligenceCriteria = intelligenceCriteriaForTechnology(view.technology, view.searchCriteria);
+  const selectedIntelligence = selected
+    ? buildCandidateIntelligence(selected, intelligenceCriteria)
+    : null;
 
   return (
     <>
@@ -157,7 +168,7 @@ export function OpportunitySearchResults({
             ? "Candidate Sites identified. They are target-scale investigation areas grown inside Opportunity Zones after supported exclusions — not land parcels and not the surviving search region."
             : `Run status: ${view.status}.`}
           {view.durationMs != null ? ` Duration ${Math.round(view.durationMs / 1000)}s.` : ""}
-          {` Ranking ${view.rankingVersion ?? "suitability-v3"}.`}
+          {` Ranking ${view.rankingVersion ?? "suitability-v4"}.`}
         </p>
 
         {canWrite && (selectedEligible || topFive.length > 0) ? (
@@ -260,6 +271,7 @@ export function OpportunitySearchResults({
             canWrite={canWrite}
             providerAvailability={view.providerAvailability}
             sourceVersions={view.sourceVersions}
+            intelligenceCriteria={intelligenceCriteria}
             onSelect={setSelectedId}
             onToggleCompare={(id) =>
               setCompareIds((current) =>
@@ -286,29 +298,53 @@ export function OpportunitySearchResults({
             {selected.rankChangeExplanation ? (
               <p className="mt-2 text-sm">{selected.rankChangeExplanation}</p>
             ) : null}
+            <p className="mt-2 text-xs text-muted">{recommendationConfidenceCaption(selected.dataConfidence, selectedCoverage)}</p>
+            <p className="mt-1 text-xs text-muted">
+              Recommendation confidence: {opportunityConfidenceLabel(selected.dataConfidence)} · {selectedCoverage.summary}
+            </p>
 
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Why it ranks well</h3>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                  {whyCandidateRanks(selected).map((reason) => (
-                    <li key={reason}>{reason}</li>
-                  ))}
-                </ul>
-                <p className="mt-3 text-xs text-muted">
-                  {recommendationConfidenceCaption(selected.dataConfidence, selectedCoverage)}
-                </p>
-                <p className="mt-2 text-xs text-muted">
-                  Recommendation confidence: {opportunityConfidenceLabel(selected.dataConfidence)} ·{" "}
-                  {selectedCoverage.summary}
-                </p>
-              </div>
-              <NetworkCoveringNote
-                title={selectedCovering.title}
-                detail={selectedCovering.detail}
-                note={selectedCovering.note}
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              <Fact label="Area" value={areaLine(selected)} />
+              <Fact label="Geometry" value={selectedFootprint.label} />
+              <Fact
+                label="Land cover"
+                value={
+                  Object.keys(selected.landCover).length > 0
+                    ? Object.entries(selected.landCover)
+                        .sort((left, right) => Number(right[1]) - Number(left[1]))
+                        .slice(0, 2)
+                        .map(([group, share]) => `${group} ${Number(share).toFixed(0)}%`)
+                        .join(" · ")
+                    : selected.landCoverQueried
+                      ? "Evaluated, no composition stored"
+                      : "Land cover not evaluated"
+                }
               />
+              <Fact
+                label="Terrain"
+                value={
+                  selected.terrainQueried && selected.meanSlopeDeg != null
+                    ? `Coarse mean ${selected.meanSlopeDeg.toFixed(1)}°`
+                    : "Terrain evidence unavailable"
+                }
+              />
+              <Fact
+                label="Access"
+                value={
+                  selected.roadQueried && selected.roadDistanceM != null
+                    ? `${Math.round(selected.roadDistanceM)} m to supported road`
+                    : "Road access not evaluated"
+                }
+              />
+              <Fact label="Network covering" value={selectedCovering.title} />
             </div>
+            <p className="mt-2 text-xs text-muted">{selectedCovering.note}</p>
+
+            {selectedIntelligence ? (
+              <div className="mt-4">
+                <CandidateIntelligenceBlock intelligence={selectedIntelligence} />
+              </div>
+            ) : null}
 
             <div className="mt-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Screening footprint quality</p>
@@ -423,7 +459,8 @@ export function OpportunitySearchResults({
           <section className="rounded-md border border-line bg-surface p-4">
             <h2 className="text-sm font-semibold">Compare selected Candidate Sites</h2>
             <p className="mt-1 text-sm text-muted">
-              Relative investigation priority from stored evidence — not a success score.
+              Why investigate one Candidate before another — from recommendation, evidence, constraints and next
+              investigations. Not a success score.
             </p>
             <div className="mt-3 overflow-x-auto">
               <table className="min-w-full text-sm">
@@ -454,19 +491,74 @@ export function OpportunitySearchResults({
                             : "—",
                     ],
                     [
-                      "Network area",
+                      "Geometry",
+                      (item: OpportunityRunCandidate) =>
+                        screeningFootprintQuality(item.geometryQuality, item.geometryQualityReason).label,
+                    ],
+                    [
+                      "Network covering",
                       (item: OpportunityRunCandidate) =>
                         `${item.localCoveringName ?? "None"} — official covering, not capacity`,
                     ],
                     [
-                      "Evidence",
+                      "Evidence coverage",
                       (item: OpportunityRunCandidate) =>
                         buildEvidenceCoverage(
                           candidateToEvidenceInput(item, { providerAvailability: view.providerAvailability }),
                         ).summary,
                     ],
-                    ["Positive", (item: OpportunityRunCandidate) => item.keyPositive ?? "—"],
-                    ["Risk", (item: OpportunityRunCandidate) => item.keyRisk ?? "—"],
+                    [
+                      "Land cover",
+                      (item: OpportunityRunCandidate) =>
+                        item.landCoverQueried && Object.keys(item.landCover).length
+                          ? Object.entries(item.landCover)
+                              .sort((left, right) => Number(right[1]) - Number(left[1]))
+                              .slice(0, 2)
+                              .map(([group, share]) => `${group} ${Number(share).toFixed(0)}%`)
+                              .join(" · ")
+                          : "Land cover not evaluated",
+                    ],
+                    [
+                      "Terrain",
+                      (item: OpportunityRunCandidate) =>
+                        item.terrainQueried && item.meanSlopeDeg != null
+                          ? `Coarse mean ${item.meanSlopeDeg.toFixed(1)}°`
+                          : "Terrain evidence unavailable",
+                    ],
+                    [
+                      "Road / access",
+                      (item: OpportunityRunCandidate) =>
+                        item.roadQueried && item.roadDistanceM != null
+                          ? `${Math.round(item.roadDistanceM)} m`
+                          : "Road access not evaluated",
+                    ],
+                    [
+                      "Key strengths",
+                      (item: OpportunityRunCandidate) =>
+                        buildCandidateIntelligence(item, intelligenceCriteria).rankPositives.slice(0, 2).join("; ") || "—",
+                    ],
+                    [
+                      "Blockers / major risks",
+                      (item: OpportunityRunCandidate) => {
+                        const intel = buildCandidateIntelligence(item, intelligenceCriteria);
+                        const blockers = constraintTitlesForCompare(intel, "blocker");
+                        const major = constraintTitlesForCompare(intel, "major_risk");
+                        if (blockers === "None recorded" && major === "None recorded") return "None recorded";
+                        return [blockers !== "None recorded" ? blockers : null, major !== "None recorded" ? major : null]
+                          .filter(Boolean)
+                          .join("; ");
+                      },
+                    ],
+                    [
+                      "Unknowns",
+                      (item: OpportunityRunCandidate) =>
+                        constraintTitlesForCompare(buildCandidateIntelligence(item, intelligenceCriteria), "unknown"),
+                    ],
+                    [
+                      "Next investigation",
+                      (item: OpportunityRunCandidate) =>
+                        nextInvestigationForCompare(buildCandidateIntelligence(item, intelligenceCriteria)),
+                    ],
                   ].map(([label, render]) => (
                     <tr key={String(label)}>
                       <td className="border-b border-line px-2 py-1 text-muted">{label as string}</td>
@@ -501,6 +593,7 @@ function CandidateSection({
   canWrite,
   providerAvailability,
   sourceVersions,
+  intelligenceCriteria,
   onSelect,
   onToggleCompare,
 }: {
@@ -511,6 +604,7 @@ function CandidateSection({
   canWrite: boolean;
   providerAvailability: Record<string, boolean>;
   sourceVersions: Record<string, string | null>;
+  intelligenceCriteria: ReturnType<typeof intelligenceCriteriaForTechnology>;
   onSelect: (id: string) => void;
   onToggleCompare: (id: string) => void;
 }) {
@@ -525,6 +619,7 @@ function CandidateSection({
           const coverage = buildEvidenceCoverage(
             candidateToEvidenceInput(candidate, { providerAvailability, sourceVersions }),
           );
+          const intelligence = buildCandidateIntelligence(candidate, intelligenceCriteria);
           const covering = networkCoveringCopy({
             localName: candidate.localCoveringName,
             nupName: candidate.nupCoveringName,
@@ -547,12 +642,11 @@ function CandidateSection({
                   <p className="mt-2 text-sm">{areaLine(candidate)}</p>
                   <p className="mt-1 text-sm">{opportunityRecommendationLabel(candidate.recommendation)}</p>
                   <ul className="mt-2 list-disc pl-5 text-xs text-muted">
-                    {whyCandidateRanks(candidate)
-                      .slice(0, 3)
-                      .map((reason) => (
-                        <li key={reason}>{reason}</li>
-                      ))}
+                    {intelligence.rankPositives.slice(0, 2).map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
                   </ul>
+                  <p className="mt-2 text-xs text-muted">{intelligenceHeadline(intelligence)}</p>
                   <p className="mt-2 text-xs text-muted">
                     Evidence {coverage.evaluatedCount}/{coverage.totalCount} categories evaluated
                     {coverage.missingLabels.length > 0 ? ` · Missing: ${coverage.missingLabels.slice(0, 3).join(", ")}` : ""}

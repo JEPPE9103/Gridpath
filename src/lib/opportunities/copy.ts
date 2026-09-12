@@ -20,6 +20,12 @@ const FORBIDDEN_TERMS = [
   "connection likelihood",
   "available connection point",
   "connectable capacity",
+  "grid available",
+  "capacity available",
+  "connection likely",
+  "technically viable",
+  "buildable site",
+  "feasible site",
 ] as const;
 
 export function publicOpportunityError(message: string | undefined, fallback: string): string {

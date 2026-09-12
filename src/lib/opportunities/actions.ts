@@ -108,7 +108,7 @@ async function applyScreeningRunAssessments(
     exclusionReason: item.exclusionReason,
     keyPositive: item.keyPositive,
     keyRisk: item.keyRisk,
-    screening: item.screening,
+    screening: { ...item.screening, intelligence: item.intelligence },
     rankingVersion: RANKING_VERSION,
     strategicFlags: item.strategicFlags,
     rankChangeExplanation: item.rankChangeExplanation,

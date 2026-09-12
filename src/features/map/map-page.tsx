@@ -805,6 +805,8 @@ function LoadedMapPage({
             searchId={activeDiscovery.searchId}
             runId={activeDiscovery.runId}
             providerAvailability={activeDiscovery.providerAvailability}
+            technology={activeDiscovery.technology}
+            searchCriteria={activeDiscovery.searchCriteria}
             onClose={() => {
               setSelectedCandidateId(null);
               persistMapUrl({ candidate: null });

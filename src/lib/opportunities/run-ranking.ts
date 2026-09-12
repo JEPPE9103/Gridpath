@@ -31,6 +31,7 @@ import {
 } from "@/lib/opportunities/screening";
 import type { ExclusionBreakdown } from "@/lib/opportunities/contiguous-geometry";
 import type { TerrainMetrics } from "@/lib/opportunities/terrain";
+import { buildCandidateIntelligence, type CandidateIntelligence } from "@/lib/opportunities/candidate-intelligence";
 
 export const RANKING_WEIGHTS_V2 = {
   version: "suitability-v2",
@@ -218,6 +219,7 @@ export type RankedCellAssessment = {
   relativeScore: number;
   strategicFlags: StrategicFlag[];
   rankChangeExplanation: string | null;
+  intelligence: CandidateIntelligence;
 };
 
 type AssessedArea = {
@@ -465,6 +467,36 @@ export function rankScreeningCells(
       highApplicationVolume: (item.row.transmission?.appliedMw ?? 0) >= 500,
       criticalGap: item.screening.dataConfidence === "unknown" || item.screening.dataConfidence === "low",
     });
+    const intelligence = buildCandidateIntelligence(
+      {
+        excluded: item.screening.excluded,
+        exclusionReason: item.screening.exclusionReason,
+        geometryQuality: item.row.geometry_quality ?? null,
+        geometryQualityReason: null,
+        terrainQueried: item.row.terrain_queried === true,
+        meanSlopeDeg: num(item.row.mean_slope_deg),
+        p90SlopeDeg: num(item.row.p90_slope_deg),
+        pctBelowSlope: num(item.row.pct_below_slope),
+        terrainResolution: item.row.terrain_resolution ?? null,
+        roadQueried: item.row.road_queried === true,
+        roadDistanceM: num(item.row.road_distance_m),
+        roadClass: item.row.road_class ?? null,
+        landCoverQueried: item.row.land_cover_queried === true,
+        landCover: item.row.land_cover ?? {},
+        protectedQueried: item.row.protected_queried === true,
+        naturaQueried: item.row.natura_queried === true,
+        coveringQueried: item.row.covering_queried === true,
+        localCoveringName: item.row.local_covering_name ?? null,
+        nupCoveringName: item.row.nup_covering_name ?? null,
+        keyPositive: item.screening.positives[0] ?? null,
+        keyRisk: item.screening.risks[0] ?? null,
+        targetFitLabel: null,
+        targetFitScore: num(item.row.target_fit_score),
+        protectedOverlapPct: num(item.row.protected_overlap_pct),
+        naturaOverlapPct: num(item.row.natura_overlap_pct),
+      },
+      criteria,
+    );
     return {
       id: item.id,
       rank,
@@ -493,6 +525,7 @@ export function rankScreeningCells(
         discoveryContiguousHa: num(item.row.discovery_contiguous_area_ha),
         refinedContiguousHa: isDetailed ? item.contiguousHa : null,
       }),
+      intelligence,
     };
   });
 }

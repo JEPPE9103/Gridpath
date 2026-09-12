@@ -11,6 +11,12 @@ import {
 } from "@/lib/opportunities/catalog";
 import { canCompareOpportunities, compareRecommendation } from "@/lib/opportunities/compare";
 import { buildEvidenceCoverageFromAssessments } from "@/lib/opportunities/evidence-coverage";
+import {
+  constraintTitlesForCompare,
+  nextInvestigationForCompare,
+  parseFrozenIntelligence,
+  type CandidateIntelligence,
+} from "@/lib/opportunities/candidate-intelligence";
 import { cn } from "@/lib/cn";
 import Link from "next/link";
 
@@ -25,9 +31,11 @@ type CompareAssessment = {
 export function OpportunityComparePage({
   items,
   assessmentsById,
+  intelligenceById,
 }: {
   items: OpportunityListItem[];
   assessmentsById: Map<string, CompareAssessment[]>;
+  intelligenceById: Map<string, CandidateIntelligence | null>;
 }) {
   const allowed = canCompareOpportunities(items.length);
   if (!allowed.ok) {
@@ -65,8 +73,8 @@ export function OpportunityComparePage({
       <PageBody>
         {leader && ranked[1] ? (
           <p className="text-sm">
-            <span className="font-medium">{leader.name}</span> ranks above {ranked[1].name} because
-            its stored recommendation is “{opportunityRecommendationLabel(leader.recommendation)}”
+            <span className="font-medium">{leader.name}</span> ranks above {ranked[1].name} for
+            investigation because its stored recommendation is “{opportunityRecommendationLabel(leader.recommendation)}”
             versus “{opportunityRecommendationLabel(ranked[1].recommendation)}”. This is current
             evidence, not a prediction of connection.
           </p>
@@ -107,7 +115,7 @@ export function OpportunityComparePage({
               </CompareRow>
               <CompareRow label="Target MW" items={items}>
                 {(item) =>
-                  item.targetMw != null ? `${item.targetMw} MW (customer-entered)` : "Not set"
+                  item.targetMw != null ? `${item.targetMw} MW (customer-entered project target, not a footprint driver)` : "Not set"
                 }
               </CompareRow>
               <CompareRow label="Evidence coverage" items={items}>
@@ -122,6 +130,37 @@ export function OpportunityComparePage({
                   return coverage.missingLabels.length > 0
                     ? coverage.missingLabels.join(", ")
                     : "None recorded";
+                }}
+              </CompareRow>
+              <CompareRow label="Key strengths" items={items}>
+                {(item) => {
+                  const intel = intelligenceById.get(item.id);
+                  if (intel?.rankPositives.length) return intel.rankPositives.slice(0, 2).join("; ");
+                  return item.keyPositive ?? "No stored strength yet.";
+                }}
+              </CompareRow>
+              <CompareRow label="Blockers / major risks" items={items}>
+                {(item) => {
+                  const intel = intelligenceById.get(item.id);
+                  if (!intel) return item.keyRisk ?? "Not frozen on this Opportunity.";
+                  const blockers = constraintTitlesForCompare(intel, "blocker");
+                  const major = constraintTitlesForCompare(intel, "major_risk");
+                  if (blockers === "None recorded" && major === "None recorded") return "None recorded";
+                  return [blockers !== "None recorded" ? blockers : null, major !== "None recorded" ? major : null]
+                    .filter(Boolean)
+                    .join("; ");
+                }}
+              </CompareRow>
+              <CompareRow label="Unknowns" items={items}>
+                {(item) => {
+                  const intel = intelligenceById.get(item.id);
+                  return intel ? constraintTitlesForCompare(intel, "unknown") : "Not frozen on this Opportunity.";
+                }}
+              </CompareRow>
+              <CompareRow label="Next investigation" items={items}>
+                {(item) => {
+                  const intel = intelligenceById.get(item.id);
+                  return intel ? nextInvestigationForCompare(intel) : "Not frozen on this Opportunity.";
                 }}
               </CompareRow>
               <CompareRow label="Network geography" items={items}>

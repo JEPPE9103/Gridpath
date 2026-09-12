@@ -4,6 +4,7 @@ import { getOfficialChangeImpactCounts } from "@/lib/data/grid-changes";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { canAdminWorkflow, canCreateOrEditProjects, canDeleteProjects, canWriteWorkflow } from "@/lib/projects/authorization";
 import type {
+  OriginatingOpportunityContext,
   ProjectAlertItem,
   ProjectConnectionCase,
   ProjectDetailResult,
@@ -241,7 +242,7 @@ function mapProject(
   officialGridAreaContext: OfficialGridAreaContext | null,
   officialNetworkDevelopmentPlanContext: OfficialNupContext | null,
   officialChanges: OfficialChangeImpactCounts,
-  originatingOpportunity: { slug: string; name: string } | null,
+  originatingOpportunity: OriginatingOpportunityContext | null,
 ): ProjectDetailViewModel {
   const operator = asSingle(row.grid_operators);
   const site =
@@ -397,7 +398,9 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
       project.originating_opportunity_id
         ? supabase
             .from("development_opportunities")
-            .select("slug, name")
+            .select(
+              "slug, name, recommendation, recommendation_summary, data_confidence, key_risk, contiguous_area_ha, screening_search_id, screening_snapshot",
+            )
             .eq("id", project.originating_opportunity_id)
             .eq("organization_id", organization.id)
             .maybeSingle()
@@ -466,7 +469,17 @@ async function loadProjectDetailBySlug(slug: string): Promise<ProjectDetailResul
       officialNupContext,
       officialChanges,
       originatingResult.data
-        ? { slug: originatingResult.data.slug, name: originatingResult.data.name }
+        ? {
+            slug: originatingResult.data.slug,
+            name: originatingResult.data.name,
+            recommendation: originatingResult.data.recommendation ?? null,
+            recommendationSummary: originatingResult.data.recommendation_summary ?? null,
+            dataConfidence: originatingResult.data.data_confidence ?? null,
+            keyRisk: originatingResult.data.key_risk ?? null,
+            contiguousAreaHa: toNumber(originatingResult.data.contiguous_area_ha),
+            originatingSearchId: originatingResult.data.screening_search_id ?? null,
+            screeningSnapshot: originatingResult.data.screening_snapshot ?? null,
+          }
         : null,
     ),
   };

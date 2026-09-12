@@ -10,12 +10,11 @@ export function Hero() {
             Development Intelligence
           </p>
           <h1 className="mt-4 max-w-xl text-[32px] font-semibold leading-[1.1] tracking-tight text-ink sm:text-[40px] md:text-[48px] lg:text-[52px]">
-            Find stronger development opportunities. Stop weak ones earlier.
+            Find the sites worth investigating.
           </h1>
           <p className="mt-5 max-w-md text-[15px] leading-7 text-muted sm:text-base">
-            A Development Intelligence platform for Swedish BESS and renewable development teams.
-            Search real geography, identify Candidate Sites worth investigating, and carry the
-            evidence into development.
+            Screen large areas against official evidence, compare Candidate Sites, understand
+            constraints, and move the strongest opportunities into development.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <CtaLink href="/#demo" className="w-full px-5 sm:w-auto">

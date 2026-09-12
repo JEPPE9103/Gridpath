@@ -360,6 +360,7 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
   }>;
   error: string | null;
   kind: "ok" | "not_found" | "error" | "no_organization";
+  screeningSnapshot: unknown;
 }> => {
   const empty = {
     item: null as OpportunityListItem | null,
@@ -391,6 +392,7 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
       changeSummary: string | null;
       createdAt: string;
     }>,
+    screeningSnapshot: null as unknown,
   };
   const organization = await getCurrentOrganization();
   if (!organization) {
@@ -400,7 +402,7 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
   const { data, error } = await supabase
     .from("development_opportunities")
     .select(
-      "id, slug, name, opportunity_type, status, country, region, municipality, target_mw, target_mwh, recommendation, recommendation_summary, key_positive, key_risk, data_confidence, latitude, longitude, updated_at, promoted_project_id, owner_id, notes, rejection_reason, rejection_note, originating_run_id, screening_search_id, contiguous_area_ha",
+      "id, slug, name, opportunity_type, status, country, region, municipality, target_mw, target_mwh, recommendation, recommendation_summary, key_positive, key_risk, data_confidence, latitude, longitude, updated_at, promoted_project_id, owner_id, notes, rejection_reason, rejection_note, originating_run_id, screening_search_id, contiguous_area_ha, screening_snapshot",
     )
     .eq("organization_id", organization.id)
     .eq("slug", slug)
@@ -498,6 +500,7 @@ export const getOpportunityBySlug = cache(async (slug: string): Promise<{
       changeSummary: item.change_summary,
       createdAt: item.assessed_at,
     })),
+    screeningSnapshot: (row as { screening_snapshot?: unknown }).screening_snapshot ?? null,
     error: null,
     kind: "ok",
   };

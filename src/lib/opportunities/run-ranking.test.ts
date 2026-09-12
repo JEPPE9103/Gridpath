@@ -128,4 +128,66 @@ describe("screening cell ranking", () => {
     assert.equal(proximity?.completeness, "insufficient");
     assert.ok(result.screening.uncertainties.some((item) => /Electricity area SE3/i.test(item)));
   });
+
+  it("does not let missing terrain outrank evaluated terrain", () => {
+    const ranked = rankScreeningCells(
+      [
+        cell({
+          id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+          name: "No terrain",
+          usable_area_ha: 16,
+          contiguous_area_ha: 16,
+          terrain_queried: false,
+          land_cover_queried: true,
+          land_cover: { open: 80 },
+          target_fit_score: 1,
+          geometry_quality: "pass",
+        }),
+        cell({
+          id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+          name: "Has terrain",
+          usable_area_ha: 16,
+          contiguous_area_ha: 16,
+          terrain_queried: true,
+          pct_below_slope: 95,
+          mean_slope_deg: 2,
+          land_cover_queried: true,
+          land_cover: { open: 80 },
+          target_fit_score: 1,
+          geometry_quality: "pass",
+        }),
+      ],
+      CRITERIA,
+    );
+    assert.equal(ranked.find((item) => item.id.startsWith("ffff"))?.rank, 1);
+    assert.equal(ranked.find((item) => item.id.startsWith("eeee"))?.rank, 2);
+    const missing = ranked.find((item) => item.id.startsWith("eeee"));
+    assert.ok(missing?.intelligence.constraints.some((item) => item.id === "terrain_unavailable"));
+    assert.ok(
+      (missing?.relativeScore ?? 0) < (ranked.find((item) => item.id.startsWith("ffff"))?.relativeScore ?? 1),
+    );
+  });
+
+  it("keeps hard exclusions ahead of numeric score", () => {
+    const ranked = rankScreeningCells(
+      [
+        cell({
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa01",
+          usable_area_ha: 22,
+          natura_overlap_pct: 20,
+          natura_queried: true,
+          target_fit_score: 1,
+        }),
+        cell({
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa02",
+          usable_area_ha: 14,
+          natura_overlap_pct: 0,
+          target_fit_score: 0.7,
+        }),
+      ],
+      CRITERIA,
+    );
+    assert.equal(ranked.find((item) => item.id.endsWith("01"))?.excluded, true);
+    assert.equal(ranked.find((item) => item.id.endsWith("02"))?.rank, 1);
+  });
 });

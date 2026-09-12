@@ -13,6 +13,9 @@ import { supportedEvidenceProviders, unsupportedEvidenceProviders } from "./prov
  * DELETE: admin/owner on opportunities, searches, runs, candidates, and events.
  * Official geographic features are a global catalog (authenticated SELECT), like grid_areas.
  * Creates, screening runs, save-candidate and promote go through SECURITY DEFINER RPCs that re-check membership.
+ * Candidate intelligence (constraints / next investigations) is derived interpretation stored on
+ * opportunity_run_candidates.screening JSON and copied into development_opportunities.screening_snapshot.
+ * No new org tables; the same organization_id RLS applies. Official GI catalogs stay global-read.
  */
 describe("opportunity tenancy and provider contract", () => {
   it("keeps Viewer read-only and Member able to write and promote", () => {

@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     title: "Candidate Sites",
-    copy: "Bounded investigation targets grown from qualifying land. Rankings prioritise further investigation.",
+    copy: "Bounded investigation targets grown from qualifying land. Rankings, constraints and next investigations show what to look at — not whether a site can be built.",
   },
 ];
 

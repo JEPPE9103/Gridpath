@@ -5,7 +5,9 @@ import { Button, buttonClassName } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Metric, MetricStrip, PageBody, SectionHeader } from "@/components/ui/workspace";
 import { SourceBadge } from "@/components/ui/badges";
+import { CandidateIntelligenceBlock } from "@/features/opportunities/candidate-intelligence-block";
 import { EvidenceCoveragePanel, NetworkCoveringNote, ProvenanceChip } from "@/features/opportunities/evidence-coverage-panel";
+import { parseFrozenIntelligence } from "@/lib/opportunities/candidate-intelligence";
 import type { OpportunityListItem } from "@/lib/data/opportunities";
 import {
   promoteOpportunityAction,
@@ -58,6 +60,7 @@ export function OpportunityDetailPage({
   events,
   reassessmentNotices = [],
   assessmentVersions = [],
+  screeningSnapshot = null,
   canWrite,
 }: {
   item: OpportunityListItem;
@@ -82,6 +85,7 @@ export function OpportunityDetailPage({
     changeSummary: string | null;
     createdAt: string;
   }>;
+  screeningSnapshot?: unknown;
   canWrite: boolean;
 }) {
   const location = [item.municipality, item.region, item.country].filter(Boolean).join(", ");
@@ -90,6 +94,7 @@ export function OpportunityDetailPage({
   const gaps = assessments.filter((row) => row.completeness === "insufficient");
   const coverage = buildEvidenceCoverageFromAssessments({ assessments });
   const gridAssessment = assessments.find((row) => row.dimension === "grid_context");
+  const intelligence = parseFrozenIntelligence(screeningSnapshot);
 
   return (
     <>
@@ -110,9 +115,9 @@ export function OpportunityDetailPage({
         <MetricStrip className="sm:grid-cols-3 lg:grid-cols-5">
           <Metric label="Status" value={opportunityStatusLabel(item.status)} />
           <Metric
-            label="Requested MW"
+            label="Project target"
             value={item.targetMw != null ? `${item.targetMw} MW` : "Not set"}
-            hint={item.targetMw != null ? "Customer entered" : undefined}
+            hint={item.targetMw != null ? "Customer entered. Does not change Candidate geometry." : undefined}
           />
           <Metric label="Energy" value={item.targetMwh != null ? `${item.targetMwh} MWh` : "Not set"} />
           <Metric label="Recommendation confidence" value={opportunityConfidenceLabel(item.dataConfidence)} />
@@ -127,11 +132,22 @@ export function OpportunityDetailPage({
           </div>
           <p className="mt-2 text-sm leading-6">{item.recommendationSummary}</p>
           <p className="mt-2 text-xs text-muted">{recommendationConfidenceCaption(item.dataConfidence, coverage)}</p>
-          <div className="mt-4 grid gap-4 lg:grid-cols-3">
-            <SignalList title="Positive signals" items={positives.map((row) => row.explanation)} empty="No official or customer-positive signal stored yet." />
-            <SignalList title="Risks" items={risks.map((row) => row.explanation)} empty="No stored risk dimension." />
-            <SignalList title="Open questions" items={gaps.map((row) => row.explanation)} empty="No evidence gaps recorded." />
-          </div>
+          {intelligence ? (
+            <div className="mt-4">
+              <p className="text-xs text-muted">
+                Frozen at save. Later official refreshes do not rewrite this interpretation.
+              </p>
+              <div className="mt-3">
+                <CandidateIntelligenceBlock intelligence={intelligence} />
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              <SignalList title="Positive signals" items={positives.map((row) => row.explanation)} empty="No official or customer-positive signal stored yet." />
+              <SignalList title="Risks" items={risks.map((row) => row.explanation)} empty="No stored risk dimension." />
+              <SignalList title="Open questions" items={gaps.map((row) => row.explanation)} empty="No evidence gaps recorded." />
+            </div>
+          )}
           <div className="mt-4">
             <NetworkCoveringNote
               title={gridAssessment?.completeness === "available" ? "Official covering geography" : "Not evaluated"}

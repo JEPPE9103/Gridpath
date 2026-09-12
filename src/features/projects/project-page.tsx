@@ -20,6 +20,8 @@ import { DeleteProjectButton } from "@/features/projects/delete-project-button";
 import { ArchiveProjectButton, RestoreProjectButton } from "@/features/projects/archive-project-button";
 import { cn } from "@/lib/cn";
 import type { ProjectDetailViewModel } from "@/lib/data/project-detail-types";
+import { parseFrozenIntelligence } from "@/lib/opportunities/candidate-intelligence";
+import { opportunityConfidenceLabel, opportunityRecommendationLabel } from "@/lib/opportunities/catalog";
 import { OfficialChangesSignal } from "@/features/changes/official-changes-signal";
 import {
   confidenceLabel,
@@ -282,6 +284,81 @@ function Meta({
   );
 }
 
+function OriginatingOpportunitySection({ project }: { project: ProjectDetailViewModel }) {
+  const origin = project.originatingOpportunity;
+  if (!origin) {
+    return (
+      <section className="rounded-md border border-line bg-surface p-5">
+        <h2 className="text-base font-semibold">Originating opportunity</h2>
+        <p className="mt-2 text-sm text-muted">This project was not promoted from a Candidate / Opportunity.</p>
+      </section>
+    );
+  }
+  const intelligence = parseFrozenIntelligence(origin.screeningSnapshot);
+  const nextItems = intelligence?.nextInvestigations.slice(0, 3) ?? [];
+  const risks = intelligence
+    ? intelligence.constraints
+        .filter((item) => item.severity === "blocker" || item.severity === "major_risk" || item.severity === "risk")
+        .slice(0, 3)
+        .map((item) => item.title)
+    : origin.keyRisk
+      ? [origin.keyRisk]
+      : [];
+  const coverageCount = intelligence
+    ? intelligence.constraints.filter((item) => item.evaluated).length
+    : null;
+
+  return (
+    <section className="rounded-md border border-line bg-surface p-5">
+      <h2 className="text-base font-semibold">Originating opportunity</h2>
+      <p className="mt-1 text-xs text-muted">
+        Historical decision provenance from promotion. This is not a live Candidate assessment.
+      </p>
+      <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-muted">Opportunity</dt>
+          <dd className="mt-0.5">
+            <Link href={`/opportunities/${origin.slug}`} className="text-teal hover:underline">
+              {origin.name}
+            </Link>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-muted">Recommendation at promotion</dt>
+          <dd className="mt-0.5">
+            {origin.recommendation ? opportunityRecommendationLabel(origin.recommendation) : "Not stored"}
+            {origin.dataConfidence ? ` · ${opportunityConfidenceLabel(origin.dataConfidence)}` : ""}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-muted">Known risks</dt>
+          <dd className="mt-0.5">{risks.length ? risks.join("; ") : "None frozen"}</dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-muted">Evidence at save</dt>
+          <dd className="mt-0.5">
+            {origin.contiguousAreaHa != null ? `${origin.contiguousAreaHa.toFixed(1)} ha snapshot` : "Area not stored"}
+            {coverageCount != null ? ` · ${coverageCount} evaluated constraints` : ""}
+          </dd>
+        </div>
+      </dl>
+      {origin.recommendationSummary ? (
+        <p className="mt-3 text-sm text-muted">{origin.recommendationSummary}</p>
+      ) : null}
+      {nextItems.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Original investigation items</p>
+          <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm">
+            {nextItems.map((item) => (
+              <li key={item.id}>{item.action}</li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function OverviewTab({
   project,
   sourceHealth,
@@ -292,6 +369,7 @@ function OverviewTab({
   return (
     <div className="space-y-4">
       <DevelopmentBrief project={project} />
+      <OriginatingOpportunitySection project={project} />
       <OfficialChangesSignal
         counts={project.officialChanges}
         href={`/changes?project=${encodeURIComponent(project.id)}`}

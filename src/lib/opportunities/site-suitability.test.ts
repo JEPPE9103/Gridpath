@@ -12,7 +12,7 @@ import {
   slopeDegreesFromPercent,
   summariseSlopeSample,
 } from "./terrain";
-import { defaultScreeningProfile, originLabel } from "./screening-profiles";
+import { defaultScreeningProfile, originLabel, parseScreeningProfileCriteria } from "./screening-profiles";
 import { rankScreeningCells, type ScreeningCellRow } from "./run-ranking";
 import type { ScreeningCriteria } from "./screening";
 
@@ -79,6 +79,29 @@ describe("screening profiles", () => {
     assert.equal(originLabel(profile.origin), "NOXHEIM DEFAULT");
     assert.equal(profile.criteria.slopeMode, "preference");
     assert.equal(profile.criteria.landCover.wetland, "excluded");
+    assert.equal(profile.maturity, "production");
+    assert.equal(profile.criteria.minSiteAreaHa, 8);
+    assert.equal(profile.criteria.targetSiteAreaHa, 15);
+  });
+
+  it("changes spatial defaults when technology is solar or wind", () => {
+    const bess = defaultScreeningProfile("battery_storage").criteria;
+    const solar = defaultScreeningProfile("solar").criteria;
+    const wind = defaultScreeningProfile("wind").criteria;
+    assert.equal(defaultScreeningProfile("solar").maturity, "beta");
+    assert.equal(defaultScreeningProfile("wind").maturity, "beta");
+    assert.ok((solar.targetSiteAreaHa ?? 0) > (bess.targetSiteAreaHa ?? 0));
+    assert.ok((wind.targetSiteAreaHa ?? 0) > (solar.targetSiteAreaHa ?? 0));
+    assert.equal(solar.landCover.agriculture, "preferred");
+    assert.equal(bess.landCover.agriculture, "deprioritised");
+    assert.equal(wind.landCover.forest, "preferred");
+    assert.equal(solar.landCover.forest, "deprioritised");
+    assert.ok((solar.maxSlopeDegrees ?? 0) > (bess.maxSlopeDegrees ?? 0));
+    assert.ok((wind.maxRoadDistanceM ?? 0) > (bess.maxRoadDistanceM ?? 0));
+    assert.notEqual(
+      parseScreeningProfileCriteria({ technology: "solar" }).targetSiteAreaHa,
+      parseScreeningProfileCriteria({ technology: "battery_storage" }).targetSiteAreaHa,
+    );
   });
 });
 
@@ -172,5 +195,58 @@ describe("suitability ranking v2", () => {
     const withRoad = ranked.find((item) => item.id === "with-road");
     const noRoad = ranked.find((item) => item.id === "no-road");
     assert.ok((withRoad?.relativeScore ?? 0) >= (noRoad?.relativeScore ?? 0));
+  });
+
+  it("applies technology pack size and land-cover rules to ranking", () => {
+    const agri = cell({
+      id: "agri",
+      usable_area_ha: 25,
+      contiguous_area_ha: 25,
+      land_cover_queried: true,
+      land_cover: { agriculture: 80, forest: 20 },
+    });
+    const forested = cell({
+      id: "forested",
+      usable_area_ha: 25,
+      contiguous_area_ha: 25,
+      land_cover_queried: true,
+      land_cover: { forest: 80, open: 20 },
+    });
+    const compact = cell({
+      id: "compact-bess",
+      usable_area_ha: 15,
+      contiguous_area_ha: 15,
+    });
+    const bessPack = defaultScreeningProfile("battery_storage").criteria;
+    const solarPack = defaultScreeningProfile("solar").criteria;
+    const windPack = defaultScreeningProfile("wind").criteria;
+    const bess = rankScreeningCells([compact], {
+      ...CRITERIA,
+      minSiteAreaHa: bessPack.minSiteAreaHa,
+      targetSiteAreaHa: bessPack.targetSiteAreaHa,
+      maxCandidateAreaHa: bessPack.maxCandidateAreaHa,
+      landCoverProfile: bessPack.landCover,
+    });
+    const wind = rankScreeningCells([compact], {
+      ...CRITERIA,
+      technology: "wind",
+      minSiteAreaHa: windPack.minSiteAreaHa,
+      targetSiteAreaHa: windPack.targetSiteAreaHa,
+      maxCandidateAreaHa: windPack.maxCandidateAreaHa,
+      landCoverProfile: windPack.landCover,
+    });
+    assert.equal(bess[0]?.excluded, false);
+    assert.equal(wind[0]?.excluded, true);
+    const solarRanked = rankScreeningCells([agri, forested], {
+      ...CRITERIA,
+      technology: "solar",
+      minSiteAreaHa: solarPack.minSiteAreaHa,
+      targetSiteAreaHa: solarPack.targetSiteAreaHa,
+      maxCandidateAreaHa: solarPack.maxCandidateAreaHa,
+      landCoverProfile: solarPack.landCover,
+    });
+    const solarAgri = solarRanked.find((item) => item.id === "agri");
+    const solarForest = solarRanked.find((item) => item.id === "forested");
+    assert.ok((solarAgri?.relativeScore ?? 0) >= (solarForest?.relativeScore ?? 0));
   });
 });

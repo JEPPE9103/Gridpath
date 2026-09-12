@@ -22,6 +22,15 @@ export type MapDiscoveryRunPayload = {
   candidates: OpportunityRunCandidate[];
   geojson: MapGeoJsonFeatureCollection;
   providerAvailability: Record<string, boolean>;
+  technology: string;
+  searchCriteria: {
+    maxSlopeDegrees: number | null;
+    slopeMode: "preference" | "hard";
+    maxRoadDistanceM: number | null;
+    roadMode: "preference" | "hard";
+    excludeProtected: boolean;
+    excludeNatura: boolean;
+  };
 };
 
 type Bbox = { west: number | null; south: number | null; east: number | null; north: number | null };
@@ -110,7 +119,9 @@ export async function getMapDiscoveryRun(
     north: view.north,
     candidateCount: view.candidates.length,
     candidates: view.candidates,
+    technology: view.technology,
     geojson: parseDiscoveryFeatureCollection(view.geojson),
     providerAvailability: view.providerAvailability,
+    searchCriteria: view.searchCriteria,
   };
 }

@@ -30,6 +30,9 @@ export function classifyIngestError(error) {
   ) {
     return "transient_fetch";
   }
+  if (/HTTP 400|ExceptionReport|0 features for the requested bbox|source_unavailable/i.test(message)) {
+    return "source_unavailable";
+  }
   if (/parse|xlsx|shapefile|invalid workbook|zip|schema|could not discover/i.test(message)) {
     return "source_format";
   }
