@@ -41,7 +41,7 @@ function SelectedCandidateCard() {
   const site = SAMPLE_SELECTED_CANDIDATE;
 
   return (
-    <article className="rounded-md border border-line bg-surface p-3 shadow-[0_16px_32px_-24px_rgba(26,30,36,0.55)]">
+    <article className="rounded-lg border border-line/80 bg-surface/92 p-3 shadow-[0_18px_36px_-22px_rgba(26,30,36,0.5)] backdrop-blur-[8px]">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Selected Candidate Site</p>

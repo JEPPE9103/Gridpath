@@ -43,11 +43,12 @@ export function DiscoveryMap({
       container,
       style: STYLE,
       center: [SAMPLE_DISCOVERY_CENTER.longitude, SAMPLE_DISCOVERY_CENTER.latitude],
-      zoom: 10.35,
+      zoom: 10.6,
       interactive: false,
       attributionControl: false,
       fadeDuration: 0,
       renderWorldCopies: false,
+      pixelRatio: Math.min(typeof window === "undefined" ? 2 : window.devicePixelRatio || 1, 2),
     });
     const unbindResize = bindMapResize(map, container);
     const markers: Marker[] = [];
@@ -59,22 +60,35 @@ export function DiscoveryMap({
           id: `${COVERING}-fill`,
           type: "fill",
           source: COVERING,
-          paint: { "fill-color": LOCAL_NETWORK_FILL, "fill-opacity": 0.16 },
+          paint: { "fill-color": LOCAL_NETWORK_FILL, "fill-opacity": 0.11 },
         });
         map.addLayer({
           id: `${COVERING}-line`,
           type: "line",
           source: COVERING,
-          paint: { "line-color": LOCAL_NETWORK_FILL, "line-width": 1.1, "line-opacity": 0.7 },
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: { "line-color": LOCAL_NETWORK_FILL, "line-width": 1.05, "line-opacity": 0.55 },
         });
       }
 
       map.addSource(BOUNDARY, { type: "geojson", data: SAMPLE_SEARCH_BOUNDARY_GEOJSON });
       map.addLayer({
+        id: `${BOUNDARY}-fill`,
+        type: "fill",
+        source: BOUNDARY,
+        paint: { "fill-color": "#1A1E24", "fill-opacity": 0.028 },
+      });
+      map.addLayer({
         id: `${BOUNDARY}-line`,
         type: "line",
         source: BOUNDARY,
-        paint: { "line-color": "#1A1E24", "line-width": 1.5, "line-dasharray": [2, 1] },
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#1A1E24",
+          "line-width": 1.2,
+          "line-dasharray": [2.2, 1.6],
+          "line-opacity": 0.48,
+        },
       });
 
       map.addSource(SITES, { type: "geojson", data: SAMPLE_DISCOVERY_GEOJSON });
@@ -83,29 +97,43 @@ export function DiscoveryMap({
         type: "fill",
         source: SITES,
         paint: {
+          "fill-antialias": true,
           "fill-color": [
             "case",
             ["==", ["get", "candidateKind"], "zone"],
-            "#C5CCD6",
+            "#9AA3AE",
             ["==", ["get", "recommendation"], "prioritise"],
-            "#176C4A",
+            "#1B6B4A",
             ["==", ["get", "recommendation"], "investigate"],
             "#0F6C8D",
             ["==", ["get", "recommendation"], "secondary"],
             "#B54708",
             "#8B9098",
           ],
-          "fill-opacity": ["case", ["==", ["get", "candidateKind"], "zone"], 0.1, 0.58],
+          "fill-opacity": [
+            "case",
+            ["==", ["get", "candidateKind"], "zone"],
+            0.1,
+            ["==", ["get", "id"], SAMPLE_SELECTED_CANDIDATE.id],
+            0.5,
+            0.38,
+          ],
         },
       });
       map.addLayer({
         id: `${SITES}-line`,
         type: "line",
         source: SITES,
+        layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#1A1E24",
-          "line-width": ["case", ["==", ["get", "candidateKind"], "zone"], 0.4, 0.9],
-          "line-opacity": ["case", ["==", ["get", "candidateKind"], "zone"], 0.28, 0.75],
+          "line-color": [
+            "case",
+            ["==", ["get", "candidateKind"], "zone"],
+            "#5E6772",
+            "#0F2F24",
+          ],
+          "line-width": ["case", ["==", ["get", "candidateKind"], "zone"], 0.55, 1.05],
+          "line-opacity": ["case", ["==", ["get", "candidateKind"], "zone"], 0.28, 0.78],
         },
       });
       map.addLayer({
@@ -113,7 +141,8 @@ export function DiscoveryMap({
         type: "line",
         source: SITES,
         filter: ["==", ["get", "id"], SAMPLE_SELECTED_CANDIDATE.id],
-        paint: { "line-color": "#0B3D2E", "line-width": 2.4 },
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": "#0B3D2E", "line-width": 2, "line-opacity": 0.92 },
       });
 
       if (!showZones) {
@@ -133,16 +162,16 @@ export function DiscoveryMap({
           const label = document.createElement("div");
           label.textContent = record.name;
           label.style.cssText =
-            "background:#1a1e24;color:#fff;font:600 9px/1.2 var(--font-instrument),system-ui,sans-serif;padding:3px 6px;border-radius:4px;white-space:nowrap";
+            "background:#1a1e24;color:#fff;font:600 9px/1.2 var(--font-instrument),system-ui,sans-serif;padding:3px 7px;border-radius:999px;white-space:nowrap;letter-spacing:0.01em";
           wrap.appendChild(label);
 
           const mark = document.createElement("div");
           if (record.kind === "opportunity") {
             mark.style.cssText =
-              "width:9px;height:9px;background:#2A7A6F;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(26,30,36,0.2)";
+              "width:8px;height:8px;border-radius:2px;background:#2A7A6F;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(26,30,36,0.16)";
           } else {
             mark.style.cssText =
-              "width:10px;height:10px;border-radius:999px;background:#176C4A;border:2px solid #fff;box-shadow:0 0 0 1px rgba(26,30,36,0.2)";
+              "width:9px;height:9px;border-radius:999px;background:#176C4A;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(26,30,36,0.16)";
           }
           wrap.appendChild(mark);
 
@@ -159,7 +188,7 @@ export function DiscoveryMap({
           [SAMPLE_SEARCH_BOUNDS.west, SAMPLE_SEARCH_BOUNDS.south],
           [SAMPLE_SEARCH_BOUNDS.east, SAMPLE_SEARCH_BOUNDS.north],
         ],
-        { padding: variant === "workspace" ? 36 : 28, duration: 0 },
+        { padding: variant === "workspace" ? 32 : 22, duration: 0, maxZoom: 11.2 },
       );
     });
 
@@ -180,7 +209,7 @@ export function DiscoveryMap({
       )}
     >
       <div ref={containerRef} className="h-full w-full [&_.maplibregl-canvas]:outline-none" suppressHydrationWarning />
-      <div className="pointer-events-none absolute left-3 top-3 rounded-md border border-line bg-surface/95 px-2.5 py-2 text-[10px] leading-4 shadow-[0_8px_20px_-16px_rgba(26,30,36,0.5)]">
+      <div className="pointer-events-none absolute left-3 top-3 rounded-lg border border-line/80 bg-surface/90 px-2.5 py-2 text-[10px] leading-4 shadow-[0_10px_24px_-18px_rgba(26,30,36,0.55)] backdrop-blur-[6px]">
         {variant === "workspace" ? <WorkspaceLegend /> : <DiscoveryLegend />}
       </div>
     </div>

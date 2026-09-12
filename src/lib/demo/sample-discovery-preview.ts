@@ -27,8 +27,8 @@ export const SAMPLE_CANDIDATE_SITES = [
     evidenceSummary: "5 of 8 evidence categories evaluated",
     keyPositive: "No protected-area overlap on the site envelope",
     keyRisk: "Road access is not evaluated",
-    longitude: 15.118,
-    latitude: 59.048,
+    longitude: 15.166,
+    latitude: 59.045,
   },
   {
     id: "site-b",
@@ -191,102 +191,151 @@ function polygon(ring: Ring) {
   };
 }
 
-const SEARCH_RING: Ring = [
-  [SAMPLE_SEARCH_BOUNDS.west, SAMPLE_SEARCH_BOUNDS.south],
-  [SAMPLE_SEARCH_BOUNDS.east, SAMPLE_SEARCH_BOUNDS.south],
-  [SAMPLE_SEARCH_BOUNDS.east, SAMPLE_SEARCH_BOUNDS.north],
-  [SAMPLE_SEARCH_BOUNDS.west, SAMPLE_SEARCH_BOUNDS.north],
-];
+/** Corner-cut a closed ring so marketing footprints read as land, not grid cells. */
+function chaikin(ring: Ring, iterations = 2): Ring {
+  let points = ring;
+  for (let pass = 0; pass < iterations; pass += 1) {
+    const next: Ring = [];
+    for (let index = 0; index < points.length; index += 1) {
+      const start = points[index];
+      const end = points[(index + 1) % points.length];
+      next.push([start[0] * 0.75 + end[0] * 0.25, start[1] * 0.75 + end[1] * 0.25]);
+      next.push([start[0] * 0.25 + end[0] * 0.75, start[1] * 0.25 + end[1] * 0.75]);
+    }
+    points = next;
+  }
+  return points;
+}
+
+function roundedBounds(
+  west: number,
+  south: number,
+  east: number,
+  north: number,
+  radius = 0.007,
+): Ring {
+  const steps = 5;
+  const points: Ring = [];
+  const arc = (cx: number, cy: number, from: number, to: number) => {
+    for (let index = 0; index <= steps; index += 1) {
+      const angle = from + ((to - from) * index) / steps;
+      points.push([cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)]);
+    }
+  };
+  arc(west + radius, south + radius, Math.PI, Math.PI * 1.5);
+  arc(east - radius, south + radius, Math.PI * 1.5, Math.PI * 2);
+  arc(east - radius, north - radius, 0, Math.PI * 0.5);
+  arc(west + radius, north - radius, Math.PI * 0.5, Math.PI);
+  return points;
+}
+
+const SEARCH_RING = roundedBounds(
+  SAMPLE_SEARCH_BOUNDS.west,
+  SAMPLE_SEARCH_BOUNDS.south,
+  SAMPLE_SEARCH_BOUNDS.east,
+  SAMPLE_SEARCH_BOUNDS.north,
+);
 
 /** Broader remaining geography after exclusions — context, not a Candidate Site. */
-const ZONE_RING: Ring = [
-  [14.995, 59.026],
-  [15.055, 59.018],
-  [15.132, 59.022],
-  [15.198, 59.038],
-  [15.246, 59.062],
-  [15.258, 59.108],
-  [15.232, 59.138],
-  [15.168, 59.148],
-  [15.092, 59.146],
-  [15.028, 59.136],
-  [14.988, 59.108],
-  [14.982, 59.068],
-];
+const ZONE_RING = chaikin(
+  [
+    [14.994, 59.030],
+    [15.038, 59.016],
+    [15.092, 59.018],
+    [15.148, 59.024],
+    [15.198, 59.040],
+    [15.236, 59.058],
+    [15.252, 59.086],
+    [15.248, 59.118],
+    [15.218, 59.140],
+    [15.168, 59.148],
+    [15.122, 59.142],
+    [15.098, 59.128],
+    [15.108, 59.114],
+    [15.072, 59.108],
+    [15.036, 59.122],
+    [14.996, 59.114],
+    [14.984, 59.086],
+    [14.986, 59.054],
+  ],
+  1,
+);
 
 /**
- * Land-grown investigation footprints.
- * Stepped like dissolved 150 m screening cells — compact, irregular, not parcels or blobs.
+ * Land-grown investigation footprints: irregular qualifying land, not parcels
+ * and not circular blobs. Corners are softened for marketing, not cell stairs.
  */
 const SITE_RINGS: Record<(typeof SAMPLE_CANDIDATE_SITES)[number]["id"], Ring> = {
-  "site-a": [
-    [15.108, 59.041],
-    [15.114, 59.041],
-    [15.114, 59.038],
-    [15.122, 59.038],
-    [15.122, 59.041],
-    [15.128, 59.041],
-    [15.128, 59.047],
-    [15.131, 59.047],
-    [15.131, 59.053],
-    [15.125, 59.053],
-    [15.125, 59.057],
-    [15.116, 59.057],
-    [15.116, 59.053],
-    [15.111, 59.053],
-    [15.111, 59.047],
-    [15.108, 59.047],
-  ],
-  "site-b": [
-    [15.191, 59.096],
-    [15.198, 59.096],
-    [15.198, 59.092],
-    [15.208, 59.092],
-    [15.208, 59.096],
-    [15.218, 59.096],
-    [15.218, 59.103],
-    [15.214, 59.103],
-    [15.214, 59.110],
-    [15.206, 59.110],
-    [15.206, 59.114],
-    [15.198, 59.114],
-    [15.198, 59.108],
-    [15.191, 59.108],
-  ],
-  "site-c": [
-    [15.032, 59.112],
-    [15.040, 59.112],
-    [15.040, 59.108],
-    [15.048, 59.108],
-    [15.048, 59.112],
-    [15.054, 59.112],
-    [15.054, 59.118],
-    [15.057, 59.118],
-    [15.057, 59.126],
-    [15.050, 59.126],
-    [15.050, 59.131],
-    [15.041, 59.131],
-    [15.041, 59.126],
-    [15.035, 59.126],
-    [15.035, 59.120],
-    [15.032, 59.120],
-  ],
+  "site-a": chaikin(
+    [
+      [15.151, 59.043],
+      [15.156, 59.038],
+      [15.164, 59.036],
+      [15.172, 59.037],
+      [15.178, 59.041],
+      [15.179, 59.047],
+      [15.174, 59.052],
+      [15.166, 59.054],
+      [15.159, 59.051],
+      [15.161, 59.047],
+      [15.156, 59.046],
+      [15.152, 59.047],
+    ],
+    1,
+  ),
+  "site-b": chaikin(
+    [
+      [15.186, 59.098],
+      [15.192, 59.092],
+      [15.202, 59.090],
+      [15.212, 59.094],
+      [15.218, 59.100],
+      [15.216, 59.108],
+      [15.208, 59.114],
+      [15.198, 59.116],
+      [15.192, 59.112],
+      [15.190, 59.106],
+      [15.194, 59.103],
+      [15.188, 59.102],
+    ],
+    1,
+  ),
+  "site-c": chaikin(
+    [
+      [15.024, 59.114],
+      [15.030, 59.108],
+      [15.040, 59.106],
+      [15.048, 59.110],
+      [15.053, 59.117],
+      [15.050, 59.125],
+      [15.044, 59.131],
+      [15.034, 59.133],
+      [15.028, 59.128],
+      [15.026, 59.122],
+      [15.031, 59.118],
+      [15.025, 59.116],
+    ],
+    1,
+  ),
 };
 
 /** Sample Ei local-network covering geography — covering, not capacity. */
-const COVERING_RING: Ring = [
-  [14.93, 58.978],
-  [15.04, 58.968],
-  [15.18, 58.976],
-  [15.29, 59.012],
-  [15.34, 59.068],
-  [15.33, 59.128],
-  [15.27, 59.178],
-  [15.14, 59.198],
-  [15.00, 59.176],
-  [14.91, 59.118],
-  [14.90, 59.042],
-];
+const COVERING_RING = chaikin(
+  [
+    [14.93, 58.978],
+    [15.04, 58.968],
+    [15.18, 58.976],
+    [15.29, 59.012],
+    [15.34, 59.068],
+    [15.33, 59.128],
+    [15.27, 59.178],
+    [15.14, 59.198],
+    [15.00, 59.176],
+    [14.91, 59.118],
+    [14.90, 59.042],
+  ],
+  2,
+);
 
 export const SAMPLE_DISCOVERY_GEOJSON = {
   type: "FeatureCollection" as const,
@@ -336,8 +385,8 @@ export const SAMPLE_MAP_RECORDS = [
     id: "opportunity-a",
     kind: "opportunity" as const,
     name: "Opportunity",
-    longitude: 15.118,
-    latitude: 59.048,
+    longitude: 15.166,
+    latitude: 59.045,
   },
   {
     id: "project-north",
