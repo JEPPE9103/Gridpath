@@ -174,17 +174,17 @@ export function OpportunityDetailPage({
           <p className="mt-2 text-sm">
             {item.originatingRunId && item.originatingSearchId ? (
               <>
-                Development Opportunity from a Site Suitability screening run.{" "}
+                Lineage: Search → Candidate → this Opportunity
+                {item.promotedProjectId ? " → Project" : ""}. Later dataset refreshes do not rewrite this snapshot.{" "}
                 <Link
                   className="underline"
                   href={`/opportunities/searches/${item.originatingSearchId}/runs/${item.originatingRunId}`}
                 >
-                  Open originating candidate area
+                  Open originating Candidate
                 </Link>
                 {item.contiguousAreaHa != null
-                  ? ` · snapshot contiguous usable area ${item.contiguousAreaHa.toFixed(1)} ha.`
-                  : "."}{" "}
-                Later dataset refreshes do not rewrite this snapshot.
+                  ? ` · snapshot contiguous usable area ${item.contiguousAreaHa.toFixed(2)} ha.`
+                  : "."}
               </>
             ) : (
               "Not saved from a geographic candidate area. Screening history is still stored on assessments and events."

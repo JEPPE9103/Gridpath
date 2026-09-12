@@ -5,7 +5,7 @@ test.describe("public marketing", () => {
     await page.goto("/");
     await expect(page).toHaveTitle(/Development Intelligence/i);
     await expect(
-      page.getByRole("heading", { level: 1, name: /find stronger development opportunities/i }),
+      page.getByRole("heading", { level: 1, name: /find the sites worth investigating/i }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: /book a demo/i }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: /search a geography/i })).toBeVisible();

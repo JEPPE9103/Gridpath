@@ -311,6 +311,9 @@ function OriginatingOpportunitySection({ project }: { project: ProjectDetailView
   return (
     <section className="rounded-md border border-line bg-surface p-5">
       <h2 className="text-base font-semibold">Originating opportunity</h2>
+      <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+        Search → Candidate → Opportunity → Project
+      </p>
       <p className="mt-1 text-xs text-muted">
         Historical decision provenance from promotion. This is not a live Candidate assessment.
       </p>

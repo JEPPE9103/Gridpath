@@ -14,6 +14,7 @@ import {
   intelligenceHeadline,
 } from "@/lib/opportunities/candidate-intelligence";
 import { opportunityRecommendationLabel } from "@/lib/opportunities/catalog";
+import { CandidateIntelligenceBlock } from "@/features/opportunities/candidate-intelligence-block";
 import { MapFact, MapObjectPanel, MapPanelNote } from "@/features/map/map-object-panel";
 import Link from "next/link";
 
@@ -69,7 +70,7 @@ export function MapCandidatePanel({
       }
     >
       <dl className="space-y-1.5">
-        <MapFact label="Area" value={area != null ? `${Math.round(area)} ha` : "—"} />
+        <MapFact label="Area" value={area != null ? `${area.toFixed(2)} ha` : "—"} />
         <MapFact label="Recommendation" value={opportunityRecommendationLabel(candidate.recommendation)} />
         <MapFact label="Evidence Coverage" value={`${coverage.evaluatedCount}/${coverage.totalCount}`} />
         <MapFact
@@ -78,19 +79,22 @@ export function MapCandidatePanel({
         />
         <MapFact label="Footprint quality" value={footprint.label} />
         <MapFact label="Network covering" value={covering.title} />
+        <MapFact
+          label="Road proximity"
+          value={
+            candidate.roadQueried && candidate.roadDistanceM != null
+              ? candidate.roadDistanceM < 10
+                ? "Intersects official RoadLink"
+                : `${Math.round(candidate.roadDistanceM)} m to official RoadLink`
+              : "Not evaluated"
+          }
+        />
         <MapFact label="Constraints" value={intelligenceHeadline(intelligence)} />
         <MapFact label="Next investigation" value={next ? next.action : "None generated"} />
       </dl>
-      {intelligence.rankPositives.length > 0 ? (
-        <div className="mt-3">
-          <p className="text-xs font-medium">Why this ranks</p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-muted">
-            {intelligence.rankPositives.slice(0, 3).map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <div className="mt-3">
+        <CandidateIntelligenceBlock intelligence={intelligence} compact />
+      </div>
       <MapPanelNote>
         Ranking is investigation order, not an official verdict. {covering.note} Screening geometry is not a
         parcel, approved site, or constructable footprint.

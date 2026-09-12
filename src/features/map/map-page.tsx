@@ -801,6 +801,7 @@ function LoadedMapPage({
           />
         ) : showDetail && selectedCandidate && activeDiscovery ? (
           <MapCandidatePanel
+            key={selectedCandidate.id}
             candidate={selectedCandidate}
             searchId={activeDiscovery.searchId}
             runId={activeDiscovery.runId}

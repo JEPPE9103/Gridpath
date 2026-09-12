@@ -42,8 +42,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 function areaLine(candidate: OpportunityRunCandidate): string {
-  if (candidate.contiguousAreaHa != null) return `${candidate.contiguousAreaHa.toFixed(1)} ha`;
-  if (candidate.usableAreaHa != null) return `${candidate.usableAreaHa.toFixed(1)} ha`;
+  if (candidate.contiguousAreaHa != null) return `${candidate.contiguousAreaHa.toFixed(2)} ha`;
+  if (candidate.usableAreaHa != null) return `${candidate.usableAreaHa.toFixed(2)} ha`;
   return "Area unknown";
 }
 
@@ -126,6 +126,9 @@ export function OpportunitySearchResults({
   const selectedIntelligence = selected
     ? buildCandidateIntelligence(selected, intelligenceCriteria)
     : null;
+  const compareIntelligence = new Map(
+    compareItems.map((item) => [item.id, buildCandidateIntelligence(item, intelligenceCriteria)]),
+  );
 
   return (
     <>
@@ -282,7 +285,7 @@ export function OpportunitySearchResults({
         ))}
 
         {selected && selectedCoverage && selectedCovering && selectedFootprint ? (
-          <section className="rounded-md border border-line bg-surface p-4">
+          <section key={selected.id} className="rounded-md border border-line bg-surface p-4">
             <p className="text-[11px] uppercase tracking-[0.12em] text-muted">Selected Candidate Site</p>
             <h2 className="mt-1 text-sm font-semibold">
               {selected.rank != null ? `#${selected.rank} ` : ""}
@@ -332,7 +335,7 @@ export function OpportunitySearchResults({
                 label="Access"
                 value={
                   selected.roadQueried && selected.roadDistanceM != null
-                    ? `${Math.round(selected.roadDistanceM)} m to supported road`
+                    ? `Road proximity evaluated · ${Math.round(selected.roadDistanceM)} m to nearest official road link`
                     : "Road access not evaluated"
                 }
               />
@@ -485,9 +488,9 @@ export function OpportunitySearchResults({
                       "Contiguous ha",
                       (item: OpportunityRunCandidate) =>
                         item.contiguousAreaHa != null
-                          ? item.contiguousAreaHa.toFixed(1)
+                          ? item.contiguousAreaHa.toFixed(2)
                           : item.usableAreaHa != null
-                            ? item.usableAreaHa.toFixed(1)
+                            ? item.usableAreaHa.toFixed(2)
                             : "—",
                     ],
                     [
@@ -529,18 +532,21 @@ export function OpportunitySearchResults({
                       "Road / access",
                       (item: OpportunityRunCandidate) =>
                         item.roadQueried && item.roadDistanceM != null
-                          ? `${Math.round(item.roadDistanceM)} m`
+                          ? item.roadDistanceM < 10
+                            ? "Official RoadLink intersects geometry"
+                            : `Proximity ${Math.round(item.roadDistanceM)} m`
                           : "Road access not evaluated",
                     ],
                     [
                       "Key strengths",
                       (item: OpportunityRunCandidate) =>
-                        buildCandidateIntelligence(item, intelligenceCriteria).rankPositives.slice(0, 2).join("; ") || "—",
+                        compareIntelligence.get(item.id)?.rankPositives.slice(0, 2).join("; ") || "—",
                     ],
                     [
                       "Blockers / major risks",
                       (item: OpportunityRunCandidate) => {
-                        const intel = buildCandidateIntelligence(item, intelligenceCriteria);
+                        const intel = compareIntelligence.get(item.id);
+                        if (!intel) return "—";
                         const blockers = constraintTitlesForCompare(intel, "blocker");
                         const major = constraintTitlesForCompare(intel, "major_risk");
                         if (blockers === "None recorded" && major === "None recorded") return "None recorded";
@@ -551,13 +557,17 @@ export function OpportunitySearchResults({
                     ],
                     [
                       "Unknowns",
-                      (item: OpportunityRunCandidate) =>
-                        constraintTitlesForCompare(buildCandidateIntelligence(item, intelligenceCriteria), "unknown"),
+                      (item: OpportunityRunCandidate) => {
+                        const intel = compareIntelligence.get(item.id);
+                        return intel ? constraintTitlesForCompare(intel, "unknown") : "—";
+                      },
                     ],
                     [
                       "Next investigation",
-                      (item: OpportunityRunCandidate) =>
-                        nextInvestigationForCompare(buildCandidateIntelligence(item, intelligenceCriteria)),
+                      (item: OpportunityRunCandidate) => {
+                        const intel = compareIntelligence.get(item.id);
+                        return intel ? nextInvestigationForCompare(intel) : "—";
+                      },
                     ],
                   ].map(([label, render]) => (
                     <tr key={String(label)}>

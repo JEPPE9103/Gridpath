@@ -386,7 +386,11 @@ export function OpportunityForm({
                 <option value="hard">Hard exclusion</option>
               </select>
             </Field>
-            <Field label="Maximum distance to supported road (m)" error={errors.maxRoadDistanceM}>
+            <Field
+              label="Maximum distance to nearest official road (m)"
+              error={errors.maxRoadDistanceM}
+              hint="Screening proximity to Trafikverket RoadLink. Not construction access."
+            >
               <input name="maxRoadDistanceM" defaultValue={footprint.maxRoadDistanceM} className={inputClass} inputMode="decimal" />
             </Field>
             <Field
