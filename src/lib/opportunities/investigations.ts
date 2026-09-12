@@ -113,6 +113,11 @@ function actionFor(constraint: CandidateConstraint): { action: string; evidenceS
         action: "Confirm whether a viable access track can reach the Candidate",
         evidenceSource: "Official Source — Trafikverket RoadLink",
       };
+    case "road_proximity_evaluated":
+      return {
+        action: "Confirm construction and heavy-vehicle access on site",
+        evidenceSource: "Official Source — Trafikverket RoadLink (proximity, not access approval)",
+      };
     case "land_cover_unavailable":
       return {
         action: "Obtain official land-cover evidence for the Search Area",

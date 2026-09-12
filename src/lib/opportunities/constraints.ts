@@ -242,14 +242,35 @@ export function deriveCandidateConstraints(input: CandidateConstraintInput): Can
         id: "road_beyond_preference",
         severity: roadMode === "hard" ? "blocker" : "risk",
         title: roadMode === "hard" ? "Access distance exceeds the hard limit" : "Nearest official road is beyond the preferred distance",
-        explanation: `Nearest evaluated road link is ${Math.round(input.roadDistanceM)} m (${input.roadClass ?? "class unknown"}).`,
-        whyItMatters: "Access tracks or upgrades may be needed. This is not a construction-route design.",
+        explanation: `Nearest official road link is ${Math.round(input.roadDistanceM)} m (${input.roadClass ?? "class unknown"}). Road proximity is screening evidence, not construction access.`,
+        whyItMatters: "Access tracks or upgrades may be needed. This is not a construction-route design or a rights finding.",
         evidenceCategory: "road_access",
         provenance: "official",
         evaluated: true,
         measuredValue: `${Math.round(input.roadDistanceM)} m`,
         threshold: `${roadMax} m ${roadMode}`,
         automaticExclusion: roadMode === "hard",
+        userActionRecommended: true,
+      }),
+    );
+  } else if (input.roadDistanceM != null) {
+    const intersectsGeometry = input.roadDistanceM < 10;
+    rows.push(
+      constraint({
+        id: "road_proximity_evaluated",
+        severity: "info",
+        title: "Road proximity evaluated",
+        explanation: intersectsGeometry
+          ? `Official RoadLink intersects this Candidate screening geometry (${Math.round(input.roadDistanceM)} m, ${input.roadClass ?? "class unknown"}).`
+          : `Nearest official RoadLink is ${Math.round(input.roadDistanceM)} m (${input.roadClass ?? "class unknown"}).`,
+        whyItMatters:
+          "A nearby official road is screening-level proximity, not a confirmed entrance, heavy-vehicle route, or access right.",
+        evidenceCategory: "road_access",
+        provenance: "official",
+        evaluated: true,
+        measuredValue: intersectsGeometry ? "intersects geometry" : `${Math.round(input.roadDistanceM)} m`,
+        threshold: `${roadMax} m ${roadMode}`,
+        automaticExclusion: false,
         userActionRecommended: true,
       }),
     );

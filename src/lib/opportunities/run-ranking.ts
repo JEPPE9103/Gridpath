@@ -390,8 +390,8 @@ export function explainWhyARanksAboveB(left: AssessedArea, right: AssessedArea):
   if (leftRoad != null && rightRoad != null && Math.abs(leftRoad - rightRoad) >= 50) {
     reasons.push(
       leftRoad < rightRoad
-        ? `closer supported road proximity (${Math.round(leftRoad)} m vs ${Math.round(rightRoad)} m)`
-        : `farther supported road proximity`,
+        ? `closer official road proximity (${Math.round(leftRoad)} m vs ${Math.round(rightRoad)} m)`
+        : `farther official road proximity`,
     );
   }
   const leftCover = coveringScore(left.row);

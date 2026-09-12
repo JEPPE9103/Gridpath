@@ -556,7 +556,7 @@ export function evaluateOpportunityScreening(input: {
       excluded = true;
       exclusionReason =
         exclusionReason ??
-        `Nearest supported road is ${Math.round(road.nearestDistanceM)} m, beyond the configured ${Math.round(maxRoadM)} m hard threshold.`;
+        `Nearest official road link is ${Math.round(road.nearestDistanceM)} m, beyond the configured ${Math.round(maxRoadM)} m hard threshold.`;
       dimensions.push(
         dimension("access", "excluded", exclusionReason, "official", "available"),
       );
@@ -565,12 +565,12 @@ export function evaluateOpportunityScreening(input: {
         dimension(
           "access",
           within ? "strong" : "moderate",
-          `Favorable proximity to supported road infrastructure: nearest ${road.nearestClass ?? "supported road"} is ${Math.round(road.nearestDistanceM)} m. This does not mean heavy transport can access the site.`,
+          `Road proximity evaluated: nearest official RoadLink is ${Math.round(road.nearestDistanceM)} m. This is screening-level proximity, not construction access.`,
           "official",
           "available",
         ),
       );
-      if (within) positives.push("Favorable proximity to supported road infrastructure.");
+      if (within) positives.push("Official road proximity evaluated.");
     }
   } else {
     const configuredAccess =

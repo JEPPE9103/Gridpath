@@ -88,6 +88,34 @@ describe("candidate constraints", () => {
     assert.match(covering?.title ?? "", /Capacity not assessed/);
     assert.doesNotMatch(covering?.title ?? "", /grid available|connection likely/i);
   });
+
+  it("labels evaluated road geometry as proximity INFO, never access approval", () => {
+    const roads = deriveCandidateConstraints({
+      ...BASE,
+      roadQueried: true,
+      roadDistanceM: 180,
+      roadClass: null,
+    }).find((item) => item.id === "road_proximity_evaluated");
+    assert.equal(roads?.severity, "info");
+    assert.equal(roads?.evaluated, true);
+    assert.match(roads?.title ?? "", /Road proximity evaluated/);
+    assert.doesNotMatch(
+      `${roads?.title} ${roads?.explanation} ${roads?.whyItMatters}`,
+      /access confirmed|heavy vehicle access confirmed|usable entrance/i,
+    );
+  });
+
+  it("describes intersecting official roads as geometry proximity, not 0 m access", () => {
+    const roads = deriveCandidateConstraints({
+      ...BASE,
+      roadQueried: true,
+      roadDistanceM: 0,
+      roadClass: null,
+    }).find((item) => item.id === "road_proximity_evaluated");
+    assert.equal(roads?.measuredValue, "intersects geometry");
+    assert.match(roads?.explanation ?? "", /intersects this Candidate screening geometry/i);
+    assert.doesNotMatch(`${roads?.title} ${roads?.explanation}`, /access confirmed|construction-ready/i);
+  });
 });
 
 describe("next investigations", () => {
@@ -120,6 +148,21 @@ describe("next investigations", () => {
     );
     assert.equal(next[0]?.constraintId, "geometry_review");
     assert.equal(next[0]?.priority, "now");
+  });
+
+  it("keeps construction-access confirmation later when road proximity was evaluated", () => {
+    const next = deriveNextInvestigations(
+      deriveCandidateConstraints({
+        ...BASE,
+        roadQueried: true,
+        roadDistanceM: 220,
+      }),
+    );
+    const access = next.find((item) => item.constraintId === "road_proximity_evaluated");
+    assert.ok(access);
+    assert.equal(access?.priority, "later");
+    assert.match(access?.action ?? "", /construction and heavy-vehicle access/i);
+    assert.ok(!next.some((item) => item.constraintId === "road_unavailable"));
   });
 });
 

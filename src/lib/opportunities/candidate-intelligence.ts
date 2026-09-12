@@ -156,7 +156,10 @@ export function buildCandidateIntelligence(
     investigationSemanticsVersion: INVESTIGATION_SEMANTICS_VERSION,
     constraints,
     nextInvestigations: deriveNextInvestigations(constraints),
-    rankPositives: whyCandidateRanks(candidate),
+    rankPositives: whyCandidateRanks({
+      ...candidate,
+      maxRoadDistanceM: criteria?.maxRoadDistanceM ?? candidate.maxRoadDistanceM ?? 1000,
+    }),
     rankNegatives: whyCandidateLags(candidate),
   };
 }

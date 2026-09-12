@@ -471,6 +471,9 @@ export function whyCandidateRanks(candidate: {
   naturaOverlapPct: number | null;
   protectedQueried?: boolean;
   naturaQueried?: boolean;
+  roadQueried?: boolean;
+  roadDistanceM?: number | null;
+  maxRoadDistanceM?: number | null;
   keyPositive: string | null;
 }): string[] {
   const reasons: string[] = [];
@@ -490,6 +493,14 @@ export function whyCandidateRanks(candidate: {
   ) {
     reasons.push("Low observed slope");
   }
+  if (
+    candidate.roadQueried === true &&
+    candidate.roadDistanceM != null &&
+    candidate.maxRoadDistanceM != null &&
+    candidate.roadDistanceM <= candidate.maxRoadDistanceM
+  ) {
+    reasons.push("Official road proximity within screening preference");
+  }
   const protectedEvaluated = candidate.protectedQueried === true || candidate.protectedOverlapPct != null;
   const naturaEvaluated = candidate.naturaQueried === true || candidate.naturaOverlapPct != null;
   if (
@@ -503,7 +514,7 @@ export function whyCandidateRanks(candidate: {
   if (reasons.length === 0 && candidate.keyPositive) {
     reasons.push(candidate.keyPositive);
   }
-  return reasons.slice(0, 4);
+  return reasons.slice(0, 5);
 }
 
 export function recommendationConfidenceCaption(

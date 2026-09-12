@@ -21,6 +21,8 @@ const FORBIDDEN_TERMS = [
   "available connection point",
   "connectable capacity",
   "grid available",
+  "grid suitable",
+  "construction-ready",
   "capacity available",
   "connection likely",
   "technically viable",

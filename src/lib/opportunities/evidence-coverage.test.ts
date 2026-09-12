@@ -113,6 +113,42 @@ describe("evidence coverage", () => {
     assert.ok(reasons.some((item) => /open land cover/i.test(item)));
     assert.ok(reasons.some((item) => /low observed slope/i.test(item)));
     assert.ok(reasons.some((item) => /protected\/natura/i.test(item)));
+    assert.ok(!reasons.some((item) => /road proximity/i.test(item)));
+  });
+
+  it("treats nearby official roads as a rank reason and far roads as not a boost", () => {
+    const nearby = whyCandidateRanks({
+      targetFitLabel: "On target",
+      targetFitScore: 0.9,
+      landCover: { open: 10 },
+      meanSlopeDeg: 9,
+      pctBelowSlope: 10,
+      protectedOverlapPct: 4,
+      naturaOverlapPct: 4,
+      protectedQueried: true,
+      naturaQueried: true,
+      roadQueried: true,
+      roadDistanceM: 220,
+      maxRoadDistanceM: 1000,
+      keyPositive: null,
+    });
+    assert.ok(nearby.some((item) => /road proximity within screening preference/i.test(item)));
+    const far = whyCandidateRanks({
+      targetFitLabel: "On target",
+      targetFitScore: 0.9,
+      landCover: { open: 10 },
+      meanSlopeDeg: 9,
+      pctBelowSlope: 10,
+      protectedOverlapPct: 4,
+      naturaOverlapPct: 4,
+      protectedQueried: true,
+      naturaQueried: true,
+      roadQueried: true,
+      roadDistanceM: 4200,
+      maxRoadDistanceM: 1000,
+      keyPositive: null,
+    });
+    assert.ok(!far.some((item) => /road proximity/i.test(item)));
   });
 
   it("keeps empty-opportunities copy action-oriented", () => {

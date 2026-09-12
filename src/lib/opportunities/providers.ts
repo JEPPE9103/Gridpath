@@ -86,7 +86,7 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
     status: "supported",
     dimensions: ["access"],
     notes:
-      "Dataset licence CC0. Trafikverket WFS has returned HTTP 400 in production proof and is not retried per search. Official bulk geodata is via Lastkajen (operator account). Until a Lastkajen GeoPackage is configured (TRAFIKVERKET_ROADLINK_GPKG), road context stays insufficient evidence and does not block site generation. OSM is not substituted (ODbL).",
+      "Dataset licence CC0. Official WFS GetFeature uses typeNames=RoadLink and EPSG:4326 lat,lon bbox. Screening stores nearest-road proximity, not construction access. OSM is not substituted (ODbL). Lastkajen GeoPackage remains an optional bulk path (TRAFIKVERKET_ROADLINK_GPKG) when an operator file is supplied.",
   },
   {
     key: "lm-marktacke",
