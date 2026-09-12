@@ -30,6 +30,7 @@ import {
 import {
   NETWORK_COVERING_NOTE,
   buildEvidenceCoverageFromAssessments,
+  buildEvidenceCoverageFromSnapshot,
   recommendationConfidenceCaption,
 } from "@/lib/opportunities/evidence-coverage";
 import type { DataSourceKind } from "@/types";
@@ -92,7 +93,8 @@ export function OpportunityDetailPage({
   const positives = assessments.filter((row) => row.result === "strong" && row.completeness === "available");
   const risks = assessments.filter((row) => row.result === "review_required" || row.result === "excluded");
   const gaps = assessments.filter((row) => row.completeness === "insufficient");
-  const coverage = buildEvidenceCoverageFromAssessments({ assessments });
+  const coverage =
+    buildEvidenceCoverageFromSnapshot(screeningSnapshot) ?? buildEvidenceCoverageFromAssessments({ assessments });
   const gridAssessment = assessments.find((row) => row.dimension === "grid_context");
   const intelligence = parseFrozenIntelligence(screeningSnapshot);
 
@@ -135,7 +137,8 @@ export function OpportunityDetailPage({
           {intelligence ? (
             <div className="mt-4">
               <p className="text-xs text-muted">
-                Frozen at save. Later official refreshes do not rewrite this interpretation.
+                Assessment frozen when this Opportunity was created. Later official refreshes do not rewrite this
+                interpretation.
               </p>
               <div className="mt-3">
                 <CandidateIntelligenceBlock intelligence={intelligence} />

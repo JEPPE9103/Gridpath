@@ -70,7 +70,7 @@ export const SAMPLE_EVIDENCE_COVERAGE: EvidenceCoverageView = {
   evaluatedCount: 5,
   totalCount: 8,
   summary: "5 of 8 evidence categories evaluated",
-  missingLabels: ["Detailed terrain", "Road access", "Residential proximity"],
+  missingLabels: ["Detailed terrain", "Road proximity", "Residential proximity"],
   items: [
     {
       id: "environmental_protection",
@@ -163,7 +163,7 @@ export const SAMPLE_EVIDENCE_COVERAGE: EvidenceCoverageView = {
     },
     {
       id: "road_access",
-      label: "Road access",
+      label: "Road proximity",
       state: "not_evaluated",
       summary: "Not evaluated",
       provenance: null,

@@ -78,7 +78,7 @@ const CATEGORY_LABELS: Record<EvidenceCategoryId, string> = {
   terrain: "Terrain",
   detailed_terrain: "Detailed terrain",
   network_geography: "Network geography",
-  road_access: "Road access",
+  road_access: "Road proximity",
   residential_proximity: "Residential proximity",
 };
 
@@ -391,7 +391,9 @@ export function buildEvidenceCoverage(input: CandidateEvidenceInput): EvidenceCo
       state: input.roadQueried ? "evaluated" : "not_evaluated",
       summary: input.roadQueried
         ? input.roadDistanceM != null
-          ? `${Math.round(input.roadDistanceM)} m${input.roadClass ? ` (${input.roadClass})` : ""}`
+          ? input.roadDistanceM <= 0
+            ? "Intersects screening geometry"
+            : `${Math.round(input.roadDistanceM)} m to nearest official road link${input.roadClass ? ` (${input.roadClass})` : ""}`
           : "Evaluated"
         : "Not evaluated",
       provenance: input.roadQueried ? "official" : null,
@@ -458,6 +460,36 @@ export function buildEvidenceCoverageFromAssessments(input: {
     roadQueried: accessAvailable,
     roadDistanceM: null,
     roadClass: null,
+  });
+}
+
+export function buildEvidenceCoverageFromSnapshot(raw: unknown): EvidenceCoverageView | null {
+  const root = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  if (!root) return null;
+  const screening =
+    root.screening && typeof root.screening === "object" ? (root.screening as Record<string, unknown>) : root;
+  const dimensions = Array.isArray(screening.dimensions) ? screening.dimensions : null;
+  if (!dimensions?.length) return null;
+  const assessments = dimensions.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const item = row as Record<string, unknown>;
+    const dimension = typeof item.key === "string" ? item.key : typeof item.dimension === "string" ? item.dimension : null;
+    if (!dimension) return [];
+    return [
+      {
+        dimension,
+        completeness: String(item.completeness ?? "insufficient"),
+        sourceKind: String(item.sourceKind ?? "noxheim_derived"),
+        explanation: String(item.explanation ?? ""),
+      },
+    ];
+  });
+  if (!assessments.length) return null;
+  const covering = assessments.find((item) => item.dimension === "grid_context" && item.completeness === "available");
+  const coveringMatch = covering?.explanation.match(/Covered by\s+([^.]+)/i);
+  return buildEvidenceCoverageFromAssessments({
+    assessments,
+    coveringName: coveringMatch?.[1]?.trim() || (covering ? "Official covering" : null),
   });
 }
 
@@ -541,6 +573,17 @@ export function assertEvidenceCopySafe(text: string): void {
   }
 }
 
+export const ROAD_NOT_INGESTED_RUN_NOTE =
+  "Road-access rules are configured, but Trafikverket RoadLink has not been ingested for this geography. The constraint was not applied.";
+
+export function visibleRunWarnings(
+  warnings: string[],
+  availability: Record<string, boolean>,
+): string[] {
+  if (availability["trafikverket-inspire-roadlink"] !== true) return warnings;
+  return warnings.filter((warning) => warning !== ROAD_NOT_INGESTED_RUN_NOTE);
+}
+
 export function runSourceNotes(availability: Record<string, boolean>): Array<{ key: string; label: string; available: boolean }> {
   const labels: Record<string, string> = {
     "nv-protected-areas": "Environmental protection",
@@ -551,7 +594,7 @@ export function runSourceNotes(availability: Record<string, boolean>): Array<{ k
     terrain: "Terrain",
     "copernicus-dem-glo90": "Terrain (Copernicus GLO-90)",
     "lantmateriet-dtm-1m": "Detailed terrain",
-    "trafikverket-inspire-roadlink": "Road access",
+    "trafikverket-inspire-roadlink": "Road proximity",
     "land-cover": "Land cover",
     "grid-infrastructure": "Electricity infrastructure proximity",
     residential: "Residential proximity",

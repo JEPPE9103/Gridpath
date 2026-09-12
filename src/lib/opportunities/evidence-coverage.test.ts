@@ -6,12 +6,15 @@ import {
   NETWORK_COVERING_NOTE,
   REVIEW_FOOTPRINT_EXPLANATION,
   buildEvidenceCoverage,
+  buildEvidenceCoverageFromSnapshot,
   networkCoveringCopy,
   provenanceCustomerLabel,
   recommendationConfidenceCaption,
   screeningFootprintQuality,
   whyCandidateRanks,
   EMPTY_OPPORTUNITIES_TITLE,
+  ROAD_NOT_INGESTED_RUN_NOTE,
+  visibleRunWarnings,
 } from "@/lib/opportunities/evidence-coverage";
 import { deriveOpportunityConfidence } from "@/lib/opportunities/screening";
 
@@ -51,13 +54,78 @@ describe("evidence coverage", () => {
     assert.equal(roads?.state, "not_evaluated");
     assert.equal(residential?.state, "not_evaluated");
     assert.equal(detailed?.state, "not_evaluated");
-    assert.ok(coverage.missingLabels.includes("Road access"));
+    assert.ok(coverage.missingLabels.includes("Road proximity"));
     assert.ok(coverage.missingLabels.includes("Detailed terrain"));
     assert.equal(land?.sourceDetail?.nativeResolution, "10 m");
     assert.match(land?.sourceDetail?.processingResolution ?? "", /coarser derived/i);
     assert.equal(provenanceCustomerLabel("official"), "Official Source");
     assert.equal(provenanceCustomerLabel("customer_data"), "Customer Entered");
     assert.equal(provenanceCustomerLabel("noxheim_derived"), "Noxheim Derived");
+  });
+
+  it("describes intersecting RoadLink as proximity, not access distance", () => {
+    const coverage = buildEvidenceCoverage({
+      ...CORE_EVALUATED,
+      roadQueried: true,
+      roadDistanceM: 0,
+      roadClass: null,
+    });
+    const roads = coverage.items.find((item) => item.id === "road_access");
+    assert.equal(roads?.label, "Road proximity");
+    assert.equal(roads?.state, "evaluated");
+    assert.equal(roads?.summary, "Intersects screening geometry");
+    assert.doesNotMatch(`${roads?.label} ${roads?.summary}`, /0 m/);
+  });
+
+  it("hides the stale RoadLink-not-ingested run note after roads are evaluated", () => {
+    const warnings = [
+      ROAD_NOT_INGESTED_RUN_NOTE,
+      "Results are contiguous candidate areas after supported exclusions, not land parcels.",
+    ];
+    assert.deepEqual(
+      visibleRunWarnings(warnings, { "trafikverket-inspire-roadlink": true }),
+      ["Results are contiguous candidate areas after supported exclusions, not land parcels."],
+    );
+    assert.deepEqual(visibleRunWarnings(warnings, { "trafikverket-inspire-roadlink": false }), warnings);
+  });
+
+  it("rebuilds frozen Opportunity evidence from the screening snapshot, including unevaluated roads", () => {
+    const coverage = buildEvidenceCoverageFromSnapshot({
+      screening: {
+        dimensions: [
+          {
+            key: "environmental",
+            completeness: "available",
+            sourceKind: "official",
+            explanation: "No overlap with protected areas.",
+          },
+          {
+            key: "land_suitability",
+            completeness: "available",
+            sourceKind: "official",
+            explanation: "Open land cover. Coarse slope 2.4°.",
+          },
+          {
+            key: "access",
+            completeness: "insufficient",
+            sourceKind: "official",
+            explanation: "Official road-link evidence was not available for this Candidate.",
+          },
+          {
+            key: "grid_context",
+            completeness: "available",
+            sourceKind: "official",
+            explanation: "Covered by E.ON Energidistribution AB — 8704Å. Capacity not assessed.",
+          },
+        ],
+      },
+    });
+    assert.ok(coverage);
+    assert.equal(coverage?.items.find((item) => item.id === "land_cover")?.state, "evaluated");
+    assert.equal(coverage?.items.find((item) => item.id === "road_access")?.state, "not_evaluated");
+    assert.equal(coverage?.items.find((item) => item.id === "network_geography")?.state, "evaluated");
+    assert.ok((coverage?.evaluatedCount ?? 0) >= 4);
+    assert.ok(coverage?.missingLabels.includes("Road proximity"));
   });
 
   it("does not treat optional provider absence as a search failure", () => {
@@ -187,7 +255,7 @@ describe("recommendation confidence semantics", () => {
       buildEvidenceCoverage(CORE_EVALUATED),
     );
     assert.match(caption, /moderate/i);
-    assert.match(caption, /road access/i);
+    assert.match(caption, /road proximity/i);
     assert.equal(opportunityCopyContainsForbiddenTerm(caption), null);
   });
 

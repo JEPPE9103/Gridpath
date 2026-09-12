@@ -163,6 +163,7 @@ returning c.id, c.road_distance_m;
 
 const bbox = parseBbox(process.argv.slice(2));
 const backfillOnly = process.argv.includes("--backfill-only");
+const stripStaleRoadWarningOnly = process.argv.includes("--strip-stale-road-warning");
 const ingestTarget = resolveIngestTarget();
 const queryRaw = (sql) => queryIngestSql(ingestTarget, sql);
 function query(sql) {
@@ -243,7 +244,13 @@ where geom && extensions.st_makeenvelope(${bbox.west}, ${bbox.south}, ${bbox.eas
 function markRunsRoadProviderAvailable() {
   query(`
 update public.opportunity_search_runs
-set provider_availability = coalesce(provider_availability, '{}'::jsonb) || jsonb_build_object('trafikverket-inspire-roadlink', true)
+set
+  provider_availability = coalesce(provider_availability, '{}'::jsonb) || jsonb_build_object('trafikverket-inspire-roadlink', true),
+  warnings = coalesce((
+    select jsonb_agg(to_jsonb(t.value) order by t.ord)
+    from jsonb_array_elements_text(coalesce(warnings, '[]'::jsonb)) with ordinality as t(value, ord)
+    where t.value <> 'Road-access rules are configured, but Trafikverket RoadLink has not been ingested for this geography. The constraint was not applied.'
+  ), '[]'::jsonb)
 where west is not null
   and east is not null
   and south is not null
@@ -271,6 +278,12 @@ async function rankRoadAssessments() {
 }
 
 let ingestionRunId = null;
+
+if (stripStaleRoadWarningOnly) {
+  markRunsRoadProviderAvailable();
+  console.log(JSON.stringify({ event: "ingest.roads.stale_warning_stripped", bbox }));
+  process.exit(0);
+}
 
 if (backfillOnly) {
   try {

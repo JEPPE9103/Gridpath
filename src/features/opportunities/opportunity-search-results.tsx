@@ -20,6 +20,7 @@ import {
   recommendationConfidenceCaption,
   runSourceNotes,
   screeningFootprintQuality,
+  visibleRunWarnings,
 } from "@/lib/opportunities/evidence-coverage";
 import { CandidateIntelligenceBlock } from "@/features/opportunities/candidate-intelligence-block";
 import {
@@ -68,6 +69,7 @@ export function OpportunitySearchResults({
   const compareAllowed = canCompareOpportunities(compareIds.length);
   const sourceNotes = runSourceNotes(view.providerAvailability);
   const optionalUnavailable = sourceNotes.filter((item) => !item.available);
+  const runNotes = visibleRunWarnings(view.warnings, view.providerAvailability);
 
   const grouped = useMemo(() => {
     const groups: Record<string, OpportunityRunCandidate[]> = {
@@ -215,11 +217,11 @@ export function OpportunitySearchResults({
           north={view.north}
         />
 
-        {view.warnings.length > 0 ? (
+        {runNotes.length > 0 ? (
           <section className="rounded-md border border-line bg-surface p-4">
             <h2 className="text-sm font-semibold">Run notes</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-              {view.warnings.map((warning) => (
+              {runNotes.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
             </ul>
