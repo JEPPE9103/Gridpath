@@ -5,6 +5,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AlertSeverity } from "@/types";
 
 const SEVERITIES: AlertSeverity[] = ["critical", "warning", "info", "positive"];
+const RECENT_ALERT_FETCH = 24;
+const RECENT_ALERT_KEEP = 8;
 
 function isAlertSeverity(value: string): value is AlertSeverity {
   return SEVERITIES.includes(value as AlertSeverity);
@@ -26,6 +28,12 @@ export type AlertCenterSnapshot = {
   canWrite: boolean;
 };
 
+type AlertCountRow = {
+  id: string;
+  severity: string;
+  projects: { archived_at: string | null } | { archived_at: string | null }[] | null;
+};
+
 type AlertRow = {
   id: string;
   severity: string;
@@ -41,6 +49,11 @@ function asSingle<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
+function isActiveAlert(row: { projects: AlertCountRow["projects"] | AlertRow["projects"] }): boolean {
+  const project = asSingle(row.projects);
+  return !project?.archived_at;
+}
+
 export async function getOpenCriticalAlertCountForCurrentOrganization(): Promise<number> {
   const snapshot = await getAlertCenterForCurrentOrganization();
   return snapshot.criticalCount;
@@ -53,8 +66,17 @@ export const getAlertCenterForCurrentOrganization = cache(async (): Promise<Aler
   }
 
   const supabase = await createSupabaseServerClient();
-  const { rows, error } = await fetchAllQueryPages<AlertRow>(async (from, to) => {
-    const page = await supabase
+  const [countsResult, recentResult] = await Promise.all([
+    fetchAllQueryPages<AlertCountRow>(async (from, to) => {
+      const page = await supabase
+        .from("alerts")
+        .select("id, severity, projects ( archived_at )")
+        .eq("organization_id", organization.id)
+        .eq("status", "open")
+        .range(from, to);
+      return { data: page.data as AlertCountRow[] | null, error: page.error };
+    }),
+    supabase
       .from("alerts")
       .select(
         `
@@ -70,23 +92,21 @@ export const getAlertCenterForCurrentOrganization = cache(async (): Promise<Aler
       .eq("organization_id", organization.id)
       .eq("status", "open")
       .order("created_at", { ascending: false })
-      .range(from, to);
-    return { data: page.data as AlertRow[] | null, error: page.error };
-  });
+      .limit(RECENT_ALERT_FETCH),
+  ]);
 
-  if (error) {
-    console.error("getAlertCenterForCurrentOrganization failed", error);
+  if (countsResult.error || recentResult.error) {
+    console.error("getAlertCenterForCurrentOrganization failed", {
+      counts: countsResult.error,
+      recent: recentResult.error?.message,
+    });
     return { openCount: 0, criticalCount: 0, recent: [], canWrite: false };
   }
 
-  const active = rows.filter((row) => {
-    const project = asSingle(row.projects);
-    return !project?.archived_at;
-  });
-
+  const active = countsResult.rows.filter(isActiveAlert);
   const recent: AlertCenterItem[] = [];
-  for (const row of active) {
-    if (!isAlertSeverity(row.severity)) continue;
+  for (const row of (recentResult.data ?? []) as AlertRow[]) {
+    if (!isActiveAlert(row) || !isAlertSeverity(row.severity)) continue;
     const project = asSingle(row.projects);
     recent.push({
       id: row.id,
@@ -96,12 +116,13 @@ export const getAlertCenterForCurrentOrganization = cache(async (): Promise<Aler
       href: row.href?.trim() || (project?.slug ? `/projects/${project.slug}` : "/overview"),
       createdAt: row.created_at,
     });
+    if (recent.length >= RECENT_ALERT_KEEP) break;
   }
 
   return {
-    openCount: recent.length,
-    criticalCount: recent.filter((item) => item.severity === "critical").length,
-    recent: recent.slice(0, 8),
+    openCount: active.length,
+    criticalCount: active.filter((row) => row.severity === "critical").length,
+    recent,
     canWrite:
       organization.role === "owner" ||
       organization.role === "admin" ||

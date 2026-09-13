@@ -15,6 +15,7 @@ import {
 } from "@/lib/organization/active-org-cookie-constants";
 import { resolveActiveOrganizationId } from "@/lib/organization/active-org-resolve";
 import { getSupabaseEnv } from "@/lib/supabase/env";
+import { workspaceCookieSatisfiesMembershipLookup } from "@/lib/supabase/proxy-membership";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 async function userHasOrganization(
@@ -151,6 +152,7 @@ export async function updateSession(request: NextRequest) {
       passwordRecoveryCookieAttributes(true),
     );
   }
+  const cookieOrganizationId = request.cookies.get(ACTIVE_ORGANIZATION_COOKIE)?.value?.trim() ?? null;
   const needsMembershipLookup =
     Boolean(user) &&
     !isRecovery &&
@@ -159,6 +161,10 @@ export async function updateSession(request: NextRequest) {
       pathname === "/signup" ||
       pathname === "/forgot-password" ||
       pathname === "/onboarding");
+  const skipCookieSync = workspaceCookieSatisfiesMembershipLookup({
+    pathnameIsWorkspace: isWorkspacePath(pathname),
+    cookieValue: cookieOrganizationId,
+  });
   const hasOrganization = user && needsMembershipLookup
     ? await userHasOrganization(supabase, user.id)
     : false;
@@ -189,7 +195,7 @@ export async function updateSession(request: NextRequest) {
     return redirectResponse;
   }
 
-  if (user && !isRecovery && isWorkspacePath(pathname)) {
+  if (user && !isRecovery && isWorkspacePath(pathname) && !skipCookieSync) {
     await syncActiveOrganizationCookieOnResponse(
       request,
       supabaseResponse,

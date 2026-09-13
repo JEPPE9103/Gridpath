@@ -69,6 +69,45 @@ function emptyCollection(): OfficialMapFeatureCollection {
   };
 }
 
+export function emptyOfficialMapCollection(): OfficialMapFeatureCollection {
+  return emptyCollection();
+}
+
+const OFFICIAL_LAYER_CACHE_TTL_MS = 5 * 60 * 1000;
+const OFFICIAL_LAYER_CACHE_MAX = 24;
+
+type OfficialLayerCacheEntry = {
+  expires: number;
+  value: OfficialLayerLoad;
+};
+
+const officialLayerServerCache = new Map<string, OfficialLayerCacheEntry>();
+
+function officialLayerCacheKey(layer: OfficialMapLayer, bbox: OfficialMapBbox, zoom: number): string {
+  const round = (value: number) => value.toFixed(3);
+  return `${layer}:${round(bbox.west)}:${round(bbox.south)}:${round(bbox.east)}:${round(bbox.north)}:${zoom.toFixed(2)}`;
+}
+
+function readOfficialLayerCache(key: string): OfficialLayerLoad | null {
+  const hit = officialLayerServerCache.get(key);
+  if (!hit) return null;
+  if (hit.expires <= Date.now()) {
+    officialLayerServerCache.delete(key);
+    return null;
+  }
+  return hit.value;
+}
+
+function writeOfficialLayerCache(key: string, value: OfficialLayerLoad) {
+  if (value.status !== "available" || value.collection.features.length === 0) return;
+  officialLayerServerCache.set(key, { expires: Date.now() + OFFICIAL_LAYER_CACHE_TTL_MS, value });
+  while (officialLayerServerCache.size > OFFICIAL_LAYER_CACHE_MAX) {
+    const oldest = officialLayerServerCache.keys().next().value;
+    if (oldest == null) break;
+    officialLayerServerCache.delete(oldest);
+  }
+}
+
 export async function getOfficialMapLayerGeojson(
   layer: OfficialMapLayer,
   bbox: OfficialMapBbox = SWEDEN_MAP_BOUNDS,
@@ -88,6 +127,12 @@ export async function getOfficialMapLayerLoad(
     return { status: "unavailable", collection: emptyCollection() };
   }
 
+  const cacheKey = officialLayerCacheKey(layer, bbox, zoom);
+  const cached = readOfficialLayerCache(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("get_official_map_layer_geojson", {
     p_layer: layer,
@@ -101,7 +146,9 @@ export async function getOfficialMapLayerLoad(
     logError("official_map.layer_failed", { layer, message: error.message });
     return { status: "unavailable", collection: emptyCollection() };
   }
-  return { status: "available", collection: parseOfficialMapFeatureCollection(data) };
+  const loaded = { status: "available" as const, collection: parseOfficialMapFeatureCollection(data) };
+  writeOfficialLayerCache(cacheKey, loaded);
+  return loaded;
 }
 
 export async function getOrganizationOfficialSpatialMatches(): Promise<OfficialSpatialMatch[]> {

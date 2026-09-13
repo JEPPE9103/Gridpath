@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { getCachedAuthUser } from "@/lib/auth/cached-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type CurrentUserProfile = {
@@ -39,14 +40,12 @@ function initialsFromName(fullName: string, email: string): string {
 }
 
 export const getCurrentUserProfile = cache(async (): Promise<CurrentUserProfile | null> => {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCachedAuthUser();
   if (!user) {
     return null;
   }
+
+  const supabase = await createSupabaseServerClient();
 
   const email = user.email?.trim() || "";
   const { data: profile } = await supabase

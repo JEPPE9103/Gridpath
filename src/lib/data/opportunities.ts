@@ -10,9 +10,16 @@ import {
 } from "@/lib/opportunities/catalog";
 import { parseAreaGeometry, type MapGeoJsonGeometry } from "@/lib/domain/map-discovery";
 import { canCreateOrEditOpportunities } from "@/lib/opportunities/authorization";
+import {
+  EMPTY_OPPORTUNITY_FUNNEL,
+  opportunityFunnelFromStatuses,
+  type OpportunityFunnel,
+} from "@/lib/data/opportunity-funnel";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const OPPORTUNITY_PAGE_SIZE = 50;
+
+export type { OpportunityFunnel } from "@/lib/data/opportunity-funnel";
 
 export type OpportunityListItem = {
   id: string;
@@ -42,18 +49,6 @@ export type OpportunityListItem = {
   areaGeometry: MapGeoJsonGeometry | null;
 };
 
-export type OpportunityFunnel = {
-  searches: number;
-  total: number;
-  identified: number;
-  screening: number;
-  strongCandidates: number;
-  underReview: number;
-  shortlisted: number;
-  rejected: number;
-  promoted: number;
-};
-
 export type OpportunitySearchListItem = {
   id: string;
   name: string;
@@ -62,6 +57,10 @@ export type OpportunitySearchListItem = {
   latestRunId: string | null;
   latestRunStatus: string | null;
   returnedCount: number | null;
+  west: number | null;
+  south: number | null;
+  east: number | null;
+  north: number | null;
 };
 
 export type OpportunityOverview = {
@@ -98,17 +97,22 @@ type OpportunityRow = {
   area_geom?: unknown;
 };
 
-const EMPTY_FUNNEL: OpportunityFunnel = {
-  searches: 0,
-  total: 0,
-  identified: 0,
-  screening: 0,
-  strongCandidates: 0,
-  underReview: 0,
-  shortlisted: 0,
-  rejected: 0,
-  promoted: 0,
-};
+const OPPORTUNITY_LIST_COLUMNS =
+  "id, slug, name, opportunity_type, status, country, region, municipality, target_mw, target_mwh, recommendation, recommendation_summary, key_positive, key_risk, data_confidence, latitude, longitude, updated_at, promoted_project_id, owner_id";
+
+function asBbox(row: {
+  west?: number | string | null;
+  south?: number | string | null;
+  east?: number | string | null;
+  north?: number | string | null;
+}): { west: number | null; south: number | null; east: number | null; north: number | null } {
+  return {
+    west: row.west == null ? null : toNumber(row.west),
+    south: row.south == null ? null : toNumber(row.south),
+    east: row.east == null ? null : toNumber(row.east),
+    north: row.north == null ? null : toNumber(row.north),
+  };
+}
 
 function mapRow(
   row: OpportunityRow,
@@ -150,19 +154,21 @@ function mapRow(
   };
 }
 
-export const listOpportunitiesForCurrentOrganization = cache(async (): Promise<{
+export const listOpportunitiesForCurrentOrganization = cache(async (
+  includeGeometry?: boolean,
+): Promise<{
   items: OpportunityListItem[];
   error: string | null;
 }> => {
   const organization = await getCurrentOrganization();
   if (!organization) return { items: [], error: null };
   const supabase = await createSupabaseServerClient();
+  const columns =
+    includeGeometry === true ? `${OPPORTUNITY_LIST_COLUMNS}, area_geom` : OPPORTUNITY_LIST_COLUMNS;
   const result = await fetchAllQueryPages<OpportunityRow>(async (from, to) => {
     const page = await supabase
       .from("development_opportunities")
-      .select(
-        "id, slug, name, opportunity_type, status, country, region, municipality, target_mw, target_mwh, recommendation, recommendation_summary, key_positive, key_risk, data_confidence, latitude, longitude, updated_at, promoted_project_id, owner_id, area_geom",
-      )
+      .select(columns)
       .eq("organization_id", organization.id)
       .order("updated_at", { ascending: false })
       .range(from, to);
@@ -200,27 +206,30 @@ export const listOpportunitiesForCurrentOrganization = cache(async (): Promise<{
 
 export const getOpportunityFunnel = cache(async (): Promise<OpportunityFunnel> => {
   const organization = await getCurrentOrganization();
-  if (!organization) return EMPTY_FUNNEL;
+  if (!organization) return EMPTY_OPPORTUNITY_FUNNEL;
   const supabase = await createSupabaseServerClient();
-  const [{ count: searchCount }, list] = await Promise.all([
+  const [{ count: searchCount }, statuses] = await Promise.all([
     supabase
       .from("opportunity_searches")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", organization.id),
-    listOpportunitiesForCurrentOrganization(),
+    fetchAllQueryPages<{ status: string }>(async (from, to) => {
+      const page = await supabase
+        .from("development_opportunities")
+        .select("status")
+        .eq("organization_id", organization.id)
+        .range(from, to);
+      return { data: page.data as Array<{ status: string }> | null, error: page.error };
+    }),
   ]);
-  const funnel = { ...EMPTY_FUNNEL, searches: searchCount ?? 0 };
-  for (const item of list.items) {
-    funnel.total += 1;
-    if (item.status === "identified") funnel.identified += 1;
-    if (item.status === "screening") funnel.screening += 1;
-    if (item.status === "strong_candidate") funnel.strongCandidates += 1;
-    if (item.status === "under_review") funnel.underReview += 1;
-    if (item.status === "shortlisted") funnel.shortlisted += 1;
-    if (item.status === "rejected") funnel.rejected += 1;
-    if (item.status === "promoted") funnel.promoted += 1;
+  if (statuses.error) {
+    console.error("getOpportunityFunnel failed", statuses.error);
+    return { ...EMPTY_OPPORTUNITY_FUNNEL, searches: searchCount ?? 0 };
   }
-  return funnel;
+  return opportunityFunnelFromStatuses(
+    statuses.rows.map((row) => row.status),
+    searchCount ?? 0,
+  );
 });
 
 const EMPTY_SEARCHES: OpportunitySearchListItem[] = [];
@@ -231,13 +240,17 @@ type SearchRow = {
   technology: string;
   created_at: string;
   latest_run_id: string | null;
+  west: number | string | null;
+  south: number | string | null;
+  east: number | string | null;
+  north: number | string | null;
 };
 
 export async function listRecentOpportunitySearches(organizationId: string): Promise<OpportunitySearchListItem[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("opportunity_searches")
-    .select("id, name, technology, created_at, latest_run_id")
+    .select("id, name, technology, created_at, latest_run_id, west, south, east, north")
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false })
     .limit(8);
@@ -247,11 +260,14 @@ export async function listRecentOpportunitySearches(organizationId: string): Pro
   }
   const rows = (data ?? []) as SearchRow[];
   const runIds = rows.map((row) => row.latest_run_id).filter((id): id is string => Boolean(id));
-  const runMeta = new Map<string, { status: string; returnedCount: number | null }>();
+  const runMeta = new Map<
+    string,
+    { status: string; returnedCount: number | null } & ReturnType<typeof asBbox>
+  >();
   if (runIds.length > 0) {
     const { data: runs, error: runError } = await supabase
       .from("opportunity_search_runs")
-      .select("id, status, returned_count")
+      .select("id, status, returned_count, west, south, east, north")
       .eq("organization_id", organizationId)
       .in("id", runIds);
     if (runError) {
@@ -261,12 +277,14 @@ export async function listRecentOpportunitySearches(organizationId: string): Pro
         runMeta.set(run.id, {
           status: run.status,
           returnedCount: run.returned_count == null ? null : toNumber(run.returned_count),
+          ...asBbox(run),
         });
       }
     }
   }
   return rows.map((row) => {
     const run = row.latest_run_id ? runMeta.get(row.latest_run_id) : undefined;
+    const searchBbox = asBbox(row);
     return {
       id: row.id,
       name: row.name?.trim() || "Untitled search",
@@ -275,6 +293,10 @@ export async function listRecentOpportunitySearches(organizationId: string): Pro
       latestRunId: row.latest_run_id,
       latestRunStatus: run?.status ?? null,
       returnedCount: run?.returnedCount ?? null,
+      west: run?.west ?? searchBbox.west,
+      south: run?.south ?? searchBbox.south,
+      east: run?.east ?? searchBbox.east,
+      north: run?.north ?? searchBbox.north,
     };
   });
 }
@@ -286,15 +308,19 @@ export async function getOpportunityOverview(): Promise<OpportunityOverview> {
       kind: "no_organization",
       error: null,
       canWrite: false,
-      funnel: EMPTY_FUNNEL,
+      funnel: EMPTY_OPPORTUNITY_FUNNEL,
       ranked: [],
       recentRejected: [],
       recentSearches: EMPTY_SEARCHES,
     };
   }
-  const [list, funnel, recentSearches] = await Promise.all([
+  const supabase = await createSupabaseServerClient();
+  const [list, searchCountResult, recentSearches] = await Promise.all([
     listOpportunitiesForCurrentOrganization(),
-    getOpportunityFunnel(),
+    supabase
+      .from("opportunity_searches")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organization.id),
     listRecentOpportunitySearches(organization.id),
   ]);
   if (list.error) {
@@ -302,12 +328,16 @@ export async function getOpportunityOverview(): Promise<OpportunityOverview> {
       kind: "error",
       error: list.error,
       canWrite: canCreateOrEditOpportunities(organization.role),
-      funnel: EMPTY_FUNNEL,
+      funnel: EMPTY_OPPORTUNITY_FUNNEL,
       ranked: [],
       recentRejected: [],
       recentSearches: EMPTY_SEARCHES,
     };
   }
+  const funnel = opportunityFunnelFromStatuses(
+    list.items.map((item) => item.status),
+    searchCountResult.count ?? 0,
+  );
   const ranked = list.items
     .filter((item) => item.status !== "rejected")
     .sort((left, right) => {

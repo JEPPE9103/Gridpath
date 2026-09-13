@@ -30,6 +30,7 @@ import type {
 } from "@/lib/domain/official-map";
 import {
   OFFICIAL_MAP_OVERVIEW_MAX_ZOOM,
+  SWEDEN_MAP_BOUNDS,
   decideOfficialMapViewportFetch,
   officialMapAreaPreviewFromProperties,
   officialMapBboxContains,
@@ -133,6 +134,7 @@ export const SwedenMap = memo(function SwedenMap({
   const coveringRef = useRef(covering);
   const selectedCandidateIdRef = useRef(selectedCandidateId);
   const selectedOpportunitySlugRef = useRef(selectedOpportunitySlug);
+  const layersRef = useRef(layers);
 
   onSelectProjectRef.current = onSelectProject;
   onSelectOpportunityRef.current = onSelectOpportunity;
@@ -141,6 +143,7 @@ export const SwedenMap = memo(function SwedenMap({
   coveringRef.current = covering;
   selectedCandidateIdRef.current = selectedCandidateId;
   selectedOpportunitySlugRef.current = selectedOpportunitySlug;
+  layersRef.current = layers;
 
   useEffect(() => {
     collectionsRef.current = { localNetwork, planningArea };
@@ -574,11 +577,13 @@ export const SwedenMap = memo(function SwedenMap({
       const cachedNup = getCachedOfficialGeometry(nupKey);
       const cachedLocalUsable = cachedLocal && shouldReplaceOfficialMapSource(cachedLocal) ? cachedLocal : null;
       const cachedNupUsable = cachedNup && shouldReplaceOfficialMapSource(cachedNup) ? cachedNup : null;
-      if (cachedLocalUsable && cachedNupUsable) {
+      const wantNup = layersRef.current.planningArea;
+      const wantLocal = layersRef.current.localNetwork;
+      if ((cachedLocalUsable || !wantLocal) && (cachedNupUsable || !wantNup)) {
         fetchKeyRef.current = decision.key;
         inFlightKeyRef.current = null;
-        setSourceData(map, LOCAL_SOURCE, cachedLocalUsable);
-        setSourceData(map, NUP_SOURCE, cachedNupUsable);
+        if (cachedLocalUsable) setSourceData(map, LOCAL_SOURCE, cachedLocalUsable);
+        if (cachedNupUsable) setSourceData(map, NUP_SOURCE, cachedNupUsable);
         cachedViewportRef.current = {
           key: decision.key,
           band: decision.band,
@@ -593,15 +598,15 @@ export const SwedenMap = memo(function SwedenMap({
         return;
       }
       const [localResult, nupResult] = await Promise.all([
-        cachedLocalUsable
-          ? Promise.resolve({ ok: true as const, collection: cachedLocalUsable })
+        cachedLocalUsable || !wantLocal
+          ? Promise.resolve({ ok: true as const, collection: cachedLocalUsable ?? collectionsRef.current.localNetwork })
           : loadOfficialMapLayerAction({
               layer: "local_network",
               bbox: decision.requestBbox,
               zoom,
             }),
-        cachedNupUsable
-          ? Promise.resolve({ ok: true as const, collection: cachedNupUsable })
+        cachedNupUsable || !wantNup
+          ? Promise.resolve({ ok: true as const, collection: cachedNupUsable ?? collectionsRef.current.planningArea })
           : loadOfficialMapLayerAction({
               layer: "planning_area",
               bbox: decision.requestBbox,
@@ -668,6 +673,38 @@ export const SwedenMap = memo(function SwedenMap({
       map.off("moveend", refetch);
     };
   }, [mapReady]);
+
+  useEffect(() => {
+    if (!mapReady || !layers.planningArea) return;
+    const map = mapRef.current;
+    if (!map) return;
+    let cancelled = false;
+    const zoom = map.getZoom();
+    if (zoom < OFFICIAL_MAP_OVERVIEW_MAX_ZOOM) {
+      if (collectionsRef.current.planningArea.features.length > 0) {
+        setSourceData(map, NUP_SOURCE, collectionsRef.current.planningArea);
+        return;
+      }
+      void loadOfficialMapLayerAction({
+        layer: "planning_area",
+        bbox: { ...SWEDEN_MAP_BOUNDS },
+        zoom: 4.35,
+      }).then((result) => {
+        if (cancelled || !result.ok || !shouldReplaceOfficialMapSource(result.collection)) return;
+        collectionsRef.current = { ...collectionsRef.current, planningArea: result.collection };
+        setSourceData(map, NUP_SOURCE, result.collection);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    fetchKeyRef.current = "";
+    inFlightKeyRef.current = null;
+    map.fire("moveend");
+    return () => {
+      cancelled = true;
+    };
+  }, [layers.planningArea, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;

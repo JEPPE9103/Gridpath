@@ -1,8 +1,8 @@
 import { LoginForm } from "@/app/login/login-form";
 import { AuthCard } from "@/components/auth/auth-card";
+import { getCachedAuthUser } from "@/lib/auth/cached-user";
 import { getPostAuthPath } from "@/lib/auth/paths";
 import { readPasswordRecoveryCookie } from "@/lib/auth/recovery-cookie";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -14,10 +14,7 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedAuthUser();
   const isRecovery = await readPasswordRecoveryCookie();
 
   if (user && isRecovery) {

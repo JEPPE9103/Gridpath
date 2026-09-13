@@ -10,6 +10,7 @@ import {
   resolveActiveOrganizationId,
   type MembershipRecord,
 } from "@/lib/organization/active-org-resolve";
+import { getActiveOrganizationContext } from "@/lib/organization/active-org-context";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 async function loadMembershipRecords(userId: string): Promise<MembershipRecord[]> {
@@ -40,26 +41,17 @@ export async function resolveActiveOrganizationIdForUser(
 }
 
 export async function syncActiveOrganizationCookie(): Promise<void> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const context = await getActiveOrganizationContext();
+  if (!context) {
     return;
   }
 
   const cookieOrganizationId = await readActiveOrganizationCookie();
-  const activeOrganizationId = await resolveActiveOrganizationIdForUser(
-    user.id,
-    cookieOrganizationId,
-  );
-
-  if (!activeOrganizationId || cookieOrganizationId === activeOrganizationId) {
+  if (cookieOrganizationId === context.organization.id) {
     return;
   }
 
-  await writeActiveOrganizationCookie(activeOrganizationId);
+  await writeActiveOrganizationCookie(context.organization.id);
 }
 
 export function readActiveOrganizationCookieFromRequest(

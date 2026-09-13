@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { getCachedAuthUser } from "@/lib/auth/cached-user";
 import type { CurrentOrganization } from "@/lib/data/organization";
 import {
   membershipIncludesOrganization,
@@ -85,11 +86,7 @@ async function loadMemberships(userId: string): Promise<OrganizationMembership[]
 
 export const getActiveOrganizationContext = cache(
   async (): Promise<ActiveOrganizationContext | null> => {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const user = await getCachedAuthUser();
     if (!user) {
       return null;
     }

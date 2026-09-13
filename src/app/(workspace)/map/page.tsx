@@ -3,6 +3,7 @@ import { listOpportunitiesForCurrentOrganization } from "@/lib/data/opportunitie
 import { getOfficialChangeMapTarget } from "@/lib/data/grid-changes";
 import { getMapProjectsForCurrentOrganization } from "@/lib/data/map-projects";
 import {
+  emptyOfficialMapCollection,
   getOfficialMapLayerLoad,
   getOrganizationOfficialSpatialMatchesLoad,
 } from "@/lib/data/official-map";
@@ -21,24 +22,24 @@ export default async function Page({
   searchParams: Promise<{ project?: string; change?: string; run?: string; opportunity?: string; candidate?: string }>;
 }) {
   const params = await searchParams;
+  const emptyPlanning = emptyOfficialMapCollection();
   const [
     result,
     savedComparisons,
     localNetwork,
-    planningArea,
     spatialMatches,
     changeTarget,
     opportunities,
+    discoverySearches,
   ] = await Promise.all([
       getMapProjectsForCurrentOrganization(),
       getSavedComparisonsForCurrentOrganization(),
       getOfficialMapLayerLoad("local_network", SWEDEN_MAP_BOUNDS, 4.35),
-      getOfficialMapLayerLoad("planning_area", SWEDEN_MAP_BOUNDS, 4.35),
       getOrganizationOfficialSpatialMatchesLoad(),
       params.change ? getOfficialChangeMapTarget(params.change) : Promise.resolve(null),
-      listOpportunitiesForCurrentOrganization(),
+      listOpportunitiesForCurrentOrganization(true),
+      listMapDiscoverySearches(),
     ]);
-  const discoverySearches = await listMapDiscoverySearches();
   return (
     <MapPage
       result={result}
@@ -46,11 +47,11 @@ export default async function Page({
       discoverySearches={discoverySearches}
       savedComparisons={savedComparisons}
       localNetwork={localNetwork.collection}
-      planningArea={planningArea.collection}
+      planningArea={emptyPlanning}
       spatialMatches={spatialMatches.matches}
       officialStatus={{
         localNetwork: localNetwork.status,
-        planningArea: planningArea.status,
+        planningArea: "available",
         matches: spatialMatches.status,
       }}
       initialProjectSlug={params.project ?? changeTarget?.projectSlug ?? null}
