@@ -35,6 +35,7 @@ import {
   ingestTriggerType,
 } from "./lib/ingestion-runs.mjs";
 import { fetchOpenGeodataToFile } from "./lib/open-geodata-fetch.mjs";
+import { requireIngestBbox } from "./lib/require-ingest-bbox.mjs";
 
 const SLUG = "nv-nmd-2023";
 const LISTING = "https://geodata.naturvardsverket.se/nedladdning/marktacke/NMD2023/Basskikt_v0_x/";
@@ -64,11 +65,7 @@ function nmd2023ClassToGroup(code) {
 }
 
 function parseBbox(argv) {
-  const raw = argv.find((item) => item.startsWith("--bbox="))?.slice("--bbox=".length) || process.env.NOXHEIM_SCREENING_INGEST_BBOX;
-  if (!raw) return null;
-  const [west, south, east, north] = raw.split(",").map(Number);
-  if (![west, south, east, north].every(Number.isFinite)) throw new Error("Provide --bbox=west,south,east,north.");
-  return { west, south, east, north };
+  return requireIngestBbox(argv);
 }
 
 function parseTif(argv) {

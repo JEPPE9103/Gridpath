@@ -13,6 +13,7 @@ import {
 } from "@/lib/opportunities/spatial-screening";
 import { Map as MapLibreMap, NavigationControl, type GeoJSONSource, type MapMouseEvent } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
+import { discoveryFitBoundsInput } from "@/lib/map/discovery-focus";
 
 const SOURCE_ID = "search-area-box";
 const FILL_ID = "search-area-fill";
@@ -50,18 +51,23 @@ export function SearchAreaPicker({
   east,
   north,
   onChange,
+  focusBbox = null,
+  focusToken = null,
 }: {
   west: string;
   south: string;
   east: string;
   north: string;
   onChange: (next: { west: string; south: string; east: string; north: string }) => void;
+  focusBbox?: { west: number; south: number; east: number; north: number } | null;
+  focusToken?: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const dragRef = useRef<{ start: LngLat } | null>(null);
   const drawingRef = useRef(false);
   const onChangeRef = useRef(onChange);
+  const lastFocusRef = useRef<string | null>(null);
   const [drawing, setDrawing] = useState(false);
 
   useEffect(() => {
@@ -175,6 +181,15 @@ export function SearchAreaPicker({
     const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     source?.setData(rectangleCollection(parsed.west, parsed.south, parsed.east, parsed.north));
   }, [hasBox, parsed.east, parsed.north, parsed.south, parsed.west]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focusToken || !focusBbox) return;
+    if (lastFocusRef.current === focusToken) return;
+    lastFocusRef.current = focusToken;
+    const fit = discoveryFitBoundsInput(focusBbox, 48);
+    map.fitBounds(fit.bounds, fit.options);
+  }, [focusToken, focusBbox]);
 
   useEffect(() => {
     const map = mapRef.current;

@@ -21,6 +21,7 @@ import {
   ingestTriggerType,
 } from "./lib/ingestion-runs.mjs";
 import { fetchOpenGeodataBytes } from "./lib/open-geodata-fetch.mjs";
+import { requireIngestBbox } from "./lib/require-ingest-bbox.mjs";
 
 const SLUG = "copernicus-dem-glo90";
 const SOURCE_NAME = "Copernicus DEM GLO-90 (derived 1 km slope summaries)";
@@ -34,15 +35,7 @@ function quoteSqlNullable(value) {
 }
 
 function parseBbox(argv) {
-  const raw =
-    argv.find((item) => item.startsWith("--bbox="))?.slice("--bbox=".length) ||
-    process.env.NOXHEIM_SCREENING_INGEST_BBOX ||
-    "14.9,59.1,15.4,59.4";
-  const [west, south, east, north] = raw.split(",").map(Number);
-  if (![west, south, east, north].every(Number.isFinite) || west >= east || south >= north) {
-    throw new Error("Provide --bbox=west,south,east,north with west<east and south<north.");
-  }
-  return { west, south, east, north };
+  return requireIngestBbox(argv);
 }
 
 function tileName(lat, lon) {

@@ -12,6 +12,7 @@ import { supportedEvidenceProviders, unsupportedEvidenceProviders } from "./prov
  * INSERT/UPDATE: owner, admin, member (private.can_write_organization).
  * DELETE: admin/owner on opportunities, searches, runs, candidates, and events.
  * Official geographic features are a global catalog (authenticated SELECT), like grid_areas.
+ * Official ingest windows are the same: authenticated SELECT, service_role writes only.
  * Creates, screening runs, save-candidate and promote go through SECURITY DEFINER RPCs that re-check membership.
  * Candidate intelligence (constraints / next investigations) is derived interpretation stored on
  * opportunity_run_candidates.screening JSON and copied into development_opportunities.screening_snapshot.
@@ -45,5 +46,10 @@ describe("opportunity tenancy and provider contract", () => {
       supportedEvidenceProviders().every((item) => item.status === "supported"),
       true,
     );
+  });
+
+  it("keeps official ingest windows as a global catalog with service-role writes", () => {
+    assert.equal(canReadOpportunities("viewer"), true);
+    assert.equal(canCreateOrEditOpportunities("viewer"), false);
   });
 });

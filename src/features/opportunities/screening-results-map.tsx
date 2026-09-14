@@ -5,6 +5,7 @@ import { STYLE } from "@/features/map/mini-map";
 import type { OpportunityRunCandidate } from "@/lib/data/opportunity-runs";
 import { Map as MapLibreMap, NavigationControl, type GeoJSONSource } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
+import { discoveryFitBoundsInput } from "@/lib/map/discovery-focus";
 
 const SOURCE = "screening-areas";
 const BBOX_SOURCE = "search-bbox";
@@ -79,6 +80,7 @@ export function ScreeningResultsMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const onSelectRef = useRef(onSelect);
+  const fittedRunRef = useRef(false);
   const [showQualifying, setShowQualifying] = useState(true);
   const [showExcluded, setShowExcluded] = useState(false);
   const [showBoundary, setShowBoundary] = useState(true);
@@ -158,6 +160,11 @@ export function ScreeningResultsMap({
         const id = event.features?.[0]?.properties?.id;
         if (typeof id === "string") onSelectRef.current(id);
       });
+      if (west != null && south != null && east != null && north != null) {
+        const fit = discoveryFitBoundsInput({ west, south, east, north }, 36);
+        map.fitBounds(fit.bounds, fit.options);
+        fittedRunRef.current = true;
+      }
     });
     return () => {
       unbind();
@@ -203,9 +210,15 @@ export function ScreeningResultsMap({
     }
   }, [showBoundary, showExcluded, showQualifying, showZones]);
 
+  const skipInitialCandidateFit = useRef(true);
+
   useEffect(() => {
     const selected = candidates.find((item) => item.id === selectedId);
     if (!selected || selected.longitude == null || selected.latitude == null) return;
+    if (skipInitialCandidateFit.current) {
+      skipInitialCandidateFit.current = false;
+      return;
+    }
     mapRef.current?.easeTo({ center: [selected.longitude, selected.latitude], duration: 400 });
   }, [candidates, selectedId]);
 

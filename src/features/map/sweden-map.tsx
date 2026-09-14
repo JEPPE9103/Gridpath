@@ -43,6 +43,7 @@ import {
   setCachedOfficialGeometry,
 } from "@/lib/map/official-geometry-cache";
 import { loadOfficialMapLayerAction } from "@/lib/map/actions";
+import { discoveryFitBoundsInput, shouldRefitDiscoveryRun } from "@/lib/map/discovery-focus";
 import { Map as MapLibreMap, Marker, NavigationControl, type GeoJSONSource, type MapGeoJSONFeature, type MapMouseEvent, type PointLike } from "maplibre-gl";
 import { memo, useEffect, useRef, useState } from "react";
 
@@ -374,15 +375,18 @@ export const SwedenMap = memo(function SwedenMap({
     const map = mapRef.current;
     if (!map || !mapReady) return;
     if (!discoveryFitKey || !searchArea) return;
-    if (lastDiscoveryFitRef.current === discoveryFitKey) return;
+    if (!shouldRefitDiscoveryRun(lastDiscoveryFitRef.current, discoveryFitKey)) return;
     lastDiscoveryFitRef.current = discoveryFitKey;
-    map.fitBounds(
-      [
-        [searchArea.west, searchArea.south],
-        [searchArea.east, searchArea.north],
-      ],
-      { padding: fitPadding, maxZoom: 10, duration: 280 },
+    const fit = discoveryFitBoundsInput(
+      {
+        west: searchArea.west,
+        south: searchArea.south,
+        east: searchArea.east,
+        north: searchArea.north,
+      },
+      fitPadding,
     );
+    map.fitBounds(fit.bounds, fit.options);
   }, [discoveryFitKey, searchArea, mapReady, fitPadding]);
 
   useEffect(() => {

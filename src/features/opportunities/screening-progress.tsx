@@ -1,17 +1,21 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { discoveryProgressForElapsed } from "@/lib/ingest/progress";
 import {
   refineProgressForElapsed,
-  screeningProgressForElapsed,
   type ScreeningProgressView,
 } from "@/lib/opportunities/screening-progress";
 import { useEffect, useState } from "react";
 
+type OverlayView = ScreeningProgressView & { messages?: string[] };
+
 export function ScreeningProgressOverlay({
   variant = "discovery",
+  liveView = null,
 }: {
   variant?: "discovery" | "refine";
+  liveView?: OverlayView | null;
 }) {
   const [elapsedMs, setElapsedMs] = useState(0);
 
@@ -23,8 +27,9 @@ export function ScreeningProgressOverlay({
     return () => window.clearInterval(timer);
   }, []);
 
-  const view =
-    variant === "refine" ? refineProgressForElapsed(elapsedMs) : screeningProgressForElapsed(elapsedMs);
+  const fallback: OverlayView =
+    variant === "refine" ? refineProgressForElapsed(elapsedMs) : discoveryProgressForElapsed(elapsedMs);
+  const view = liveView ?? fallback;
 
   return (
     <div
@@ -39,7 +44,7 @@ export function ScreeningProgressOverlay({
   );
 }
 
-export function ScreeningProgressPanel({ view }: { view: ScreeningProgressView }) {
+export function ScreeningProgressPanel({ view }: { view: OverlayView }) {
   return (
     <section className="w-full max-w-lg rounded-md border border-line bg-surface p-5 shadow-sm">
       <p className="text-[11px] uppercase tracking-[0.12em] text-muted">Geographic screening</p>
@@ -67,6 +72,13 @@ export function ScreeningProgressPanel({ view }: { view: ScreeningProgressView }
           </li>
         ))}
       </ol>
+      {view.messages?.length ? (
+        <ul className="mt-4 space-y-1 text-xs leading-5 text-muted">
+          {view.messages.map((message) => (
+            <li key={message}>{message}</li>
+          ))}
+        </ul>
+      ) : null}
       {view.navigateCopy ? <p className="mt-5 text-xs leading-5 text-muted">{view.navigateCopy}</p> : null}
     </section>
   );

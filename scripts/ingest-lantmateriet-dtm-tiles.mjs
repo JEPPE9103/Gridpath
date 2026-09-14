@@ -11,6 +11,7 @@ import {
   completeIngestionRun,
   ingestTriggerType,
 } from "./lib/ingestion-runs.mjs";
+import { requireIngestBbox } from "./lib/require-ingest-bbox.mjs";
 
 const SLUG = "lantmateriet-dtm-1m";
 const STAC = "https://api.lantmateriet.se/stac-hojd/v1";
@@ -77,11 +78,7 @@ on conflict (slug) do update set name = excluded.name, active = true;
     process.exit(0);
   }
 
-  const bboxRaw = process.argv.find((item) => item.startsWith("--bbox="))?.slice("--bbox=".length) || process.env.NOXHEIM_SCREENING_INGEST_BBOX;
-  if (!bboxRaw) {
-    throw new Error("Provide --bbox=west,south,east,north for candidate-scoped DTM tiles.");
-  }
-  const [west, south, east, north] = bboxRaw.split(",").map(Number);
+  const { west, south, east, north } = requireIngestBbox();
   const searchUrl = `${STAC}/search?bbox=${west},${south},${east},${north}&limit=20`;
   const response = await fetch(searchUrl, {
     headers: {

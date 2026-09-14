@@ -1,8 +1,14 @@
 "use client";
 
 import { Button, buttonClassName } from "@/components/ui/button";
+import { SwedenPlaceSearch } from "@/features/opportunities/place-search";
 import { ScreeningProgressOverlay } from "@/features/opportunities/screening-progress";
 import type { OpportunityMutationState } from "@/lib/opportunities/actions";
+import {
+  getDiscoveryIngestProgressAction,
+  prepareOpportunitySearchAction,
+  runPreparedGeographicSearchAction,
+} from "@/lib/opportunities/actions";
 import { OPPORTUNITY_TECHNOLOGY_VALUES, isOpportunityTechnology, opportunityTechnologyLabel } from "@/lib/opportunities/catalog";
 import { LAND_COVER_GROUPS, LAND_COVER_RULES } from "@/lib/opportunities/land-cover";
 import {
@@ -13,8 +19,11 @@ import {
   type ScreeningProfileRecord,
 } from "@/lib/opportunities/screening-profiles";
 import type { OpportunityFormInput } from "@/lib/opportunities/validation";
+import { discoveryProgressFromStage } from "@/lib/ingest/progress";
+import type { SwedenPlaceResult } from "@/lib/places/sweden";
+import { formatBboxCoordinate } from "@/lib/opportunities/spatial-screening";
 import Link from "next/link";
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { SearchAreaPicker } from "@/features/opportunities/search-area-picker";
 
 const INITIAL: OpportunityMutationState = {};
@@ -68,7 +77,7 @@ export function OpportunityForm({
   action: (state: OpportunityMutationState, formData: FormData) => Promise<OpportunityMutationState>;
   profiles?: ScreeningProfileRecord[];
 }) {
-  const [state, formAction, pending] = useActionState(action, INITIAL);
+  const [state, formAction, pendingPoint] = useActionState(action, INITIAL);
   const values = { ...EMPTY, ...state.values };
   const errors = state.fieldErrors ?? {};
   const [searchMode, setSearchMode] = useState(values.searchMode === "point" ? "point" : "geography");
@@ -78,6 +87,13 @@ export function OpportunityForm({
     east: values.east,
     north: values.north,
   });
+  const [geographyPending, setGeographyPending] = useState(false);
+  const [geographyError, setGeographyError] = useState<string | null>(null);
+  const [progressSearchId, setProgressSearchId] = useState<string | null>(null);
+  const [liveProgress, setLiveProgress] = useState<ReturnType<typeof discoveryProgressFromStage> | null>(null);
+  const [place, setPlace] = useState<SwedenPlaceResult | null>(null);
+  const [focusToken, setFocusToken] = useState<string | null>(null);
+  const pending = searchMode === "geography" ? geographyPending : pendingPoint;
   const [technology, setTechnology] = useState(
     isOpportunityTechnology(values.technology) ? values.technology : "battery_storage",
   );
@@ -101,14 +117,60 @@ export function OpportunityForm({
     landCoverDeveloped: posted ? values.landCoverDeveloped : packFields.landCoverDeveloped,
   };
   const maturity = screeningProfileMaturity(technology);
+  const displayError = geographyError ?? state.error;
+
+  useEffect(() => {
+    if (!progressSearchId || !geographyPending) return;
+    let cancelled = false;
+    const tick = async () => {
+      const progress = await getDiscoveryIngestProgressAction(progressSearchId);
+      if (cancelled || !progress) return;
+      setLiveProgress(discoveryProgressFromStage(progress.stage, progress.messages));
+    };
+    tick();
+    const timer = window.setInterval(tick, 800);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [progressSearchId, geographyPending]);
+
+  async function onGeographySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    setGeographyError(null);
+    setGeographyPending(true);
+    setLiveProgress(discoveryProgressFromStage("preparing"));
+    const prepared = await prepareOpportunitySearchAction(formData);
+    if (prepared.error || !prepared.searchId) {
+      setGeographyPending(false);
+      setGeographyError(prepared.error ?? "Could not save screening criteria.");
+      return;
+    }
+    setProgressSearchId(prepared.searchId);
+    const result = await runPreparedGeographicSearchAction(prepared.searchId);
+    setGeographyPending(false);
+    if (result?.error) {
+      setGeographyError(result.error);
+    }
+  }
 
   return (
-    <form action={formAction} className="relative max-w-3xl space-y-6">
-      {pending ? <ScreeningProgressOverlay variant={searchMode === "geography" ? "discovery" : "refine"} /> : null}
+    <form
+      action={searchMode === "point" ? formAction : undefined}
+      onSubmit={searchMode === "geography" ? onGeographySubmit : undefined}
+      className="relative max-w-3xl space-y-6"
+    >
+      {pending ? (
+        <ScreeningProgressOverlay
+          variant={searchMode === "geography" ? "discovery" : "refine"}
+          liveView={searchMode === "geography" ? liveProgress : null}
+        />
+      ) : null}
 
-      {state.error ? (
+      {displayError ? (
         <p className="rounded-md border border-critical/30 bg-critical-bg px-3 py-2 text-sm text-critical" role="alert">
-          {state.error}
+          {displayError}
         </p>
       ) : null}
 
@@ -217,18 +279,48 @@ export function OpportunityForm({
           <section className="mt-6 rounded-md border border-line bg-surface p-5">
             <h2 className="text-sm font-semibold">Screening footprint profile</h2>
             <p className="mt-1 text-sm text-muted">
-              Draw a rectangular envelope on the map, or enter coordinates. This is not a municipality
-              or cadastral polygon. Clipped to Sweden. Maximum 15 000 km². Footprint hectares below
+              Search a Swedish place, then draw a rectangular envelope. This is not a cadastral
+              polygon. Clipped to Sweden. Maximum 15 000 km². Footprint hectares below
               are the {pack.name} screening envelope. Project target MW is a separate customer input
               and does not drive this geometry.
             </p>
-            <div className="mt-4">
+            <div className="mt-4 space-y-4">
+              <SwedenPlaceSearch
+                onSelect={(next) => {
+                  setPlace(next);
+                  setFocusToken(next.id);
+                }}
+              />
+              {place?.cartographicBoundary ? (
+                <div className="rounded-md border border-line bg-canvas px-3 py-2 text-sm">
+                  <p className="text-muted">
+                    {place.label} is an administrative/cartographic envelope from SCB, not a cadastral
+                    boundary and not property ownership.
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-2 text-sm font-medium text-teal hover:underline"
+                    onClick={() => {
+                      setBbox({
+                        west: formatBboxCoordinate(place.bbox.west),
+                        south: formatBboxCoordinate(place.bbox.south),
+                        east: formatBboxCoordinate(place.bbox.east),
+                        north: formatBboxCoordinate(place.bbox.north),
+                      });
+                    }}
+                  >
+                    Use administrative envelope as Search Area
+                  </button>
+                </div>
+              ) : null}
               <SearchAreaPicker
                 west={bbox.west}
                 south={bbox.south}
                 east={bbox.east}
                 north={bbox.north}
                 onChange={setBbox}
+                focusBbox={place?.bbox ?? null}
+                focusToken={focusToken}
               />
             </div>
             <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted">Manual coordinates</p>

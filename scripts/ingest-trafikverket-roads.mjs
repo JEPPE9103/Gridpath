@@ -25,8 +25,7 @@ import {
   completeIngestionRun,
   ingestTriggerType,
 } from "./lib/ingestion-runs.mjs";
-import { fetchOpenGeodataText, parseGeoJsonFeatureCollection } from "./lib/open-geodata-fetch.mjs";
-import { buildRoadLinkWfsUrl, TRAFIKVERKET_ROADLINK_WFS } from "./lib/trafikverket-roadlink.mjs";
+import { requireIngestBbox } from "./lib/require-ingest-bbox.mjs";
 
 const SLUG = "trafikverket-inspire-roadlink";
 
@@ -38,15 +37,7 @@ function quoteSqlNullable(value) {
 }
 
 function parseBbox(argv) {
-  const raw =
-    argv.find((item) => item.startsWith("--bbox="))?.slice("--bbox=".length) ||
-    process.env.NOXHEIM_SCREENING_INGEST_BBOX ||
-    "14.9,59.1,15.4,59.4";
-  const [west, south, east, north] = raw.split(",").map(Number);
-  if (![west, south, east, north].every(Number.isFinite)) {
-    throw new Error("Provide --bbox=west,south,east,north.");
-  }
-  return { west, south, east, north };
+  return requireIngestBbox(argv);
 }
 
 function looksLatLon(pair) {

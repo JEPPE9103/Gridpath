@@ -89,8 +89,17 @@ try {
   runCloudIngest("cloud-ingest-naturvardsverket-protected.mjs");
   runCloudIngest("cloud-ingest-naturvardsverket-natura.mjs");
   runOptionalIngest("cloud-ingest-scb-administrative-areas.mjs");
-  runOptionalIngest("cloud-ingest-trafikverket-roads.mjs");
-  runOptionalIngest("cloud-ingest-nmd-2023.mjs");
+  if (process.env.NOXHEIM_SCREENING_INGEST_BBOX) {
+    runOptionalIngest("cloud-ingest-trafikverket-roads.mjs");
+    runOptionalIngest("cloud-ingest-nmd-2023.mjs");
+  } else {
+    console.log(
+      JSON.stringify({
+        event: "ingest.scheduled.bbox_layers_skipped",
+        reason: "NMD and RoadLink are on-demand per Search Area. Pass NOXHEIM_SCREENING_INGEST_BBOX only for an explicit operator window.",
+      }),
+    );
+  }
   console.log(JSON.stringify({ event: "ingest.scheduled.complete", trigger }));
 } catch (error) {
   console.error(

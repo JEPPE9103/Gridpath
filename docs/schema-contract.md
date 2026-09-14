@@ -52,6 +52,8 @@ Opportunities exist before projects. They are org-scoped. NOXHEIM does **not** e
 | `official_geographic_features` | global official polygons (`protected_area`, `natura_2000`) |
 | `official_physical_summaries` | 1 km `terrain` / `land_cover` summaries, GIST |
 | `official_transport_features` | official road centre-lines |
+| `official_ingest_windows` | bbox/tile coverage + ingest locks for NMD, Copernicus, RoadLink. Not raw rasters. |
+| `opportunity_searches.ingest_progress` | server-written discovery stages; never a fake percentage |
 | `opportunity_assessments` | per-dimension explainable result, `source_kind` (`customer_data` \| `official` \| `noxheim_derived`), `completeness`, `evidence` |
 | `opportunity_events` | decision/history records |
 
@@ -105,4 +107,6 @@ NUP numeric values are forecast transfer-capacity **need**, never available capa
 - `public.get_organization_invite_preview(p_token_hash)` — authenticated + anon (token is the secret)
 - `public.review_organization_change_impact(p_impact_id, p_status, p_note)` — org-scoped confirm/dismiss of a change impact; resolves matching open alerts; does not mutate `external_changes`
 - `public.list_source_health()` — authenticated source-health view (no raw payloads)
-- Service-role only: `monitor_begin_source_run`, `monitor_complete_source_run`, `monitor_reconcile_workflow_alerts`, `monitor_list_undelivered_impact_emails`, `monitor_list_weekly_digests`, `monitor_claim_notification_delivery`, `monitor_finish_notification_delivery`
+- `public.get_search_area_coverage(p_west, p_south, p_east, p_north)` — NMD/Copernicus/RoadLink bbox coverage plus national catalog state; no raw geometries
+- `public.search_swedish_administrative_places(p_query)` — SCB envelopes for place search; cartographic, not cadastral
+- Service-role only: `claim_official_ingest_window`, `finish_official_ingest_window`, `upsert_official_physical_summaries`, `upsert_official_transport_features`, `insert_official_source_snapshot`, `project_bbox_to_sweref99tm`
