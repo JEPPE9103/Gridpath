@@ -10,7 +10,12 @@ import {
   type CoverageWindow,
 } from "@/lib/ingest/coverage-keys";
 import { copernicusCogUrl, copernicusSnapshotHash, fetchCopernicusTileSummaries } from "@/lib/ingest/copernicus";
-import { nmdDiscoverySummariesFromTif, nmdSnapshotHash, resolveNmd2023Tif } from "@/lib/ingest/nmd";
+import {
+  nmdDiscoverySummariesFromSource,
+  nmdSnapshotHash,
+  resolveNmd2023Source,
+  type NmdRasterSource,
+} from "@/lib/ingest/nmd";
 import { fetchRoadLinkFeatures, roadlinkSnapshotHash } from "@/lib/ingest/roads";
 import { claimIngestWindow, finishIngestWindow, waitForWindow } from "@/lib/ingest/windows";
 import type { DiscoveryIngestProgress, DiscoveryProgressStageId, DiscoverySourceRun } from "@/lib/ingest/progress";
@@ -170,7 +175,7 @@ async function ingestNmdWindow(
   service: SupabaseClient,
   window: CoverageWindow,
   search: SearchBbox,
-  tifPath: string,
+  source: NmdRasterSource,
 ): Promise<DiscoverySourceRun> {
   const clipped = clipWindowToSearch(window.bbox, search) ?? window.bbox;
   return withWindow(service, window, async () => {
@@ -185,7 +190,7 @@ async function ingestNmdWindow(
     if (![extent?.xmin, extent?.ymin, extent?.xmax, extent?.ymax].every((value) => typeof value === "number")) {
       throw new Error("Could not project Search Area to SWEREF 99 TM.");
     }
-    const rows = await nmdDiscoverySummariesFromTif(tifPath, {
+    const rows = await nmdDiscoverySummariesFromSource(source, {
       xmin: extent.xmin as number,
       ymin: extent.ymin as number,
       xmax: extent.xmax as number,
@@ -197,6 +202,7 @@ async function ingestNmdWindow(
       bbox: clipped,
       summary_count: rows.length,
       resolution: "1km",
+      source_kind: source.kind,
     });
     await upsertPhysical(service, NMD_SOURCE_SLUG, snapshotId, "land_cover", rows);
     return { status: rows.length > 0 ? "covered" : "partial", snapshotId, version: "nmd2023-v0.3" };
@@ -237,14 +243,15 @@ export async function ensureSearchAreaEvidence(input: {
   if (!nmdPlan?.fetch) {
     sources.push({ slug: NMD_SOURCE_SLUG, action: "cache", detail: nmdPlan?.status ?? "covered" });
   } else {
-    const tifPath = resolveNmd2023Tif();
-    if (!tifPath) {
-      const message = "NMD 2023 national GeoTIFF is not configured on the server. Land-cover evidence stays UNKNOWN.";
+    const nmdSource = resolveNmd2023Source();
+    if (!nmdSource) {
+      const message =
+        "NMD 2023 is not configured on the server (set NOXHEIM_NMD2023_URL to a Cloud Optimized GeoTIFF). Land-cover evidence stays UNKNOWN.";
       messages.push(coverageGapMessage(NMD_SOURCE_SLUG, message));
-      sources.push({ slug: NMD_SOURCE_SLUG, action: "failed", detail: "tif_not_configured" });
+      sources.push({ slug: NMD_SOURCE_SLUG, action: "failed", detail: "nmd_not_configured" });
     } else {
       for (const window of nmdWindows(input.bbox)) {
-        const result = await ingestNmdWindow(input.service, window, input.bbox, tifPath);
+        const result = await ingestNmdWindow(input.service, window, input.bbox, nmdSource);
         sources.push(result);
         if (result.action === "fetched") fetched.push(NMD_SOURCE_SLUG);
         if (result.action === "failed") messages.push(coverageGapMessage(NMD_SOURCE_SLUG, result.detail ?? ""));
