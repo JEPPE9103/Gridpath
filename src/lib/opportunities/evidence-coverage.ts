@@ -36,6 +36,7 @@ export type EvidenceCategoryId =
   | "detailed_terrain"
   | "network_geography"
   | "road_access"
+  | "flood_water"
   | "residential_proximity";
 
 export type EvidenceSourceDetail = {
@@ -79,6 +80,7 @@ const CATEGORY_LABELS: Record<EvidenceCategoryId, string> = {
   detailed_terrain: "Detailed terrain",
   network_geography: "Network geography",
   road_access: "Road proximity",
+  flood_water: "Water / flood",
   residential_proximity: "Residential proximity",
 };
 
@@ -91,6 +93,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   "lantmateriet-dtm-1m": "Lantmäteriet",
   "ei-official-covering": "Energimarknadsinspektionen",
   "trafikverket-inspire-roadlink": "Trafikverket",
+  "msb-oversvamningskartering": "MSB / MCF",
   terrain: "Copernicus",
   "land-cover": "Naturvårdsverket",
 };
@@ -202,6 +205,9 @@ export type CandidateEvidenceInput = {
   roadQueried: boolean;
   roadDistanceM: number | null;
   roadClass: string | null;
+  floodQueried: boolean;
+  floodOverlapPct: number | null;
+  floodClasses: string[] | null;
   providerAvailability?: Record<string, boolean>;
   sourceVersions?: Record<string, string | null>;
 };
@@ -227,6 +233,9 @@ export function candidateToEvidenceInput(
     roadQueried?: boolean;
     roadDistanceM: number | null;
     roadClass: string | null;
+    floodQueried?: boolean;
+    floodOverlapPct?: number | null;
+    floodClasses?: string[] | null;
   },
   extras?: {
     providerAvailability?: Record<string, boolean>;
@@ -253,6 +262,9 @@ export function candidateToEvidenceInput(
     roadQueried: candidate.roadQueried === true || candidate.roadDistanceM != null,
     roadDistanceM: candidate.roadDistanceM,
     roadClass: candidate.roadClass,
+    floodQueried: candidate.floodQueried === true || candidate.floodOverlapPct != null,
+    floodOverlapPct: candidate.floodOverlapPct ?? null,
+    floodClasses: candidate.floodClasses ?? null,
     providerAvailability: extras?.providerAvailability,
     sourceVersions: extras?.sourceVersions,
   };
@@ -405,6 +417,27 @@ export function buildEvidenceCoverage(input: CandidateEvidenceInput): EvidenceCo
         : null,
     }),
     item({
+      id: "flood_water",
+      state: input.floodQueried ? "evaluated" : "not_evaluated",
+      summary: input.floodQueried
+        ? input.floodOverlapPct != null
+          ? input.floodOverlapPct <= 0
+            ? "No mapped overlap in evaluated dataset"
+            : `${input.floodOverlapPct.toFixed(1)}% mapped flood overlap`
+          : "Evaluated"
+        : "Not evaluated",
+      provenance: input.floodQueried ? "official" : null,
+      sourceDetail: input.floodQueried
+        ? sourceDetail({
+            providerKey: "msb-oversvamningskartering",
+            dataset: "Översvämningskartering — beräknat högsta flöde (BHF)",
+            version: "MSB/MCF INSPIRE WFS",
+            snapshot: versions["msb-oversvamningskartering"] ?? null,
+          })
+        : null,
+      required: true,
+    }),
+    item({
       id: "residential_proximity",
       state: "not_evaluated",
       summary: "Not evaluated",
@@ -460,6 +493,9 @@ export function buildEvidenceCoverageFromAssessments(input: {
     roadQueried: accessAvailable,
     roadDistanceM: null,
     roadClass: null,
+    floodQueried: false,
+    floodOverlapPct: null,
+    floodClasses: null,
   });
 }
 

@@ -101,6 +101,11 @@ export type ScreeningCellRow = {
   road_distance_m?: number | string | null;
   road_class?: string | null;
   road_queried?: boolean | null;
+  flood_queried?: boolean | null;
+  flood_overlap_pct?: number | string | null;
+  flood_overlap_ha?: number | string | null;
+  flood_classes?: string[] | null;
+  flood_provider_key?: string | null;
   exclusion_breakdown?: ExclusionBreakdown | null;
   screening_stage?: string | null;
   refinement_status?: string | null;
@@ -180,6 +185,12 @@ export function screeningCellToCandidate(
       names: row.natura_names ?? [],
       sourceName: "Naturvårdsverket",
     },
+    floodOverlap: {
+      queried: row.flood_queried === true,
+      overlapPercent: num(row.flood_overlap_pct),
+      names: row.flood_classes ?? [],
+      sourceName: "MSB/MCF översvämningskartering",
+    },
     terrain,
     landCover: row.land_cover_queried
       ? {
@@ -243,8 +254,14 @@ function environmentalScore(row: ScreeningCellRow, screening: ScreeningResult): 
   }
   const prot = num(row.protected_overlap_pct) ?? 0;
   const nat = num(row.natura_overlap_pct) ?? 0;
-  if (!row.protected_queried && !row.natura_queried) return 0;
-  return Math.max(0, 1 - (prot + nat) / 100);
+  const flood = num(row.flood_overlap_pct) ?? 0;
+  if (!row.protected_queried && !row.natura_queried && row.flood_queried !== true) return 0;
+  let score = Math.max(0, 1 - (prot + nat + flood) / 100);
+  // Missing flood evidence must never improve environmental score.
+  if (row.flood_queried !== true) {
+    score = Math.min(score, 0.55);
+  }
+  return score;
 }
 
 function terrainScore(row: ScreeningCellRow): number {
@@ -458,7 +475,9 @@ export function rankScreeningCells(
       minAreaHa: criteria.minSiteAreaHa,
       terrainFavorable: (num(item.row.pct_below_slope) ?? 0) >= 80,
       environmentalConflict:
-        (num(item.row.protected_overlap_pct) ?? 0) >= 1 || (num(item.row.natura_overlap_pct) ?? 0) >= 1,
+        (num(item.row.protected_overlap_pct) ?? 0) >= 1 ||
+        (num(item.row.natura_overlap_pct) ?? 0) >= 1 ||
+        (num(item.row.flood_overlap_pct) ?? 0) >= 1,
       roadDistanceM: num(item.row.road_distance_m),
       maxRoadDistanceM: criteria.maxRoadDistanceM ?? null,
       localCovered: Boolean(item.row.local_covering_name),
@@ -488,6 +507,10 @@ export function rankScreeningCells(
         coveringQueried: item.row.covering_queried === true,
         localCoveringName: item.row.local_covering_name ?? null,
         nupCoveringName: item.row.nup_covering_name ?? null,
+        floodQueried: item.row.flood_queried === true,
+        floodOverlapPct: num(item.row.flood_overlap_pct),
+        floodOverlapHa: num(item.row.flood_overlap_ha),
+        floodClasses: item.row.flood_classes ?? [],
         keyPositive: item.screening.positives[0] ?? null,
         keyRisk: item.screening.risks[0] ?? null,
         targetFitLabel: null,

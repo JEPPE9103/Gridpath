@@ -69,7 +69,8 @@ function priorityFor(constraint: CandidateConstraint): InvestigationPriority {
       constraint.id === "road_unavailable" ||
       constraint.id === "land_cover_unavailable" ||
       constraint.id === "protected_not_evaluated" ||
-      constraint.id === "natura_not_evaluated"
+      constraint.id === "natura_not_evaluated" ||
+      constraint.id === "flood_unavailable"
     ) {
       return "now";
     }
@@ -128,6 +129,19 @@ function actionFor(constraint: CandidateConstraint): { action: string; evidenceS
       return {
         action: "Confirm official environmental geography before proceeding",
         evidenceSource: "Official Source — Naturvårdsverket",
+      };
+    case "flood_unavailable":
+      return {
+        action: "Obtain flood/water evidence before land commitment",
+        evidenceSource: "Official Source — MSB/MCF översvämningskartering (not evaluated)",
+      };
+    case "flood_hard_exclusion":
+    case "flood_major_overlap":
+    case "flood_edge_overlap":
+    case "flood_trace_overlap":
+      return {
+        action: "Review mapped flood exposure and site drainage implications",
+        evidenceSource: "Official Source — MSB/MCF översvämningskartering (BHF)",
       };
     case "network_covering_capacity_unknown":
     case "network_covering_none":

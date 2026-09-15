@@ -7,7 +7,7 @@
 export const DISCOVERY_PROGRESS_HEADING = "Preparing Swedish geography";
 
 export const DISCOVERY_PROGRESS_WAIT_COPY =
-  "The first search in a new area may load official land cover, terrain and road geography. A repeat search over the same area reuses the cache.";
+  "The first search in a new area may load official land cover, terrain, road and flood geography. A repeat search over the same area reuses the cache.";
 
 export const DISCOVERY_PROGRESS_NAVIGATE_COPY =
   "Leaving this page does not cancel the screening. Return to Opportunities if you navigate away.";
@@ -37,6 +37,11 @@ export const DISCOVERY_PROGRESS_STAGES = [
     id: "roads",
     title: "Loading road geography",
     detail: "Fetching missing Trafikverket RoadLink for this bbox, or reusing cache.",
+  },
+  {
+    id: "flood",
+    title: "Loading flood geography",
+    detail: "Fetching missing MSB mapped flood extents for this Search Area, or reusing cache.",
   },
   {
     id: "screening",
@@ -71,8 +76,9 @@ export const FALLBACK_STAGE_STARTS_MS: Record<DiscoveryProgressStageId, number> 
   land_cover: 900,
   terrain: 2_000,
   roads: 4_000,
-  screening: 8_000,
-  candidates: 16_000,
+  flood: 6_000,
+  screening: 10_000,
+  candidates: 18_000,
 };
 
 export function discoveryProgressFromStage(

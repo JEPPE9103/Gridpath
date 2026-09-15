@@ -24,6 +24,7 @@ describe("discovery ingest progress", () => {
       "Loading land cover",
       "Loading terrain",
       "Loading road geography",
+      "Loading flood geography",
       "Running screening",
       "Generating Candidate Sites",
     ].join("|"));
@@ -32,7 +33,9 @@ describe("discovery ingest progress", () => {
   it("falls back through elapsed stages without claiming provider completion", () => {
     const early = discoveryProgressForElapsed(100);
     assert.equal(early.activeId, "preparing");
-    const later = discoveryProgressForElapsed(9_000);
+    const mid = discoveryProgressForElapsed(7_000);
+    assert.equal(mid.activeId, "flood");
+    const later = discoveryProgressForElapsed(12_000);
     assert.equal(later.activeId, "screening");
   });
 

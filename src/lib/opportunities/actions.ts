@@ -196,6 +196,17 @@ async function executeGeographicScreening(input: {
       searchId: input.searchId,
     };
   }
+  const { error: floodError } = await input.supabase.rpc("apply_flood_overlap_to_run", {
+    p_run_id: runRow.run_id,
+  });
+  if (floodError) {
+    console.error("executeGeographicScreening flood overlap failed", floodError.message);
+    return {
+      error: publicError(floodError.message, "Screening ran but flood assessment failed."),
+      values: input.values,
+      searchId: input.searchId,
+    };
+  }
   try {
     await applyScreeningRunAssessments(input.supabase, runRow.run_id, input.criteria);
   } catch (error) {
@@ -218,7 +229,7 @@ async function applyScreeningRunAssessments(
   const { data: rows, error } = await supabase
     .from("opportunity_run_candidates")
     .select(
-      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, mean_slope_deg, median_slope_deg, p90_slope_deg, pct_below_slope, terrain_queried, land_cover, land_cover_queried, road_distance_m, road_class, road_queried, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, transmission_context, discovery_contiguous_area_ha, compactness, geometry_quality, target_fit_score, candidate_kind",
+      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, mean_slope_deg, median_slope_deg, p90_slope_deg, pct_below_slope, terrain_queried, land_cover, land_cover_queried, road_distance_m, road_class, road_queried, flood_queried, flood_overlap_pct, flood_overlap_ha, flood_classes, flood_provider_key, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, transmission_context, discovery_contiguous_area_ha, compactness, geometry_quality, target_fit_score, candidate_kind",
     )
     .eq("run_id", runId)
     .eq("candidate_kind", "site");
@@ -690,6 +701,13 @@ export async function rerunOpportunitySearchAction(formData: FormData): Promise<
     console.error("rerunOpportunitySearchAction site segmentation failed", segmentError.message);
     return;
   }
+  const { error: floodError } = await supabase.rpc("apply_flood_overlap_to_run", {
+    p_run_id: runRow.run_id,
+  });
+  if (floodError) {
+    console.error("rerunOpportunitySearchAction flood overlap failed", floodError.message);
+    return;
+  }
 
   await applyScreeningRunAssessments(supabase, runRow.run_id, {
     technology: isOpportunityTechnology(search.technology) ? search.technology : "other",
@@ -717,6 +735,10 @@ export async function rerunOpportunitySearchAction(formData: FormData): Promise<
     electricityArea: search.electricity_area,
     notes: search.notes,
     rankingVersion: RANKING_VERSION,
+    floodMode: "preference",
+    floodHardExclusionPct: 1,
+    floodRiskOverlapPct: 1,
+    floodMajorRiskOverlapPct: 10,
   });
 
   revalidateOpportunityPaths();
@@ -779,6 +801,10 @@ export async function refineOpportunityCandidatesAction(formData: FormData): Pro
       electricityArea: search.electricity_area,
       notes: search.notes,
       rankingVersion: RANKING_VERSION,
+      floodMode: "preference",
+      floodHardExclusionPct: 1,
+      floodRiskOverlapPct: 1,
+      floodMajorRiskOverlapPct: 10,
     });
   }
   revalidateOpportunityPaths();

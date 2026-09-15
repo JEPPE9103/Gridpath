@@ -31,6 +31,11 @@ const BASE = {
   coveringQueried: true,
   localCoveringName: "E.ON Energidistribution",
   nupCoveringName: "SE3 plan",
+  floodQueried: true,
+  floodOverlapPct: 0,
+  floodOverlapHa: 0,
+  floodClasses: [],
+  floodMode: "preference" as const,
 };
 
 describe("candidate constraints", () => {

@@ -67,9 +67,9 @@ export const SAMPLE_CANDIDATE_SITES = [
 export const SAMPLE_SELECTED_CANDIDATE = SAMPLE_CANDIDATE_SITES[0];
 
 export const SAMPLE_EVIDENCE_COVERAGE: EvidenceCoverageView = {
-  evaluatedCount: 5,
-  totalCount: 8,
-  summary: "5 of 8 evidence categories evaluated",
+  evaluatedCount: 6,
+  totalCount: 9,
+  summary: "6 of 9 evidence categories evaluated",
   missingLabels: ["Detailed terrain", "Road proximity", "Residential proximity"],
   items: [
     {
@@ -169,6 +169,22 @@ export const SAMPLE_EVIDENCE_COVERAGE: EvidenceCoverageView = {
       provenance: null,
       required: false,
       sourceDetail: null,
+    },
+    {
+      id: "flood_water",
+      label: "Water / flood",
+      state: "evaluated",
+      summary: "No mapped overlap in evaluated dataset",
+      provenance: "official",
+      required: true,
+      sourceDetail: {
+        provider: "MSB / MCF",
+        dataset: "Översvämningskartering — beräknat högsta flöde (BHF)",
+        version: "MSB/MCF INSPIRE WFS",
+        nativeResolution: null,
+        processingResolution: null,
+        snapshot: null,
+      },
     },
     {
       id: "residential_proximity",

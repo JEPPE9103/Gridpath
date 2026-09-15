@@ -37,13 +37,16 @@ const CORE_EVALUATED = {
   roadQueried: false,
   roadDistanceM: null,
   roadClass: null,
+  floodQueried: true,
+  floodOverlapPct: 0,
+  floodClasses: [],
 };
 
 describe("evidence coverage", () => {
   it("distinguishes evaluated official evidence from missing categories", () => {
     const coverage = buildEvidenceCoverage(CORE_EVALUATED);
-    assert.equal(coverage.evaluatedCount, 5);
-    assert.equal(coverage.totalCount, 8);
+    assert.equal(coverage.evaluatedCount, 6);
+    assert.equal(coverage.totalCount, 9);
     const land = coverage.items.find((item) => item.id === "land_cover");
     const roads = coverage.items.find((item) => item.id === "road_access");
     const residential = coverage.items.find((item) => item.id === "residential_proximity");

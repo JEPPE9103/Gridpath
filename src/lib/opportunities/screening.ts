@@ -53,6 +53,11 @@ export type ScreeningCriteria = {
   electricityArea: string | null;
   notes: string | null;
   rankingVersion?: string;
+  /** Screening assumption — preference (default) or hard exclusion on mapped flood overlap. */
+  floodMode?: SlopeConstraintMode;
+  floodHardExclusionPct?: number | null;
+  floodRiskOverlapPct?: number | null;
+  floodMajorRiskOverlapPct?: number | null;
 };
 
 export type OfficialCoveringEvidence = {
@@ -97,6 +102,7 @@ export type OpportunityCandidate = {
   covering: OfficialCoveringEvidence;
   protectedOverlap?: LayerOverlapEvidence;
   naturaOverlap?: LayerOverlapEvidence;
+  floodOverlap?: LayerOverlapEvidence;
   terrain?: TerrainMetrics;
   landCover?: {
     queried: boolean;
@@ -259,6 +265,18 @@ export function evaluateOpportunityScreening(input: {
       exclusionReason =
         exclusionReason ??
         `Direct overlap with a configured Natura 2000 exclusion${named}: ${pct.toFixed(0)}% of the assessed area.`;
+    }
+  }
+
+  const floodOverlap = candidate.floodOverlap;
+  const floodHardPct = criteria.floodHardExclusionPct ?? 1;
+  if (criteria.floodMode === "hard" && floodOverlap?.queried) {
+    const pct = floodOverlap.overlapPercent ?? 0;
+    if (pct >= floodHardPct) {
+      excluded = true;
+      exclusionReason =
+        exclusionReason ??
+        `Mapped flood geography intersects ${pct.toFixed(0)}% of the Candidate footprint, at or above the configured hard exclusion of ${floodHardPct}% (screening assumption).`;
     }
   }
 

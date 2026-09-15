@@ -36,6 +36,10 @@ export function intelligenceCriteriaForTechnology(
     roadMode?: "preference" | "hard" | null;
     excludeProtected?: boolean;
     excludeNatura?: boolean;
+    floodMode?: "preference" | "hard" | null;
+    floodHardExclusionPct?: number | null;
+    floodRiskOverlapPct?: number | null;
+    floodMajorRiskOverlapPct?: number | null;
   } | null,
 ): Parameters<typeof constraintInputFromCandidate>[1] {
   const pack = defaultScreeningProfile(
@@ -48,6 +52,10 @@ export function intelligenceCriteriaForTechnology(
     roadMode: searchCriteria?.roadMode === "hard" ? "hard" : pack.roadMode,
     excludeProtected: searchCriteria?.excludeProtected ?? pack.excludeProtected,
     excludeNatura: searchCriteria?.excludeNatura ?? pack.excludeNatura,
+    floodMode: searchCriteria?.floodMode === "hard" ? "hard" : pack.floodMode,
+    floodHardExclusionPct: searchCriteria?.floodHardExclusionPct ?? pack.floodHardExclusionPct,
+    floodRiskOverlapPct: searchCriteria?.floodRiskOverlapPct ?? pack.floodRiskOverlapPct,
+    floodMajorRiskOverlapPct: searchCriteria?.floodMajorRiskOverlapPct ?? pack.floodMajorRiskOverlapPct,
   };
 }
 
@@ -72,6 +80,10 @@ export function constraintInputFromCandidate(
     | "coveringQueried"
     | "localCoveringName"
     | "nupCoveringName"
+    | "floodQueried"
+    | "floodOverlapPct"
+    | "floodOverlapHa"
+    | "floodClasses"
   >,
   criteria?: Pick<
     ScreeningCriteria,
@@ -81,6 +93,10 @@ export function constraintInputFromCandidate(
     | "roadMode"
     | "excludeProtected"
     | "excludeNatura"
+    | "floodMode"
+    | "floodHardExclusionPct"
+    | "floodRiskOverlapPct"
+    | "floodMajorRiskOverlapPct"
   >,
 ): CandidateConstraintInput {
   return {
@@ -108,6 +124,14 @@ export function constraintInputFromCandidate(
     coveringQueried: candidate.coveringQueried,
     localCoveringName: candidate.localCoveringName,
     nupCoveringName: candidate.nupCoveringName,
+    floodQueried: candidate.floodQueried,
+    floodOverlapPct: candidate.floodOverlapPct,
+    floodOverlapHa: candidate.floodOverlapHa,
+    floodClasses: candidate.floodClasses,
+    floodMode: criteria?.floodMode ?? "preference",
+    floodHardExclusionPct: criteria?.floodHardExclusionPct ?? 1,
+    floodRiskOverlapPct: criteria?.floodRiskOverlapPct ?? 1,
+    floodMajorRiskOverlapPct: criteria?.floodMajorRiskOverlapPct ?? 10,
   };
 }
 
@@ -121,6 +145,8 @@ export function whyCandidateLags(candidate: {
   coveringQueried?: boolean;
   localCoveringName?: string | null;
   nupCoveringName?: string | null;
+  floodQueried?: boolean;
+  floodOverlapPct?: number | null;
   keyRisk?: string | null;
   excluded?: boolean;
 }): string[] {
@@ -138,6 +164,10 @@ export function whyCandidateLags(candidate: {
   }
   if (candidate.coveringQueried === true && !candidate.localCoveringName && !candidate.nupCoveringName) {
     negatives.push("No official covering polygon at the centroid");
+  }
+  if (candidate.floodQueried !== true) negatives.push("Flood / water evidence not evaluated");
+  else if (candidate.floodOverlapPct != null && candidate.floodOverlapPct >= 1) {
+    negatives.push("Mapped flood geography intersects the Candidate footprint");
   }
   if (negatives.length === 0 && candidate.keyRisk) negatives.push(candidate.keyRisk);
   return negatives.slice(0, 4);
@@ -182,6 +212,10 @@ export function constraintInputFromScreeningCell(
     local_covering_name?: string | null;
     nup_covering_name?: string | null;
     land_cover?: Record<string, number> | null;
+    flood_queried?: boolean | null;
+    flood_overlap_pct?: number | string | null;
+    flood_overlap_ha?: number | string | null;
+    flood_classes?: string[] | null;
   },
   criteria?: Parameters<typeof constraintInputFromCandidate>[1],
   extras?: { excluded?: boolean; exclusionReason?: string | null },
@@ -211,6 +245,10 @@ export function constraintInputFromScreeningCell(
       coveringQueried: row.covering_queried === true,
       localCoveringName: row.local_covering_name ?? null,
       nupCoveringName: row.nup_covering_name ?? null,
+      floodQueried: row.flood_queried === true,
+      floodOverlapPct: num(row.flood_overlap_pct),
+      floodOverlapHa: num(row.flood_overlap_ha),
+      floodClasses: Array.isArray(row.flood_classes) ? row.flood_classes.map(String) : [],
     },
     criteria,
   );

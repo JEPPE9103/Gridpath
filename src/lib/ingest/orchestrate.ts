@@ -1,15 +1,18 @@
 import { coverageGapMessage, onDemandSourcePlan, parseSearchAreaCoverage, type SearchAreaCoverage } from "@/lib/ingest/coverage";
 import {
   COPERNICUS_SOURCE_SLUG,
+  FLOOD_SOURCE_SLUG,
   NMD_SOURCE_SLUG,
   ROADLINK_SOURCE_SLUG,
   clipWindowToSearch,
   copernicusWindows,
+  floodWindows,
   nmdWindows,
   roadlinkWindows,
   type CoverageWindow,
 } from "@/lib/ingest/coverage-keys";
 import { copernicusCogUrl, copernicusSnapshotHash, fetchCopernicusTileSummaries } from "@/lib/ingest/copernicus";
+import { fetchFloodFeatures, floodSnapshotHash } from "@/lib/ingest/flood";
 import {
   nmdDiscoverySummariesFromSource,
   nmdSnapshotHash,
@@ -101,6 +104,46 @@ async function upsertRoads(service: SupabaseClient, snapshotId: string | null, r
   return count;
 }
 
+async function upsertFlood(service: SupabaseClient, snapshotId: string | null, rows: unknown[]): Promise<number> {
+  let count = 0;
+  const batch = 40;
+  for (let i = 0; i < rows.length; i += batch) {
+    const payload = (
+      rows.slice(i, i + batch) as Array<{
+        id: string;
+        name: string;
+        designation: string;
+        geom: unknown;
+        properties: Record<string, unknown>;
+        clipWest?: number;
+        clipSouth?: number;
+        clipEast?: number;
+        clipNorth?: number;
+      }>
+    ).map((row) => ({
+      id: row.id,
+      name: row.name,
+      designation: row.designation,
+      geom: JSON.stringify(row.geom),
+      properties: row.properties,
+      sourceVersion: "msb-bhf",
+      clipWest: row.clipWest,
+      clipSouth: row.clipSouth,
+      clipEast: row.clipEast,
+      clipNorth: row.clipNorth,
+    }));
+    const { data, error } = await service.rpc("upsert_official_geographic_features", {
+      p_source_slug: FLOOD_SOURCE_SLUG,
+      p_snapshot_id: snapshotId,
+      p_feature_class: "mapped_flood",
+      p_rows: payload,
+    });
+    if (error) throw new Error(error.message);
+    count += Number(data ?? 0);
+  }
+  return count;
+}
+
 async function withWindow(
   service: SupabaseClient,
   window: CoverageWindow,
@@ -168,6 +211,24 @@ async function ingestRoadWindow(service: SupabaseClient, window: CoverageWindow,
     });
     await upsertRoads(service, snapshotId, rows);
     return { status: rows.length > 0 ? "covered" : "partial", snapshotId, version: "roadlink" };
+  });
+}
+
+async function ingestFloodWindow(service: SupabaseClient, window: CoverageWindow, search: SearchBbox): Promise<DiscoverySourceRun> {
+  const clipped = clipWindowToSearch(window.bbox, search) ?? window.bbox;
+  return withWindow(service, window, async () => {
+    const rows = await fetchFloodFeatures(clipped);
+    const snapshotId = await insertSnapshot(service, FLOOD_SOURCE_SLUG, floodSnapshotHash(clipped, rows.length, "auto"), {
+      publisher: "Myndigheten för civilt försvar / MSB",
+      dataset: "Översvämningskartering — beräknat högsta flöde (BHF)",
+      layer: "oversvamning:NZ_Oversvamning_BHF",
+      bbox: clipped,
+      feature_count: rows.length,
+      note: "Empty feature_count means the window was evaluated with no mapped BHF polygons.",
+    });
+    await upsertFlood(service, snapshotId, rows);
+    // Covered even when zero polygons — that is an evaluated "no mapped overlap in dataset" result.
+    return { status: "covered", snapshotId, version: "msb-bhf" };
   });
 }
 
@@ -282,6 +343,19 @@ export async function ensureSearchAreaEvidence(input: {
       sources.push(result);
       if (result.action === "fetched") fetched.push(ROADLINK_SOURCE_SLUG);
       if (result.action === "failed") messages.push(coverageGapMessage(ROADLINK_SOURCE_SLUG, result.detail ?? ""));
+    }
+  }
+
+  await emit("flood");
+  const floodPlan = plan.find((item) => item.slug === FLOOD_SOURCE_SLUG);
+  if (!floodPlan?.fetch) {
+    sources.push({ slug: FLOOD_SOURCE_SLUG, action: "cache", detail: floodPlan?.status ?? "covered" });
+  } else {
+    for (const window of floodWindows(input.bbox)) {
+      const result = await ingestFloodWindow(input.service, window, input.bbox);
+      sources.push(result);
+      if (result.action === "fetched") fetched.push(FLOOD_SOURCE_SLUG);
+      if (result.action === "failed") messages.push(coverageGapMessage(FLOOD_SOURCE_SLUG, result.detail ?? ""));
     }
   }
 

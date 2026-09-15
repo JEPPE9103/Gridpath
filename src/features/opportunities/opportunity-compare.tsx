@@ -170,6 +170,18 @@ export function OpportunityComparePage({
                     : "Official covering geography — not an indication of available connection capacity."
                 }
               </CompareRow>
+              <CompareRow label="Mapped flood overlap" items={items}>
+                {(item) => {
+                  const intelligence = intelligenceById.get(item.id);
+                  const flood = intelligence?.constraints.find((row) => row.evidenceCategory === "flood_water");
+                  if (!flood) return "Evidence unavailable";
+                  if (flood.id === "flood_unavailable") return "Evidence unavailable";
+                  if (flood.id === "flood_no_mapped_overlap") return "0% mapped overlap";
+                  return flood.measuredValue
+                    ? `${flood.measuredValue} / ${flood.severity.replace("_", " ")}`
+                    : flood.title;
+                }}
+              </CompareRow>
               <CompareRow label="Key risk" items={items}>
                 {(item) => item.keyRisk ?? "No stored risk yet."}
               </CompareRow>

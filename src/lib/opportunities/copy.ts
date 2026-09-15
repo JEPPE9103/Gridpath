@@ -28,6 +28,14 @@ const FORBIDDEN_TERMS = [
   "technically viable",
   "buildable site",
   "feasible site",
+  "flood safe",
+  "flood-safe",
+  "flood proof",
+  "flood-proof",
+  "hydrologically feasible",
+  "drainage approved",
+  "no flood risk",
+  "approved site",
 ] as const;
 
 export function publicOpportunityError(message: string | undefined, fallback: string): string {

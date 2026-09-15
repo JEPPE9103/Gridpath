@@ -64,6 +64,11 @@ export type ScreeningProfileCriteria = {
   roadMode: SlopeConstraintMode;
   minDistanceResidentialM: number | null;
   assumptions: DevelopmentAssumptions;
+  /** preference = risk/major_risk only; hard = configured overlap becomes BLOCKER. Screening assumption. */
+  floodMode: SlopeConstraintMode;
+  floodHardExclusionPct: number | null;
+  floodRiskOverlapPct: number | null;
+  floodMajorRiskOverlapPct: number | null;
 };
 
 export type ScreeningProfileRecord = {
@@ -90,7 +95,7 @@ export function screeningProfileMaturity(
 
 export function screeningProfileAssumptionNote(technology: OpportunityTechnologyValue): string {
   if (technology === "battery_storage") {
-    return "Sweden BESS Standard screening assumptions: 8 / 15 / 30 ha footprint preference, 5° slope preference, 1 km road preference, protected and Natura excluded. These are product screening defaults, not engineering design standards. Target MW does not change Candidate geometry.";
+    return "Sweden BESS Standard screening assumptions: 8 / 15 / 30 ha footprint preference, 5° slope preference, 1 km road preference, protected and Natura excluded, MSB mapped flood (BHF) evaluated with risk ≥1% and major risk ≥10% overlap (preference mode — not a hard exclusion). These are product screening defaults, not engineering design standards. Target MW does not change Candidate geometry.";
   }
   if (technology === "solar") {
     return "BETA solar screening assumptions: larger footprint preference (10 / 25 / 50 ha), 7° slope preference, open and agricultural land preferred, forest deprioritised. Configurable screening defaults, not a PV design standard. Target MW does not change Candidate geometry.";
@@ -189,6 +194,10 @@ export function defaultScreeningProfile(
       maxRoadDistanceM: pack.maxRoadDistanceM,
       roadMode: pack.roadMode,
       minDistanceResidentialM: null,
+      floodMode: "preference",
+      floodHardExclusionPct: 1,
+      floodRiskOverlapPct: 1,
+      floodMajorRiskOverlapPct: 10,
       assumptions: {
         maxInvestigationDistanceKm: null,
         investigationBudgetNote: null,
@@ -280,6 +289,11 @@ export function parseScreeningProfileCriteria(raw: unknown): ScreeningProfileCri
     maxRoadDistanceM: numberOrNull(value.maxRoadDistanceM) ?? fallback.maxRoadDistanceM,
     roadMode: value.roadMode === "hard" ? "hard" : "preference",
     minDistanceResidentialM: numberOrNull(value.minDistanceResidentialM),
+    floodMode: value.floodMode === "hard" ? "hard" : "preference",
+    floodHardExclusionPct: numberOrNull(value.floodHardExclusionPct) ?? fallback.floodHardExclusionPct,
+    floodRiskOverlapPct: numberOrNull(value.floodRiskOverlapPct) ?? fallback.floodRiskOverlapPct,
+    floodMajorRiskOverlapPct:
+      numberOrNull(value.floodMajorRiskOverlapPct) ?? fallback.floodMajorRiskOverlapPct,
     assumptions: {
       maxInvestigationDistanceKm: numberOrNull(
         value.assumptions && typeof value.assumptions === "object"

@@ -41,6 +41,8 @@ Sweden-wide on-demand Discovery also requires server-only:
 - `SUPABASE_SERVICE_ROLE_KEY` — orchestrates coverage locks and official summary upserts (never `NEXT_PUBLIC_*`)
 - `NOXHEIM_NMD2023_URL` — HTTPS Cloud Optimized GeoTIFF for NMD 2023 basskikt v0.3 (HTTP range/window reads; never full 1.3 GB per search)
 
+Flood / water evidence uses the public MSB/MCF INSPIRE WFS (no extra secret). On-demand Search Area windows cache mapped BHF extents; empty windows are valid evaluated results.
+
 Optional operator/dev: `NOXHEIM_NMD2023_TIF` local path when the URL is unset. Convert once with `node scripts/convert-nmd-to-cog.mjs`, host the COG, then set `NOXHEIM_NMD2023_URL` on Vercel Production and Preview. Copernicus and Trafikverket RoadLink need no extra secrets (open HTTPS). Place search uses SCB RPC + Nominatim (no API key).
 
 Sales-demo org (`ea5096a9-8da3-42e6-9dbd-64097414cb03`) is excluded from scheduled email. Owners/admins can disable weekly digest without disabling in-app alerts (Settings → Email notifications).

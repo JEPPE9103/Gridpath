@@ -20,6 +20,12 @@ describe("open geodata fetch allowlist", () => {
       isAllowedOpenGeodataUrl("https://geodata.scb.se/geoserver/stat/ows?service=WFS"),
       true,
     );
+    assert.equal(
+      isAllowedOpenGeodataUrl(
+        "https://inspire.mcf.se/geoserver/oversvamning/wfs?service=WFS",
+      ),
+      true,
+    );
     assert.equal(isAllowedOpenGeodataUrl("http://geodata.naturvardsverket.se/wfs"), false);
   });
 

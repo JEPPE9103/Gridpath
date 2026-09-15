@@ -56,6 +56,7 @@ describe("coverage plan", () => {
       nmd: { status: "covered", scope: "bbox", intersectingSummaries: 40 },
       copernicus: { status: "stale", scope: "bbox" },
       roadlink: { status: "missing", scope: "bbox" },
+      flood: { status: "missing", scope: "bbox" },
       protectedAreas: { status: "covered", scope: "national_catalog" },
       natura2000: { status: "covered", scope: "national_catalog" },
       eiNetworkAreas: { status: "covered", scope: "national_catalog" },
@@ -66,6 +67,7 @@ describe("coverage plan", () => {
     assert.equal(plan.find((item) => item.slug === "nv-nmd-2023")?.fetch, false);
     assert.equal(plan.find((item) => item.slug === "copernicus-dem-glo90")?.fetch, true);
     assert.equal(plan.find((item) => item.slug === ROADLINK_SOURCE_SLUG)?.fetch, true);
+    assert.equal(plan.find((item) => item.slug === "msb-oversvamningskartering")?.fetch, true);
     assert.equal(needsOnDemandFetch("partial"), true);
     assert.equal(needsOnDemandFetch("covered"), false);
   });

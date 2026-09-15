@@ -70,6 +70,14 @@ export type CandidateConstraintInput = {
   coveringQueried?: boolean;
   localCoveringName?: string | null;
   nupCoveringName?: string | null;
+  floodQueried?: boolean;
+  floodOverlapPct?: number | null;
+  floodOverlapHa?: number | null;
+  floodClasses?: string[] | null;
+  floodMode?: SlopeConstraintMode | null;
+  floodHardExclusionPct?: number | null;
+  floodRiskOverlapPct?: number | null;
+  floodMajorRiskOverlapPct?: number | null;
 };
 
 const SEVERITY_ORDER: Record<ConstraintSeverity, number> = {
@@ -331,6 +339,92 @@ export function deriveCandidateConstraints(input: CandidateConstraintInput): Can
         userActionRecommended: true,
       }),
     );
+  }
+
+  {
+    const floodMode = input.floodMode === "hard" ? "hard" : "preference";
+    const riskPct = input.floodRiskOverlapPct ?? 1;
+    const majorPct = input.floodMajorRiskOverlapPct ?? 10;
+    const hardPct = input.floodHardExclusionPct ?? 1;
+    const overlap = input.floodOverlapPct;
+
+    if (input.floodQueried !== true) {
+      rows.push(
+        constraint({
+          id: "flood_unavailable",
+          severity: "unknown",
+          title: "Flood / water evidence not evaluated",
+          explanation: "Official mapped flood geography was not evaluated for this Candidate.",
+          whyItMatters:
+            "Screening-level flood exposure is unknown. This is not a finding that flood exposure is absent.",
+          evidenceCategory: "flood_water",
+          provenance: "official",
+          evaluated: false,
+          measuredValue: null,
+          threshold:
+            floodMode === "hard"
+              ? `hard exclusion ≥ ${hardPct}% mapped overlap`
+              : `risk ≥ ${riskPct}% · major risk ≥ ${majorPct}% (screening assumptions)`,
+          automaticExclusion: false,
+          userActionRecommended: true,
+        }),
+      );
+    } else if (overlap != null && overlap > 0) {
+      const classLabel =
+        input.floodClasses && input.floodClasses.length > 0
+          ? input.floodClasses.includes("bhf")
+            ? "Calculated highest flow (BHF)"
+            : input.floodClasses.join(", ")
+          : "Mapped flood geography";
+      const hardHit = floodMode === "hard" && overlap >= hardPct;
+      const majorHit = overlap >= majorPct;
+      const riskHit = overlap >= riskPct;
+      rows.push(
+        constraint({
+          id: hardHit ? "flood_hard_exclusion" : majorHit ? "flood_major_overlap" : riskHit ? "flood_edge_overlap" : "flood_trace_overlap",
+          severity: hardHit ? "blocker" : majorHit ? "major_risk" : riskHit ? "risk" : "info",
+          title: hardHit
+            ? "Mapped flood geography exceeds the hard exclusion threshold"
+            : majorHit
+              ? "Material mapped flood overlap"
+              : riskHit
+                ? "Limited mapped flood overlap"
+                : "Trace mapped flood overlap",
+          explanation: `Mapped flood geography (${classLabel}) intersects ${overlap.toFixed(1)}% of the Candidate footprint. Official MSB/MCF översvämningskartering — screening-level evidence, not a flood engineering finding.`,
+          whyItMatters: hardHit
+            ? "The active screening profile treats this mapped overlap as a reason not to proceed."
+            : "Mapped flood exposure should be reviewed for site drainage implications before further development spend. This does not mean the site will flood.",
+          evidenceCategory: "flood_water",
+          provenance: "official",
+          evaluated: true,
+          measuredValue: `${overlap.toFixed(1)}% overlap`,
+          threshold: hardHit
+            ? `hard ≥ ${hardPct}%`
+            : `risk ≥ ${riskPct}% · major ≥ ${majorPct}% (screening assumptions)`,
+          automaticExclusion: hardHit,
+          userActionRecommended: true,
+        }),
+      );
+    } else {
+      rows.push(
+        constraint({
+          id: "flood_no_mapped_overlap",
+          severity: "info",
+          title: "No mapped flood overlap in the evaluated dataset",
+          explanation:
+            "Official mapped flood geography (MSB/MCF BHF) does not intersect this Candidate footprint in the evaluated Search Area cache.",
+          whyItMatters:
+            "No mapped overlap is not the same as absent flood exposure. Other flood mechanisms and local conditions remain outside this screening.",
+          evidenceCategory: "flood_water",
+          provenance: "official",
+          evaluated: true,
+          measuredValue: "0% overlap",
+          threshold: null,
+          automaticExclusion: false,
+          userActionRecommended: false,
+        }),
+      );
+    }
   }
 
   rows.push(
