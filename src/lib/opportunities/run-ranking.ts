@@ -95,6 +95,11 @@ export type ScreeningCellRow = {
   p90_slope_deg?: number | string | null;
   median_slope_deg?: number | string | null;
   pct_below_slope?: number | string | null;
+  pct_above_slope?: number | string | null;
+  elev_min_m?: number | string | null;
+  elev_max_m?: number | string | null;
+  elev_range_m?: number | string | null;
+  detailed_terrain_queried?: boolean | null;
   terrain_queried?: boolean | null;
   land_cover_queried?: boolean | null;
   land_cover?: LandCoverComposition | null;
@@ -274,7 +279,12 @@ function terrainScore(row: ScreeningCellRow): number {
   if (row.terrain_queried !== true) return 0;
   const pct = num(row.pct_below_slope);
   if (pct == null) return 0;
-  return Math.min(1, Math.max(0, pct / 100));
+  let score = Math.min(1, Math.max(0, pct / 100));
+  // Missing detailed terrain must never improve rank vs evaluated detailed terrain.
+  if (row.detailed_terrain_queried !== true) {
+    score = Math.min(score, 0.7);
+  }
+  return score;
 }
 
 function landCoverScore(row: ScreeningCellRow, criteria: ScreeningCriteria): number {
@@ -507,7 +517,13 @@ export function rankScreeningCells(
         meanSlopeDeg: num(item.row.mean_slope_deg),
         p90SlopeDeg: num(item.row.p90_slope_deg),
         pctBelowSlope: num(item.row.pct_below_slope),
+        pctAboveSlope: num(item.row.pct_above_slope),
+        elevMinM: num(item.row.elev_min_m),
+        elevMaxM: num(item.row.elev_max_m),
+        elevRangeM: num(item.row.elev_range_m),
+        detailedTerrainQueried: item.row.detailed_terrain_queried === true,
         terrainResolution: item.row.terrain_resolution ?? null,
+        terrainProviderKey: item.row.terrain_provider_key ?? null,
         roadQueried: item.row.road_queried === true,
         roadDistanceM: num(item.row.road_distance_m),
         roadClass: item.row.road_class ?? null,

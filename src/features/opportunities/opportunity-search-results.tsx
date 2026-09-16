@@ -328,9 +328,20 @@ export function OpportunitySearchResults({
               <Fact
                 label="Terrain"
                 value={
-                  selected.terrainQueried && selected.meanSlopeDeg != null
-                    ? `Coarse mean ${selected.meanSlopeDeg.toFixed(1)}°`
-                    : "Terrain evidence unavailable"
+                  selected.detailedTerrainQueried && selected.meanSlopeDeg != null
+                    ? [
+                        `Detailed mean ${selected.meanSlopeDeg.toFixed(1)}°`,
+                        selected.p90SlopeDeg != null ? `P90 ${selected.p90SlopeDeg.toFixed(1)}°` : null,
+                        selected.elevRangeM != null ? `relief ${selected.elevRangeM.toFixed(1)} m` : null,
+                        selected.pctAboveSlope != null
+                          ? `${selected.pctAboveSlope.toFixed(0)}% above preference`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : selected.terrainQueried && selected.meanSlopeDeg != null
+                      ? `Coarse mean ${selected.meanSlopeDeg.toFixed(1)}° · detailed not evaluated`
+                      : "Terrain evidence unavailable"
                 }
               />
               <Fact

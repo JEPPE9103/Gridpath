@@ -1,5 +1,6 @@
 import {
   COPERNICUS_SOURCE_SLUG,
+  DTM_SOURCE_SLUG,
   FLOOD_SOURCE_SLUG,
   GROUND_SOURCE_SLUG,
   NMD_SOURCE_SLUG,
@@ -27,6 +28,7 @@ export type SearchAreaCoverage = {
   roadlink: LayerCoverage;
   flood: LayerCoverage;
   ground: LayerCoverage;
+  detailedTerrain: LayerCoverage;
   protectedAreas: LayerCoverage;
   natura2000: LayerCoverage;
   eiNetworkAreas: LayerCoverage;
@@ -73,6 +75,7 @@ export function parseSearchAreaCoverage(value: unknown): SearchAreaCoverage | nu
     roadlink: asLayer(row.roadlink, EMPTY_LAYER),
     flood: asLayer(row.flood, EMPTY_LAYER),
     ground: asLayer(row.ground, EMPTY_LAYER),
+    detailedTerrain: asLayer(row.detailedTerrain ?? row.dtm, EMPTY_LAYER),
     protectedAreas: asLayer(row.protectedAreas, EMPTY_CATALOG),
     natura2000: asLayer(row.natura2000, EMPTY_CATALOG),
     eiNetworkAreas: asLayer(row.eiNetworkAreas, EMPTY_CATALOG),
@@ -86,7 +89,8 @@ export type OnDemandSourcePlan = {
     | typeof COPERNICUS_SOURCE_SLUG
     | typeof ROADLINK_SOURCE_SLUG
     | typeof FLOOD_SOURCE_SLUG
-    | typeof GROUND_SOURCE_SLUG;
+    | typeof GROUND_SOURCE_SLUG
+    | typeof DTM_SOURCE_SLUG;
   fetch: boolean;
   status: CoverageStatus;
 };
@@ -114,6 +118,11 @@ export function onDemandSourcePlan(coverage: SearchAreaCoverage): OnDemandSource
       fetch: needsOnDemandFetch(coverage.ground.status),
       status: coverage.ground.status,
     },
+    {
+      slug: DTM_SOURCE_SLUG,
+      fetch: needsOnDemandFetch(coverage.detailedTerrain.status),
+      status: coverage.detailedTerrain.status,
+    },
   ];
 }
 
@@ -132,6 +141,9 @@ export function coverageGapMessage(slug: string, reason: string): string {
   }
   if (slug === GROUND_SOURCE_SLUG) {
     return `Ground/soil evidence unavailable — screening continued with reduced evidence. ${reason}`.trim();
+  }
+  if (slug === DTM_SOURCE_SLUG) {
+    return `Detailed terrain unavailable — coarse Copernicus remains where evaluated. ${reason}`.trim();
   }
   return `Official evidence unavailable — screening continued with reduced evidence. ${reason}`.trim();
 }

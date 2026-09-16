@@ -77,10 +77,10 @@ Recommendations: `prioritise`, `investigate`, `secondary`, `low_priority`, `insu
 Official Ei source slugs: `ei-network-area-concessions`, `ei-network-development-plans`.
 Naturvårdsverket slugs: `nv-protected-areas`, `nv-natura-2000`, `nv-nmd-2023`, `nv-nmd-2018` (legacy).
 Copernicus slug: `copernicus-dem-glo90`. Trafikverket slug: `trafikverket-inspire-roadlink`.
-SCB slug: `scb-administrative-areas`. Lantmäteriet DTM slug: `lantmateriet-dtm-1m` (AUTH_REQUIRED until Geotorget).
+SCB slug: `scb-administrative-areas`. Lantmäteriet DTM slug: `lantmateriet-dtm-1m` (AUTH_REQUIRED until Geotorget). On-demand STAC windows → `official_precision_summaries` (elev_* + slope) → `apply_detailed_terrain_to_run` on Candidates (`detailed_terrain_queried`, `elev_range_m`, `pct_above_slope`).
 SvK slug: `svk-indicative-transmission-2026` (blocked; no structured source).
 
-`official_precision_summaries` holds 100 m land-cover / detailed terrain tiles for refinement only.
+`official_precision_summaries` holds ~100 m land-cover / detailed terrain summary cells for Candidate screening (not nationwide 1 m rasters).
 `opportunity_run_candidates` now includes `screening_stage`, `refinement_status`, discovery vs detailed ranks, and evidence-resolution labels.
 `opportunity_assessment_versions` stores assessment history; `opportunity_reassessment_notices` flags saved opportunities when an official source version changes.
 

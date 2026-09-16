@@ -141,7 +141,7 @@ describe("next investigations", () => {
     const detailed = next.find((item) => item.constraintId === "detailed_terrain_unavailable");
     assert.ok(detailed);
     assert.equal(detailed?.priority, "next");
-    assert.match(detailed?.action ?? "", /detailed terrain|earthworks/i);
+    assert.match(detailed?.action ?? "", /detailed terrain|Lantmäteriet/i);
   });
 
   it("keeps a later connection assessment when covering exists", () => {

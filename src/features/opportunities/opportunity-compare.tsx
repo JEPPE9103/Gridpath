@@ -193,6 +193,24 @@ export function OpportunityComparePage({
                     : ground.title;
                 }}
               </CompareRow>
+              <CompareRow label="Detailed terrain" items={items}>
+                {(item) => {
+                  const intelligence = intelligenceById.get(item.id);
+                  const terrain = intelligence?.constraints.find(
+                    (row) => row.evidenceCategory === "detailed_terrain",
+                  );
+                  if (!terrain) return "Detailed terrain not evaluated";
+                  if (terrain.id === "detailed_terrain_unavailable") return "Detailed terrain not evaluated";
+                  if (terrain.id === "detailed_terrain_context") {
+                    return terrain.measuredValue
+                      ? `${terrain.measuredValue} / low local relief`
+                      : "Within preferred screening range";
+                  }
+                  return terrain.measuredValue
+                    ? `${terrain.measuredValue} / ${terrain.severity.replace("_", " ")}`
+                    : terrain.title;
+                }}
+              </CompareRow>
               <CompareRow label="Key risk" items={items}>
                 {(item) => item.keyRisk ?? "No stored risk yet."}
               </CompareRow>

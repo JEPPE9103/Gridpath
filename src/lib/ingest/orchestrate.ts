@@ -1,12 +1,14 @@
 import { coverageGapMessage, onDemandSourcePlan, parseSearchAreaCoverage, type SearchAreaCoverage } from "@/lib/ingest/coverage";
 import {
   COPERNICUS_SOURCE_SLUG,
+  DTM_SOURCE_SLUG,
   FLOOD_SOURCE_SLUG,
   GROUND_SOURCE_SLUG,
   NMD_SOURCE_SLUG,
   ROADLINK_SOURCE_SLUG,
   clipWindowToSearch,
   copernicusWindows,
+  dtmWindows,
   floodWindows,
   groundWindows,
   nmdWindows,
@@ -16,6 +18,11 @@ import {
 import { copernicusCogUrl, copernicusSnapshotHash, fetchCopernicusTileSummaries } from "@/lib/ingest/copernicus";
 import { fetchFloodFeatures, floodSnapshotHash } from "@/lib/ingest/flood";
 import { fetchGroundFeatures, groundSnapshotHash } from "@/lib/ingest/ground";
+import {
+  dtmConfigured,
+  dtmSnapshotHash,
+  fetchDetailedTerrainSummaries,
+} from "@/lib/ingest/lantmateriet-dtm";
 import {
   nmdDiscoverySummariesFromSource,
   nmdSnapshotHash,
@@ -187,6 +194,61 @@ async function upsertGround(service: SupabaseClient, snapshotId: string | null, 
   return count;
 }
 
+async function upsertPrecisionTerrain(
+  service: SupabaseClient,
+  snapshotId: string | null,
+  rows: Array<{
+    externalId: string;
+    west: number;
+    south: number;
+    east: number;
+    north: number;
+    resolutionM: number;
+    meanSlopeDeg: number;
+    medianSlopeDeg: number;
+    p90SlopeDeg: number;
+    maxSlopeDeg: number;
+    pctLe5: number;
+    pctLe8: number;
+    pctLe12: number;
+    elevMinM: number;
+    elevMaxM: number;
+    elevRangeM: number;
+  }>,
+): Promise<number> {
+  let count = 0;
+  const batch = 80;
+  for (let i = 0; i < rows.length; i += batch) {
+    const payload = rows.slice(i, i + batch).map((row) => ({
+      externalId: row.externalId,
+      west: row.west,
+      south: row.south,
+      east: row.east,
+      north: row.north,
+      resolutionM: row.resolutionM,
+      meanSlopeDeg: row.meanSlopeDeg,
+      medianSlopeDeg: row.medianSlopeDeg,
+      p90SlopeDeg: row.p90SlopeDeg,
+      maxSlopeDeg: row.maxSlopeDeg,
+      pctLe5: row.pctLe5,
+      pctLe8: row.pctLe8,
+      pctLe12: row.pctLe12,
+      elevMinM: row.elevMinM,
+      elevMaxM: row.elevMaxM,
+      elevRangeM: row.elevRangeM,
+    }));
+    const { data, error } = await service.rpc("upsert_official_precision_summaries", {
+      p_source_slug: DTM_SOURCE_SLUG,
+      p_snapshot_id: snapshotId,
+      p_summary_class: "terrain",
+      p_rows: payload,
+    });
+    if (error) throw new Error(error.message);
+    count += Number(data ?? 0);
+  }
+  return count;
+}
+
 async function withWindow(
   service: SupabaseClient,
   window: CoverageWindow,
@@ -291,6 +353,36 @@ async function ingestGroundWindow(service: SupabaseClient, window: CoverageWindo
     });
     await upsertGround(service, snapshotId, rows);
     return { status: rows.length > 0 ? "covered" : "partial", snapshotId, version: "sgu-jordarter-25k-100k" };
+  });
+}
+
+async function ingestDtmWindow(service: SupabaseClient, window: CoverageWindow, search: SearchBbox): Promise<DiscoverySourceRun> {
+  const clipped = clipWindowToSearch(window.bbox, search) ?? window.bbox;
+  return withWindow(service, window, async () => {
+    const { rows, tileCount, authRequired } = await fetchDetailedTerrainSummaries(clipped);
+    if (authRequired) {
+      return {
+        status: "failed",
+        error: "AUTH_REQUIRED: Lantmäteriet Geotorget credentials not configured",
+        version: "auth_required",
+      };
+    }
+    const snapshotId = await insertSnapshot(service, DTM_SOURCE_SLUG, dtmSnapshotHash(clipped, tileCount, rows.length), {
+      publisher: "Lantmäteriet",
+      dataset: "Markhöjdmodell 1 m DTM",
+      bbox: clipped,
+      tile_count: tileCount,
+      summary_count: rows.length,
+      summary_resolution_m: 100,
+      note: "Derived ~100 m summaries from official 1 m DTM. Not an earthworks design.",
+    });
+    await upsertPrecisionTerrain(service, snapshotId, rows);
+    return {
+      status: rows.length > 0 ? "covered" : tileCount > 0 ? "partial" : "failed",
+      snapshotId,
+      version: "lantmateriet-dtm-1m",
+      error: rows.length === 0 && tileCount === 0 ? "No DTM tiles in window" : undefined,
+    };
   });
 }
 
@@ -431,6 +523,26 @@ export async function ensureSearchAreaEvidence(input: {
       sources.push(result);
       if (result.action === "fetched") fetched.push(GROUND_SOURCE_SLUG);
       if (result.action === "failed") messages.push(coverageGapMessage(GROUND_SOURCE_SLUG, result.detail ?? ""));
+    }
+  }
+
+  await emit("detailed_terrain");
+  const dtmPlan = plan.find((item) => item.slug === DTM_SOURCE_SLUG);
+  if (!dtmPlan?.fetch) {
+    sources.push({ slug: DTM_SOURCE_SLUG, action: "cache", detail: dtmPlan?.status ?? "covered" });
+  } else if (!dtmConfigured()) {
+    const message =
+      "Lantmäteriet Geotorget credentials not configured (AUTH_REQUIRED). Detailed terrain stays not evaluated; Copernicus coarse terrain remains where available.";
+    messages.push(coverageGapMessage(DTM_SOURCE_SLUG, message));
+    sources.push({ slug: DTM_SOURCE_SLUG, action: "skipped", detail: "auth_required" });
+  } else {
+    // Cap windows so large Search Areas do not explode 1 m DTM downloads.
+    const windows = dtmWindows(input.bbox).slice(0, 16);
+    for (const window of windows) {
+      const result = await ingestDtmWindow(input.service, window, input.bbox);
+      sources.push(result);
+      if (result.action === "fetched") fetched.push(DTM_SOURCE_SLUG);
+      if (result.action === "failed") messages.push(coverageGapMessage(DTM_SOURCE_SLUG, result.detail ?? ""));
     }
   }
 

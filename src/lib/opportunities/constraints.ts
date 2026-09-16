@@ -23,6 +23,19 @@ import {
   parseGroundComposition,
   type GroundGroup,
 } from "@/lib/opportunities/ground";
+import {
+  DETAILED_TERRAIN_DATASET_LABEL,
+  DETAILED_TERRAIN_RELIEF_MAJOR_M,
+  DETAILED_TERRAIN_RELIEF_RISK_M,
+  DETAILED_TERRAIN_STEEP_MAJOR_RISK_PCT,
+  DETAILED_TERRAIN_STEEP_RISK_PCT,
+  classifyDetailedTerrainSeverity,
+  describeDetailedTerrain,
+  formatElevRangeM,
+  formatSlopeDeg,
+  formatSteepPct,
+  isDetailedTerrainEvaluated,
+} from "@/lib/opportunities/detailed-terrain";
 import type { SlopeConstraintMode } from "@/lib/opportunities/terrain";
 
 export const CONSTRAINT_SEMANTICS_VERSION = "candidate-constraints-v1";
@@ -62,10 +75,21 @@ export type CandidateConstraintInput = {
   terrainQueried?: boolean;
   meanSlopeDeg?: number | null;
   p90SlopeDeg?: number | null;
+  maxSlopeDeg?: number | null;
   pctBelowSlope?: number | null;
+  pctAboveSlope?: number | null;
+  elevMinM?: number | null;
+  elevMaxM?: number | null;
+  elevRangeM?: number | null;
   terrainResolution?: string | null;
+  terrainProviderKey?: string | null;
+  detailedTerrainQueried?: boolean;
   maxSlopeDegrees?: number | null;
   slopeMode?: SlopeConstraintMode | null;
+  steepRiskPct?: number | null;
+  steepMajorRiskPct?: number | null;
+  reliefRiskM?: number | null;
+  reliefMajorM?: number | null;
   roadQueried?: boolean;
   roadDistanceM?: number | null;
   roadClass?: string | null;
@@ -186,6 +210,12 @@ export function deriveCandidateConstraints(input: CandidateConstraintInput): Can
     );
   }
 
+  const detailedEvaluated = isDetailedTerrainEvaluated({
+    detailedTerrainQueried: input.detailedTerrainQueried,
+    terrainResolution: input.terrainResolution,
+    terrainProviderKey: input.terrainProviderKey,
+  });
+
   if (input.terrainQueried !== true) {
     rows.push(
       constraint({
@@ -193,7 +223,7 @@ export function deriveCandidateConstraints(input: CandidateConstraintInput): Can
         severity: "unknown",
         title: "Terrain evidence unavailable",
         explanation: "Coarse slope summaries were not evaluated for this Candidate.",
-        whyItMatters: "Grading and earthworks risk cannot be ranked from terrain evidence.",
+        whyItMatters: "Grading implications cannot be ranked from terrain evidence.",
         evidenceCategory: "terrain",
         provenance: "official",
         evaluated: false,
@@ -205,17 +235,17 @@ export function deriveCandidateConstraints(input: CandidateConstraintInput): Can
     );
   } else {
     const mean = input.meanSlopeDeg;
-    if (mean != null && mean > slopeThreshold) {
+    if (mean != null && mean > slopeThreshold && !detailedEvaluated) {
       rows.push(
         constraint({
           id: "terrain_above_preference",
           severity: slopeMode === "hard" ? "blocker" : "risk",
           title: slopeMode === "hard" ? "Slope exceeds the configured hard limit" : "Slope exceeds the preferred threshold",
-          explanation: `Mean slope is ${mean.toFixed(1)}°, against a ${slopeMode} threshold of ${slopeThreshold}°. Coarse Copernicus-derived summaries, not a survey.`,
+          explanation: `Mean slope is ${mean.toFixed(1)}°, against a ${slopeMode} threshold of ${slopeThreshold}°. Coarse Copernicus GLO-90 summaries — not detailed terrain.`,
           whyItMatters:
             slopeMode === "hard"
               ? "The current screening profile treats this slope as a reason not to proceed."
-              : "Earthworks and layout flexibility may be harder. This is not a constructability finding.",
+              : "Local terrain variation may increase grading complexity. This is not a constructability finding.",
           evidenceCategory: "terrain",
           provenance: "official",
           evaluated: true,
@@ -226,21 +256,101 @@ export function deriveCandidateConstraints(input: CandidateConstraintInput): Can
         }),
       );
     }
-    if (input.terrainResolution !== "detailed") {
+  }
+
+  {
+    const steepRisk = input.steepRiskPct ?? DETAILED_TERRAIN_STEEP_RISK_PCT;
+    const steepMajor = input.steepMajorRiskPct ?? DETAILED_TERRAIN_STEEP_MAJOR_RISK_PCT;
+    const reliefRisk = input.reliefRiskM ?? DETAILED_TERRAIN_RELIEF_RISK_M;
+    const reliefMajor = input.reliefMajorM ?? DETAILED_TERRAIN_RELIEF_MAJOR_M;
+
+    if (!detailedEvaluated) {
       rows.push(
         constraint({
           id: "detailed_terrain_unavailable",
           severity: "unknown",
           title: "Detailed terrain not evaluated",
-          explanation: "Only coarse slope summaries were used. 1 m official DTM was not applied to this Candidate.",
-          whyItMatters: "Local grading and earthworks risk cannot be assessed from 1 km summaries.",
+          explanation:
+            input.terrainQueried === true
+              ? "Only coarse Copernicus GLO-90 slope summaries were used. Official Lantmäteriet 1 m DTM was not applied to this Candidate."
+              : "Official Lantmäteriet 1 m DTM was not evaluated for this Candidate.",
+          whyItMatters:
+            "Local slope and elevation variation cannot be assessed from coarse terrain alone. This is not a finding that terrain is simple.",
           evidenceCategory: "detailed_terrain",
           provenance: "official",
           evaluated: false,
-          measuredValue: input.terrainResolution ?? "coarse",
-          threshold: null,
+          measuredValue: input.terrainResolution ?? "not evaluated",
+          threshold: `preference ${slopeThreshold}° · steep risk ≥ ${steepRisk}% · relief risk ≥ ${reliefRisk} m (NOXHEIM screening assumptions)`,
           automaticExclusion: false,
           userActionRecommended: true,
+        }),
+      );
+    } else {
+      const classified = classifyDetailedTerrainSeverity({
+        pctAboveSlope: input.pctAboveSlope,
+        elevRangeM: input.elevRangeM,
+        meanSlopeDeg: input.meanSlopeDeg,
+        maxSlopeDegrees: slopeThreshold,
+        slopeMode,
+        steepRiskPct: steepRisk,
+        steepMajorRiskPct: steepMajor,
+        reliefRiskM: reliefRisk,
+        reliefMajorM: reliefMajor,
+      });
+      const explanation = describeDetailedTerrain({
+        meanSlopeDeg: input.meanSlopeDeg,
+        p90SlopeDeg: input.p90SlopeDeg,
+        pctAboveSlope: input.pctAboveSlope,
+        elevRangeM: input.elevRangeM,
+        thresholdDeg: slopeThreshold,
+      });
+      const measured = [
+        input.meanSlopeDeg != null ? `mean ${formatSlopeDeg(input.meanSlopeDeg)}` : null,
+        input.p90SlopeDeg != null ? `P90 ${formatSlopeDeg(input.p90SlopeDeg)}` : null,
+        input.elevRangeM != null ? `relief ${formatElevRangeM(input.elevRangeM)}` : null,
+        input.pctAboveSlope != null ? `steep ${formatSteepPct(input.pctAboveSlope)}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      const titles: Record<typeof classified.id, string> = {
+        detailed_terrain_steep_hard_exclusion: "Detailed terrain exceeds the hard slope exclusion",
+        detailed_terrain_steep_major: "Substantial steep or irregular detailed terrain",
+        detailed_terrain_steep_risk: "Material share of footprint above preferred slope",
+        detailed_terrain_relief_major: "Significant elevation variation within the footprint",
+        detailed_terrain_relief_risk: "Notable elevation range within the footprint",
+        detailed_terrain_context: "Detailed terrain within preferred screening range",
+      };
+      const why: Record<typeof classified.id, string> = {
+        detailed_terrain_steep_hard_exclusion:
+          "The active screening profile treats this mapped terrain as a reason not to proceed.",
+        detailed_terrain_steep_major:
+          "Local steep areas and terrain irregularity warrant early grading / earthworks review. This is not a constructability finding.",
+        detailed_terrain_steep_risk:
+          "Local terrain variation may increase grading complexity. Screening-level mapped terrain only.",
+        detailed_terrain_relief_major:
+          "Elevation variation within the Candidate footprint warrants early grading / earthworks review.",
+        detailed_terrain_relief_risk:
+          "Elevation variation should be reviewed for grading implications before further development spend.",
+        detailed_terrain_context:
+          "Mapped detailed terrain does not exceed screening preferences. This is not a finding that earthworks are unnecessary.",
+      };
+      rows.push(
+        constraint({
+          id: classified.id,
+          severity: classified.severity,
+          title: titles[classified.id],
+          explanation: `${explanation} Source: ${DETAILED_TERRAIN_DATASET_LABEL}.`,
+          whyItMatters: why[classified.id],
+          evidenceCategory: "detailed_terrain",
+          provenance: "official",
+          evaluated: true,
+          measuredValue: measured || null,
+          threshold:
+            slopeMode === "hard"
+              ? `hard ${slopeThreshold}° · steep major ≥ ${steepMajor}% (NOXHEIM screening assumptions)`
+              : `preference ${slopeThreshold}° · steep risk ≥ ${steepRisk}% · major ≥ ${steepMajor}% · relief risk ≥ ${reliefRisk} m · major ≥ ${reliefMajor} m (NOXHEIM screening assumptions)`,
+          automaticExclusion: classified.severity === "blocker",
+          userActionRecommended: classified.severity !== "info",
         }),
       );
     }

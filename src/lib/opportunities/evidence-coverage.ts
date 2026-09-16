@@ -203,6 +203,7 @@ export type CandidateEvidenceInput = {
   meanSlopeDeg: number | null;
   terrainProviderKey: string | null;
   terrainResolution: string | null;
+  detailedTerrainQueried?: boolean;
   coveringQueried: boolean;
   localCoveringName: string | null;
   nupCoveringName: string | null;
@@ -234,6 +235,7 @@ export function candidateToEvidenceInput(
     pctBelowSlope?: number | null;
     terrainProviderKey: string | null;
     terrainResolution: string | null;
+    detailedTerrainQueried?: boolean;
     coveringQueried: boolean;
     localCoveringName: string | null;
     nupCoveringName: string | null;
@@ -266,6 +268,7 @@ export function candidateToEvidenceInput(
     meanSlopeDeg: candidate.meanSlopeDeg,
     terrainProviderKey: candidate.terrainProviderKey,
     terrainResolution: candidate.terrainResolution,
+    detailedTerrainQueried: candidate.detailedTerrainQueried === true,
     coveringQueried: candidate.coveringQueried,
     localCoveringName: candidate.localCoveringName,
     nupCoveringName: candidate.nupCoveringName,
@@ -294,7 +297,9 @@ export function buildEvidenceCoverage(input: CandidateEvidenceInput): EvidenceCo
   const landProvider = input.landCoverProviderKey ?? (availability["nv-nmd-2023"] ? "nv-nmd-2023" : availability["nv-nmd-2018"] ? "nv-nmd-2018" : null);
   const terrainProvider = input.terrainProviderKey ?? (availability["copernicus-dem-glo90"] || availability.terrain ? TERRAIN_PROVIDER_PRIORITY.discoveryFallback : null);
   const detailedTerrain =
-    input.terrainResolution === "detailed" || terrainProvider === TERRAIN_PROVIDER_PRIORITY.detailed;
+    input.detailedTerrainQueried === true ||
+    input.terrainResolution === "detailed" ||
+    terrainProvider === TERRAIN_PROVIDER_PRIORITY.detailed;
 
   const items: EvidenceCoverageItem[] = [
     item({

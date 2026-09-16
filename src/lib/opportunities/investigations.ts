@@ -102,8 +102,17 @@ function actionFor(constraint: CandidateConstraint): { action: string; evidenceS
       };
     case "detailed_terrain_unavailable":
       return {
-        action: "Review detailed terrain / earthworks with higher-resolution elevation",
-        evidenceSource: "Official Source — Lantmäteriet 1 m DTM (not applied here)",
+        action: "Obtain Lantmäteriet detailed terrain for the Search Area",
+        evidenceSource: "Official Source — Lantmäteriet Markhöjdmodell 1 m DTM (not evaluated)",
+      };
+    case "detailed_terrain_steep_hard_exclusion":
+    case "detailed_terrain_steep_major":
+    case "detailed_terrain_steep_risk":
+    case "detailed_terrain_relief_major":
+    case "detailed_terrain_relief_risk":
+      return {
+        action: "Review grading / earthworks implications",
+        evidenceSource: "Official Source — Lantmäteriet Markhöjdmodell 1 m DTM",
       };
     case "road_unavailable":
       return {
