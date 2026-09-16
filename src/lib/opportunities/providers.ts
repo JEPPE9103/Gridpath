@@ -107,6 +107,15 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
       "CC0 OGC API Features surficial geology near mapping depth (~0.5 m). On-demand Search Area windows. Screening-level mapped composition — not a geotechnical investigation, bearing capacity, or constructability finding.",
   },
   {
+    key: "lst-ebh-potentiellt-fororenade",
+    name: "Länsstyrelserna Potentiellt förorenade områden (EBH)",
+    geography: "SE",
+    status: "supported",
+    dimensions: ["environmental"],
+    notes:
+      "Official EBH external point layer (ZIP shapefile, SWEREF99 TM). On-demand Search Area windows with disk cache. Screening-level environmental-history evidence — not contamination confirmation, remediation design, cost, or liability.",
+  },
+  {
     key: "lm-marktacke",
     name: "Lantmäteriet Marktäcke Nedladdning, vektor",
     geography: "SE",

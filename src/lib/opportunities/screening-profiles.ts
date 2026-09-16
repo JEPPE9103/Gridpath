@@ -76,6 +76,7 @@ export type ScreeningProfileCriteria = {
   groundClayMajorRiskPct: number | null;
   groundPeatRiskPct: number | null;
   groundPeatMajorRiskPct: number | null;
+  contaminationMode: SlopeConstraintMode;
 };
 
 export type ScreeningProfileRecord = {
@@ -102,7 +103,7 @@ export function screeningProfileMaturity(
 
 export function screeningProfileAssumptionNote(technology: OpportunityTechnologyValue): string {
   if (technology === "battery_storage") {
-    return "Sweden BESS Standard screening assumptions: 8 / 15 / 30 ha footprint preference, 5° slope preference, 1 km road preference, protected and Natura excluded, MSB mapped flood (BHF) evaluated with risk ≥1% and major risk ≥10% overlap (preference mode — not a hard exclusion), SGU surficial geology evaluated with clay risk ≥15% / major ≥40% and peat risk ≥5% / major ≥15% (preference mode — not a hard exclusion). These are product screening defaults, not engineering or geotechnical design standards. Target MW does not change Candidate geometry.";
+    return "Sweden BESS Standard screening assumptions: 8 / 15 / 30 ha footprint preference, 5° slope preference, 1 km road preference, protected and Natura excluded, MSB mapped flood (BHF) evaluated with risk ≥1% and major risk ≥10% overlap (preference mode — not a hard exclusion), SGU surficial geology evaluated with clay risk ≥15% / major ≥40% and peat risk ≥5% / major ≥15% (preference mode — not a hard exclusion), Länsstyrelserna EBH potentially contaminated-site records evaluated for environmental-history investigation priority (preference mode — not a hard exclusion). These are product screening defaults, not engineering or geotechnical design standards. Target MW does not change Candidate geometry.";
   }
   if (technology === "solar") {
     return "BETA solar screening assumptions: larger footprint preference (10 / 25 / 50 ha), 7° slope preference, open and agricultural land preferred, forest deprioritised. Configurable screening defaults, not a PV design standard. Target MW does not change Candidate geometry.";
@@ -211,6 +212,7 @@ export function defaultScreeningProfile(
       groundClayMajorRiskPct: 40,
       groundPeatRiskPct: 5,
       groundPeatMajorRiskPct: 15,
+      contaminationMode: "preference",
       assumptions: {
         maxInvestigationDistanceKm: null,
         investigationBudgetNote: null,
@@ -313,6 +315,7 @@ export function parseScreeningProfileCriteria(raw: unknown): ScreeningProfileCri
     groundClayMajorRiskPct: numberOrNull(value.groundClayMajorRiskPct) ?? fallback.groundClayMajorRiskPct,
     groundPeatRiskPct: numberOrNull(value.groundPeatRiskPct) ?? fallback.groundPeatRiskPct,
     groundPeatMajorRiskPct: numberOrNull(value.groundPeatMajorRiskPct) ?? fallback.groundPeatMajorRiskPct,
+    contaminationMode: value.contaminationMode === "hard" ? "hard" : "preference",
     assumptions: {
       maxInvestigationDistanceKm: numberOrNull(
         value.assumptions && typeof value.assumptions === "object"

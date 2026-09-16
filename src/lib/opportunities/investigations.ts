@@ -71,11 +71,18 @@ function priorityFor(constraint: CandidateConstraint): InvestigationPriority {
       constraint.id === "protected_not_evaluated" ||
       constraint.id === "natura_not_evaluated" ||
       constraint.id === "flood_unavailable" ||
-      constraint.id === "ground_unavailable"
+      constraint.id === "ground_unavailable" ||
+      constraint.id === "contamination_unavailable"
     ) {
       return "now";
     }
     return "next";
+  }
+  if (
+    constraint.id === "contamination_intersecting_record" ||
+    constraint.id === "contamination_high_risk_intersecting"
+  ) {
+    return "now";
   }
   if (constraint.severity === "risk") return "next";
   return "later";
@@ -163,6 +170,23 @@ function actionFor(constraint: CandidateConstraint): { action: string; evidenceS
       return {
         action: "Verify ground conditions with geotechnical investigation",
         evidenceSource: "Official Source — SGU Jordarter (grundlager)",
+      };
+    case "contamination_unavailable":
+      return {
+        action: "Obtain contamination/environmental-history evidence",
+        evidenceSource: "Official Source — Länsstyrelserna EBH (not evaluated)",
+      };
+    case "contamination_hard_exclusion":
+    case "contamination_intersecting_record":
+    case "contamination_high_risk_intersecting":
+      return {
+        action: "Review environmental history before land commitment",
+        evidenceSource: "Official Source — Länsstyrelserna EBH (potentiellt förorenade områden)",
+      };
+    case "contamination_nearby_record":
+      return {
+        action: "Review whether nearby historical activity could affect Candidate",
+        evidenceSource: "Official Source — Länsstyrelserna EBH (potentiellt förorenade områden)",
       };
     case "network_covering_capacity_unknown":
     case "network_covering_none":

@@ -26,6 +26,7 @@ describe("discovery ingest progress", () => {
       "Loading road geography",
       "Loading flood geography",
       "Loading ground / soil",
+      "Loading environmental history",
       "Running screening",
       "Generating Candidate Sites",
     ].join("|"));
@@ -38,7 +39,9 @@ describe("discovery ingest progress", () => {
     assert.equal(mid.activeId, "flood");
     const ground = discoveryProgressForElapsed(9_000);
     assert.equal(ground.activeId, "ground");
-    const later = discoveryProgressForElapsed(13_000);
+    const contamination = discoveryProgressForElapsed(11_000);
+    assert.equal(contamination.activeId, "contamination");
+    const later = discoveryProgressForElapsed(15_000);
     assert.equal(later.activeId, "screening");
   });
 

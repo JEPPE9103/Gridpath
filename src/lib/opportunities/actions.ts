@@ -218,6 +218,17 @@ async function executeGeographicScreening(input: {
       searchId: input.searchId,
     };
   }
+  const { error: contaminationError } = await input.supabase.rpc("apply_contamination_to_run", {
+    p_run_id: runRow.run_id,
+  });
+  if (contaminationError) {
+    console.error("executeGeographicScreening contamination assessment failed", contaminationError.message);
+    return {
+      error: publicError(contaminationError.message, "Screening ran but environmental-history assessment failed."),
+      values: input.values,
+      searchId: input.searchId,
+    };
+  }
   try {
     await applyScreeningRunAssessments(input.supabase, runRow.run_id, input.criteria);
   } catch (error) {
@@ -240,7 +251,7 @@ async function applyScreeningRunAssessments(
   const { data: rows, error } = await supabase
     .from("opportunity_run_candidates")
     .select(
-      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, mean_slope_deg, median_slope_deg, p90_slope_deg, pct_below_slope, terrain_queried, land_cover, land_cover_queried, road_distance_m, road_class, road_queried, flood_queried, flood_overlap_pct, flood_overlap_ha, flood_classes, flood_provider_key, ground_queried, ground_composition, ground_dominant_group, ground_source_classes, ground_provider_key, ground_map_scale, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, transmission_context, discovery_contiguous_area_ha, compactness, geometry_quality, target_fit_score, candidate_kind",
+      "id, name, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, protected_names, natura_names, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, mean_slope_deg, median_slope_deg, p90_slope_deg, pct_below_slope, terrain_queried, land_cover, land_cover_queried, road_distance_m, road_class, road_queried, flood_queried, flood_overlap_pct, flood_overlap_ha, flood_classes, flood_provider_key, ground_queried, ground_composition, ground_dominant_group, ground_source_classes, ground_provider_key, ground_map_scale, contamination_queried, contamination_intersecting_count, contamination_nearby_count, contamination_nearest_m, contamination_risk_classes, contamination_statuses, contamination_record_ids, contamination_provider_key, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, transmission_context, discovery_contiguous_area_ha, compactness, geometry_quality, target_fit_score, candidate_kind",
     )
     .eq("run_id", runId)
     .eq("candidate_kind", "site");
@@ -726,6 +737,13 @@ export async function rerunOpportunitySearchAction(formData: FormData): Promise<
     console.error("rerunOpportunitySearchAction ground composition failed", groundError.message);
     return;
   }
+  const { error: contaminationError } = await supabase.rpc("apply_contamination_to_run", {
+    p_run_id: runRow.run_id,
+  });
+  if (contaminationError) {
+    console.error("rerunOpportunitySearchAction contamination assessment failed", contaminationError.message);
+    return;
+  }
 
   await applyScreeningRunAssessments(supabase, runRow.run_id, {
     technology: isOpportunityTechnology(search.technology) ? search.technology : "other",
@@ -763,6 +781,7 @@ export async function rerunOpportunitySearchAction(formData: FormData): Promise<
     groundClayMajorRiskPct: 40,
     groundPeatRiskPct: 5,
     groundPeatMajorRiskPct: 15,
+    contaminationMode: "preference",
   });
 
   revalidateOpportunityPaths();
@@ -835,6 +854,7 @@ export async function refineOpportunityCandidatesAction(formData: FormData): Pro
       groundClayMajorRiskPct: 40,
       groundPeatRiskPct: 5,
       groundPeatMajorRiskPct: 15,
+      contaminationMode: "preference",
     });
   }
   revalidateOpportunityPaths();

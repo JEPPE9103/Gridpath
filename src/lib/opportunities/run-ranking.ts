@@ -112,6 +112,14 @@ export type ScreeningCellRow = {
   ground_source_classes?: string[] | null;
   ground_provider_key?: string | null;
   ground_map_scale?: string | null;
+  contamination_queried?: boolean | null;
+  contamination_intersecting_count?: number | string | null;
+  contamination_nearby_count?: number | string | null;
+  contamination_nearest_m?: number | string | null;
+  contamination_risk_classes?: string[] | null;
+  contamination_statuses?: string[] | null;
+  contamination_record_ids?: string[] | null;
+  contamination_provider_key?: string | null;
   exclusion_breakdown?: ExclusionBreakdown | null;
   screening_stage?: string | null;
   refinement_status?: string | null;
@@ -265,6 +273,10 @@ function environmentalScore(row: ScreeningCellRow, screening: ScreeningResult): 
   let score = Math.max(0, 1 - (prot + nat + flood) / 100);
   // Missing flood evidence must never improve environmental score.
   if (row.flood_queried !== true) {
+    score = Math.min(score, 0.55);
+  }
+  // Missing environmental-history evidence must never improve environmental score.
+  if (row.contamination_queried !== true) {
     score = Math.min(score, 0.55);
   }
   return score;
@@ -526,6 +538,13 @@ export function rankScreeningCells(
         groundComposition: item.row.ground_composition ?? {},
         groundDominantGroup: item.row.ground_dominant_group ?? null,
         groundSourceClasses: item.row.ground_source_classes ?? [],
+        contaminationQueried: item.row.contamination_queried === true,
+        contaminationIntersectingCount: num(item.row.contamination_intersecting_count),
+        contaminationNearbyCount: num(item.row.contamination_nearby_count),
+        contaminationNearestM: num(item.row.contamination_nearest_m),
+        contaminationRiskClasses: item.row.contamination_risk_classes ?? [],
+        contaminationStatuses: item.row.contamination_statuses ?? [],
+        contaminationRecordIds: item.row.contamination_record_ids ?? [],
         keyPositive: item.screening.positives[0] ?? null,
         keyRisk: item.screening.risks[0] ?? null,
         targetFitLabel: null,

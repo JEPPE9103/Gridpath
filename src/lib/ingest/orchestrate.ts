@@ -1,11 +1,13 @@
 import { coverageGapMessage, onDemandSourcePlan, parseSearchAreaCoverage, type SearchAreaCoverage } from "@/lib/ingest/coverage";
 import {
+  CONTAMINATION_SOURCE_SLUG,
   COPERNICUS_SOURCE_SLUG,
   FLOOD_SOURCE_SLUG,
   GROUND_SOURCE_SLUG,
   NMD_SOURCE_SLUG,
   ROADLINK_SOURCE_SLUG,
   clipWindowToSearch,
+  contaminationWindows,
   copernicusWindows,
   floodWindows,
   groundWindows,
@@ -14,6 +16,7 @@ import {
   type CoverageWindow,
 } from "@/lib/ingest/coverage-keys";
 import { copernicusCogUrl, copernicusSnapshotHash, fetchCopernicusTileSummaries } from "@/lib/ingest/copernicus";
+import { contaminationSnapshotHash, fetchContaminationFeatures } from "@/lib/ingest/ebh";
 import { fetchFloodFeatures, floodSnapshotHash } from "@/lib/ingest/flood";
 import { fetchGroundFeatures, groundSnapshotHash } from "@/lib/ingest/ground";
 import {
@@ -187,6 +190,39 @@ async function upsertGround(service: SupabaseClient, snapshotId: string | null, 
   return count;
 }
 
+async function upsertContamination(service: SupabaseClient, snapshotId: string | null, rows: unknown[]): Promise<number> {
+  let count = 0;
+  const batch = 200;
+  for (let i = 0; i < rows.length; i += batch) {
+    // Points are bbox-filtered in fetch; do not pass clip* (upsert clip path extracts polygons only).
+    const payload = (
+      rows.slice(i, i + batch) as Array<{
+        id: string;
+        name: string;
+        designation: string;
+        geom: unknown;
+        properties: Record<string, unknown>;
+      }>
+    ).map((row) => ({
+      id: row.id,
+      name: row.name,
+      designation: row.designation,
+      geom: JSON.stringify(row.geom),
+      properties: row.properties,
+      sourceVersion: CONTAMINATION_SOURCE_SLUG,
+    }));
+    const { data, error } = await service.rpc("upsert_official_geographic_features", {
+      p_source_slug: CONTAMINATION_SOURCE_SLUG,
+      p_snapshot_id: snapshotId,
+      p_feature_class: "mapped_contamination",
+      p_rows: payload,
+    });
+    if (error) throw new Error(error.message);
+    count += Number(data ?? 0);
+  }
+  return count;
+}
+
 async function withWindow(
   service: SupabaseClient,
   window: CoverageWindow,
@@ -291,6 +327,35 @@ async function ingestGroundWindow(service: SupabaseClient, window: CoverageWindo
     });
     await upsertGround(service, snapshotId, rows);
     return { status: rows.length > 0 ? "covered" : "partial", snapshotId, version: "sgu-jordarter-25k-100k" };
+  });
+}
+
+async function ingestContaminationWindow(
+  service: SupabaseClient,
+  window: CoverageWindow,
+  search: SearchBbox,
+): Promise<DiscoverySourceRun> {
+  const clipped = clipWindowToSearch(window.bbox, search) ?? window.bbox;
+  return withWindow(service, window, async () => {
+    const rows = await fetchContaminationFeatures(clipped);
+    const etag =
+      typeof rows[0]?.properties?.sourceEtag === "string" ? (rows[0].properties.sourceEtag as string) : null;
+    const snapshotId = await insertSnapshot(
+      service,
+      CONTAMINATION_SOURCE_SLUG,
+      contaminationSnapshotHash(clipped, rows.length, etag),
+      {
+        publisher: "Länsstyrelserna / EBH-stödet",
+        dataset: "Potentiellt förorenade områden (extern)",
+        bbox: clipped,
+        feature_count: rows.length,
+        normalize_version: "contamination-normalize-v1",
+        note: "Empty feature_count means the window was evaluated with no mapped EBH points. Screening-level environmental-history evidence — not contamination confirmation.",
+      },
+    );
+    await upsertContamination(service, snapshotId, rows);
+    // Covered even when zero points — evaluated "no mapped records in dataset".
+    return { status: "covered", snapshotId, version: "lst-ebh" };
   });
 }
 
@@ -431,6 +496,25 @@ export async function ensureSearchAreaEvidence(input: {
       sources.push(result);
       if (result.action === "fetched") fetched.push(GROUND_SOURCE_SLUG);
       if (result.action === "failed") messages.push(coverageGapMessage(GROUND_SOURCE_SLUG, result.detail ?? ""));
+    }
+  }
+
+  await emit("contamination");
+  const contaminationPlan = plan.find((item) => item.slug === CONTAMINATION_SOURCE_SLUG);
+  if (!contaminationPlan?.fetch) {
+    sources.push({
+      slug: CONTAMINATION_SOURCE_SLUG,
+      action: "cache",
+      detail: contaminationPlan?.status ?? "covered",
+    });
+  } else {
+    for (const window of contaminationWindows(input.bbox)) {
+      const result = await ingestContaminationWindow(input.service, window, input.bbox);
+      sources.push(result);
+      if (result.action === "fetched") fetched.push(CONTAMINATION_SOURCE_SLUG);
+      if (result.action === "failed") {
+        messages.push(coverageGapMessage(CONTAMINATION_SOURCE_SLUG, result.detail ?? ""));
+      }
     }
   }
 

@@ -15,6 +15,13 @@ import type { EvidenceSourceValue } from "@/lib/opportunities/catalog";
 import type { EvidenceCategoryId } from "@/lib/opportunities/evidence-coverage";
 import { opportunityCopyContainsForbiddenTerm } from "@/lib/opportunities/copy";
 import {
+  CONTAMINATION_NEARBY_M,
+  describeContaminationEvidence,
+  formatContaminationNearestM,
+  isHighOfficialRiskClass,
+  type ContaminationConstraintMode,
+} from "@/lib/opportunities/contamination";
+import {
   GROUND_GROUP_LABELS,
   describeGroundComposition,
   formatGroundPct,
@@ -97,6 +104,16 @@ export type CandidateConstraintInput = {
   groundClayMajorRiskPct?: number | null;
   groundPeatRiskPct?: number | null;
   groundPeatMajorRiskPct?: number | null;
+  contaminationQueried?: boolean;
+  contaminationIntersectingCount?: number | null;
+  contaminationNearbyCount?: number | null;
+  contaminationNearestM?: number | null;
+  contaminationRiskClasses?: string[] | null;
+  contaminationStatuses?: string[] | null;
+  contaminationRecordIds?: string[] | null;
+  contaminationProviderKey?: string | null;
+  /** preference (default) = risk/major_risk only; hard = intersecting becomes BLOCKER. Never default blocker. */
+  contaminationMode?: ContaminationConstraintMode | SlopeConstraintMode | null;
 };
 
 const SEVERITY_ORDER: Record<ConstraintSeverity, number> = {
@@ -587,6 +604,116 @@ export function deriveCandidateConstraints(input: CandidateConstraintInput): Can
           }),
         );
       }
+    }
+  }
+
+  {
+    const contaminationMode = input.contaminationMode === "hard" ? "hard" : "preference";
+    const intersecting = input.contaminationIntersectingCount ?? 0;
+    const nearby = input.contaminationNearbyCount ?? 0;
+    const riskClasses = (input.contaminationRiskClasses ?? []).filter(Boolean);
+    const highRisk = riskClasses.some((item) => isHighOfficialRiskClass(item));
+    const evidenceText = describeContaminationEvidence({
+      intersectingCount: intersecting,
+      nearbyCount: nearby,
+      nearestM: input.contaminationNearestM,
+      riskClasses,
+    });
+
+    if (input.contaminationQueried !== true) {
+      rows.push(
+        constraint({
+          id: "contamination_unavailable",
+          severity: "unknown",
+          title: "Environmental history evidence not evaluated",
+          explanation:
+            "Official potentially contaminated-site (EBH) records were not evaluated for this Candidate.",
+          whyItMatters:
+            "Screening-level environmental history is unknown. This is not a finding that environmental history is absent.",
+          evidenceCategory: "environmental_history",
+          provenance: "official",
+          evaluated: false,
+          measuredValue: null,
+          threshold:
+            contaminationMode === "hard"
+              ? "hard exclusion when any official record intersects the footprint (screening assumption)"
+              : "preference mode — intersecting records are risks, not automatic exclusions",
+          automaticExclusion: false,
+          userActionRecommended: true,
+        }),
+      );
+    } else if (intersecting > 0) {
+      const hardHit = contaminationMode === "hard";
+      const measured =
+        intersecting === 1
+          ? `1 intersecting record${input.contaminationNearestM != null ? ` · nearest ${formatContaminationNearestM(input.contaminationNearestM)}` : ""}`
+          : `${intersecting} intersecting records${input.contaminationNearestM != null ? ` · nearest ${formatContaminationNearestM(input.contaminationNearestM)}` : ""}`;
+      rows.push(
+        constraint({
+          id: hardHit
+            ? "contamination_hard_exclusion"
+            : highRisk
+              ? "contamination_high_risk_intersecting"
+              : "contamination_intersecting_record",
+          severity: hardHit ? "blocker" : highRisk ? "major_risk" : "risk",
+          title: hardHit
+            ? "Official environmental-history record intersects the hard exclusion profile"
+            : highRisk
+              ? "High official-risk environmental-history record intersects the footprint"
+              : "Official environmental-history record intersects the footprint",
+          explanation: evidenceText,
+          whyItMatters: hardHit
+            ? "The active screening profile treats an intersecting official EBH record as a reason not to proceed."
+            : "Mapped environmental-history records warrant review before further land commitment. A registered record is not confirmed contamination of Candidate land.",
+          evidenceCategory: "environmental_history",
+          provenance: "official",
+          evaluated: true,
+          measuredValue: measured,
+          threshold: hardHit
+            ? "hard · any intersecting record"
+            : highRisk
+              ? "official high-risk classification (MIFO 1–2 / stor risk language)"
+              : "any intersecting official EBH record",
+          automaticExclusion: hardHit,
+          userActionRecommended: true,
+        }),
+      );
+    } else if (nearby > 0) {
+      rows.push(
+        constraint({
+          id: "contamination_nearby_record",
+          severity: "risk",
+          title: "Official environmental-history record nearby",
+          explanation: evidenceText,
+          whyItMatters:
+            "Nearby historical activity within the screening distance may affect investigation planning. Proximity is not confirmed contamination of the Candidate footprint.",
+          evidenceCategory: "environmental_history",
+          provenance: "official",
+          evaluated: true,
+          measuredValue: `${nearby} within ${CONTAMINATION_NEARBY_M} m${input.contaminationNearestM != null ? ` · nearest ${formatContaminationNearestM(input.contaminationNearestM)}` : ""}`,
+          threshold: `nearby ≤ ${CONTAMINATION_NEARBY_M} m (screening assumption)`,
+          automaticExclusion: false,
+          userActionRecommended: true,
+        }),
+      );
+    } else {
+      rows.push(
+        constraint({
+          id: "contamination_no_mapped_records",
+          severity: "info",
+          title: "No mapped environmental-history records in the evaluated dataset",
+          explanation: evidenceText,
+          whyItMatters:
+            "No mapped official EBH record nearby is not the same as absent environmental history. Other mechanisms and local conditions remain outside this screening.",
+          evidenceCategory: "environmental_history",
+          provenance: "official",
+          evaluated: true,
+          measuredValue: "0 intersecting · 0 nearby",
+          threshold: null,
+          automaticExclusion: false,
+          userActionRecommended: false,
+        }),
+      );
     }
   }
 

@@ -39,6 +39,7 @@ export type EvidenceCategoryId =
   | "road_access"
   | "flood_water"
   | "ground_soil"
+  | "environmental_history"
   | "residential_proximity";
 
 export type EvidenceSourceDetail = {
@@ -84,6 +85,7 @@ const CATEGORY_LABELS: Record<EvidenceCategoryId, string> = {
   road_access: "Road proximity",
   flood_water: "Water / flood",
   ground_soil: "Ground / soil",
+  environmental_history: "Environmental history",
   residential_proximity: "Residential proximity",
 };
 
@@ -98,6 +100,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   "trafikverket-inspire-roadlink": "Trafikverket",
   "msb-oversvamningskartering": "MSB / MCF",
   "sgu-jordarter-25k-100k": "SGU",
+  "lst-ebh-potentiellt-fororenade": "Länsstyrelserna / EBH",
   terrain: "Copernicus",
   "land-cover": "Naturvårdsverket",
 };
@@ -215,6 +218,11 @@ export type CandidateEvidenceInput = {
   groundQueried: boolean;
   groundComposition: Record<string, number> | null;
   groundDominantGroup: string | null;
+  contaminationQueried: boolean;
+  contaminationIntersectingCount: number | null;
+  contaminationNearbyCount: number | null;
+  contaminationNearestM: number | null;
+  contaminationRiskClasses: string[] | null;
   providerAvailability?: Record<string, boolean>;
   sourceVersions?: Record<string, string | null>;
 };
@@ -246,6 +254,11 @@ export function candidateToEvidenceInput(
     groundQueried?: boolean;
     groundComposition?: Record<string, number> | null;
     groundDominantGroup?: string | null;
+    contaminationQueried?: boolean;
+    contaminationIntersectingCount?: number | null;
+    contaminationNearbyCount?: number | null;
+    contaminationNearestM?: number | null;
+    contaminationRiskClasses?: string[] | null;
   },
   extras?: {
     providerAvailability?: Record<string, boolean>;
@@ -278,6 +291,11 @@ export function candidateToEvidenceInput(
     groundQueried: candidate.groundQueried === true,
     groundComposition: candidate.groundComposition ?? null,
     groundDominantGroup: candidate.groundDominantGroup ?? null,
+    contaminationQueried: candidate.contaminationQueried === true,
+    contaminationIntersectingCount: candidate.contaminationIntersectingCount ?? null,
+    contaminationNearbyCount: candidate.contaminationNearbyCount ?? null,
+    contaminationNearestM: candidate.contaminationNearestM ?? null,
+    contaminationRiskClasses: candidate.contaminationRiskClasses ?? null,
     providerAvailability: extras?.providerAvailability,
     sourceVersions: extras?.sourceVersions,
   };
@@ -469,6 +487,35 @@ export function buildEvidenceCoverage(input: CandidateEvidenceInput): EvidenceCo
       required: true,
     }),
     item({
+      id: "environmental_history",
+      state: input.contaminationQueried ? "evaluated" : "not_evaluated",
+      summary: input.contaminationQueried
+        ? input.contaminationIntersectingCount != null || input.contaminationNearbyCount != null
+          ? (() => {
+              const intersecting = input.contaminationIntersectingCount ?? 0;
+              const nearby = input.contaminationNearbyCount ?? 0;
+              if (intersecting <= 0 && nearby <= 0) {
+                return "No mapped official potentially contaminated-site records in evaluated dataset";
+              }
+              const parts: string[] = [];
+              if (intersecting > 0) parts.push(`${intersecting} intersecting`);
+              if (nearby > 0) parts.push(`${nearby} nearby`);
+              return `Official potentially contaminated-site records: ${parts.join(", ")}`;
+            })()
+          : "Official potentially contaminated-site records evaluated"
+        : "Not evaluated",
+      provenance: input.contaminationQueried ? "official" : null,
+      sourceDetail: input.contaminationQueried
+        ? sourceDetail({
+            providerKey: "lst-ebh-potentiellt-fororenade",
+            dataset: "Potentiellt förorenade områden (EBH)",
+            version: "Länsstyrelserna external layer",
+            snapshot: versions["lst-ebh-potentiellt-fororenade"] ?? null,
+          })
+        : null,
+      required: true,
+    }),
+    item({
       id: "residential_proximity",
       state: "not_evaluated",
       summary: "Not evaluated",
@@ -530,6 +577,11 @@ export function buildEvidenceCoverageFromAssessments(input: {
     groundQueried: false,
     groundComposition: null,
     groundDominantGroup: null,
+    contaminationQueried: false,
+    contaminationIntersectingCount: null,
+    contaminationNearbyCount: null,
+    contaminationNearestM: null,
+    contaminationRiskClasses: null,
   });
 }
 

@@ -65,6 +65,8 @@ export type ScreeningCriteria = {
   groundClayMajorRiskPct?: number | null;
   groundPeatRiskPct?: number | null;
   groundPeatMajorRiskPct?: number | null;
+  /** preference (default) or hard exclusion on intersecting EBH records. */
+  contaminationMode?: SlopeConstraintMode;
 };
 
 export type OfficialCoveringEvidence = {

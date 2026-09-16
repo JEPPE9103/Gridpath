@@ -1,4 +1,5 @@
 import {
+  CONTAMINATION_SOURCE_SLUG,
   COPERNICUS_SOURCE_SLUG,
   FLOOD_SOURCE_SLUG,
   GROUND_SOURCE_SLUG,
@@ -27,6 +28,7 @@ export type SearchAreaCoverage = {
   roadlink: LayerCoverage;
   flood: LayerCoverage;
   ground: LayerCoverage;
+  contamination: LayerCoverage;
   protectedAreas: LayerCoverage;
   natura2000: LayerCoverage;
   eiNetworkAreas: LayerCoverage;
@@ -73,6 +75,7 @@ export function parseSearchAreaCoverage(value: unknown): SearchAreaCoverage | nu
     roadlink: asLayer(row.roadlink, EMPTY_LAYER),
     flood: asLayer(row.flood, EMPTY_LAYER),
     ground: asLayer(row.ground, EMPTY_LAYER),
+    contamination: asLayer(row.contamination ?? row.environmentalHistory, EMPTY_LAYER),
     protectedAreas: asLayer(row.protectedAreas, EMPTY_CATALOG),
     natura2000: asLayer(row.natura2000, EMPTY_CATALOG),
     eiNetworkAreas: asLayer(row.eiNetworkAreas, EMPTY_CATALOG),
@@ -86,7 +89,8 @@ export type OnDemandSourcePlan = {
     | typeof COPERNICUS_SOURCE_SLUG
     | typeof ROADLINK_SOURCE_SLUG
     | typeof FLOOD_SOURCE_SLUG
-    | typeof GROUND_SOURCE_SLUG;
+    | typeof GROUND_SOURCE_SLUG
+    | typeof CONTAMINATION_SOURCE_SLUG;
   fetch: boolean;
   status: CoverageStatus;
 };
@@ -114,6 +118,11 @@ export function onDemandSourcePlan(coverage: SearchAreaCoverage): OnDemandSource
       fetch: needsOnDemandFetch(coverage.ground.status),
       status: coverage.ground.status,
     },
+    {
+      slug: CONTAMINATION_SOURCE_SLUG,
+      fetch: needsOnDemandFetch(coverage.contamination.status),
+      status: coverage.contamination.status,
+    },
   ];
 }
 
@@ -132,6 +141,9 @@ export function coverageGapMessage(slug: string, reason: string): string {
   }
   if (slug === GROUND_SOURCE_SLUG) {
     return `Ground/soil evidence unavailable — screening continued with reduced evidence. ${reason}`.trim();
+  }
+  if (slug === CONTAMINATION_SOURCE_SLUG) {
+    return `Environmental-history evidence unavailable — screening continued with reduced evidence. ${reason}`.trim();
   }
   return `Official evidence unavailable — screening continued with reduced evidence. ${reason}`.trim();
 }

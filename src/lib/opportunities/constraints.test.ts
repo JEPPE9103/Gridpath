@@ -41,6 +41,12 @@ const BASE = {
   groundDominantGroup: "TILL",
   groundSourceClasses: ["Morän"],
   groundMode: "preference" as const,
+  contaminationQueried: true,
+  contaminationIntersectingCount: 0,
+  contaminationNearbyCount: 0,
+  contaminationNearestM: null as number | null,
+  contaminationRiskClasses: [] as string[],
+  contaminationMode: "preference" as const,
 };
 
 describe("candidate constraints", () => {

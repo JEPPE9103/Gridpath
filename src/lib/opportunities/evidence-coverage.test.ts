@@ -43,13 +43,18 @@ const CORE_EVALUATED = {
   groundQueried: true,
   groundComposition: { TILL: 80, BEDROCK: 20 },
   groundDominantGroup: "TILL",
+  contaminationQueried: true,
+  contaminationIntersectingCount: 0,
+  contaminationNearbyCount: 0,
+  contaminationNearestM: null,
+  contaminationRiskClasses: [],
 };
 
 describe("evidence coverage", () => {
   it("distinguishes evaluated official evidence from missing categories", () => {
     const coverage = buildEvidenceCoverage(CORE_EVALUATED);
-    assert.equal(coverage.evaluatedCount, 7);
-    assert.equal(coverage.totalCount, 10);
+    assert.equal(coverage.evaluatedCount, 8);
+    assert.equal(coverage.totalCount, 11);
     const land = coverage.items.find((item) => item.id === "land_cover");
     const roads = coverage.items.find((item) => item.id === "road_access");
     const residential = coverage.items.find((item) => item.id === "residential_proximity");

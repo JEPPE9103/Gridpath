@@ -47,6 +47,7 @@ export function intelligenceCriteriaForTechnology(
     groundClayMajorRiskPct?: number | null;
     groundPeatRiskPct?: number | null;
     groundPeatMajorRiskPct?: number | null;
+    contaminationMode?: "preference" | "hard" | null;
   } | null,
 ): Parameters<typeof constraintInputFromCandidate>[1] {
   const pack = defaultScreeningProfile(
@@ -69,6 +70,7 @@ export function intelligenceCriteriaForTechnology(
     groundClayMajorRiskPct: searchCriteria?.groundClayMajorRiskPct ?? pack.groundClayMajorRiskPct,
     groundPeatRiskPct: searchCriteria?.groundPeatRiskPct ?? pack.groundPeatRiskPct,
     groundPeatMajorRiskPct: searchCriteria?.groundPeatMajorRiskPct ?? pack.groundPeatMajorRiskPct,
+    contaminationMode: searchCriteria?.contaminationMode === "hard" ? "hard" : pack.contaminationMode,
   };
 }
 
@@ -101,6 +103,13 @@ export function constraintInputFromCandidate(
     | "groundComposition"
     | "groundDominantGroup"
     | "groundSourceClasses"
+    | "contaminationQueried"
+    | "contaminationIntersectingCount"
+    | "contaminationNearbyCount"
+    | "contaminationNearestM"
+    | "contaminationRiskClasses"
+    | "contaminationStatuses"
+    | "contaminationRecordIds"
   >,
   criteria?: Pick<
     ScreeningCriteria,
@@ -120,6 +129,7 @@ export function constraintInputFromCandidate(
     | "groundClayMajorRiskPct"
     | "groundPeatRiskPct"
     | "groundPeatMajorRiskPct"
+    | "contaminationMode"
   >,
 ): CandidateConstraintInput {
   return {
@@ -165,6 +175,14 @@ export function constraintInputFromCandidate(
     groundClayMajorRiskPct: criteria?.groundClayMajorRiskPct ?? 40,
     groundPeatRiskPct: criteria?.groundPeatRiskPct ?? 5,
     groundPeatMajorRiskPct: criteria?.groundPeatMajorRiskPct ?? 15,
+    contaminationQueried: candidate.contaminationQueried,
+    contaminationIntersectingCount: candidate.contaminationIntersectingCount,
+    contaminationNearbyCount: candidate.contaminationNearbyCount,
+    contaminationNearestM: candidate.contaminationNearestM,
+    contaminationRiskClasses: candidate.contaminationRiskClasses,
+    contaminationStatuses: candidate.contaminationStatuses,
+    contaminationRecordIds: candidate.contaminationRecordIds,
+    contaminationMode: criteria?.contaminationMode ?? "preference",
   };
 }
 
@@ -182,6 +200,9 @@ export function whyCandidateLags(candidate: {
   floodOverlapPct?: number | null;
   groundQueried?: boolean;
   groundComposition?: Record<string, number>;
+  contaminationQueried?: boolean;
+  contaminationIntersectingCount?: number | null;
+  contaminationNearbyCount?: number | null;
   keyRisk?: string | null;
   excluded?: boolean;
 }): string[] {
@@ -210,6 +231,13 @@ export function whyCandidateLags(candidate: {
     Number(candidate.groundComposition?.PEAT_ORGANIC ?? 0) >= 5
   ) {
     negatives.push("Mapped clay or peat/organic ground indicated across part of the footprint");
+  }
+  if (candidate.contaminationQueried !== true) {
+    negatives.push("Environmental history evidence not evaluated");
+  } else if ((candidate.contaminationIntersectingCount ?? 0) > 0) {
+    negatives.push("Official environmental-history record intersects the Candidate footprint");
+  } else if ((candidate.contaminationNearbyCount ?? 0) > 0) {
+    negatives.push("Official environmental-history record nearby");
   }
   if (negatives.length === 0 && candidate.keyRisk) negatives.push(candidate.keyRisk);
   return negatives.slice(0, 4);
@@ -262,6 +290,13 @@ export function constraintInputFromScreeningCell(
     ground_composition?: Record<string, number> | null;
     ground_dominant_group?: string | null;
     ground_source_classes?: string[] | null;
+    contamination_queried?: boolean | null;
+    contamination_intersecting_count?: number | string | null;
+    contamination_nearby_count?: number | string | null;
+    contamination_nearest_m?: number | string | null;
+    contamination_risk_classes?: string[] | null;
+    contamination_statuses?: string[] | null;
+    contamination_record_ids?: string[] | null;
   },
   criteria?: Parameters<typeof constraintInputFromCandidate>[1],
   extras?: { excluded?: boolean; exclusionReason?: string | null },
@@ -300,6 +335,19 @@ export function constraintInputFromScreeningCell(
       groundDominantGroup: row.ground_dominant_group ?? null,
       groundSourceClasses: Array.isArray(row.ground_source_classes)
         ? row.ground_source_classes.map(String)
+        : [],
+      contaminationQueried: row.contamination_queried === true,
+      contaminationIntersectingCount: num(row.contamination_intersecting_count),
+      contaminationNearbyCount: num(row.contamination_nearby_count),
+      contaminationNearestM: num(row.contamination_nearest_m),
+      contaminationRiskClasses: Array.isArray(row.contamination_risk_classes)
+        ? row.contamination_risk_classes.map(String)
+        : [],
+      contaminationStatuses: Array.isArray(row.contamination_statuses)
+        ? row.contamination_statuses.map(String)
+        : [],
+      contaminationRecordIds: Array.isArray(row.contamination_record_ids)
+        ? row.contamination_record_ids.map(String)
         : [],
     },
     criteria,

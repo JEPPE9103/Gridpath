@@ -342,6 +342,26 @@ export function OpportunitySearchResults({
                 }
               />
               <Fact label="Network covering" value={selectedCovering.title} />
+              <Fact
+                label="Environmental history"
+                value={
+                  selected.contaminationQueried
+                    ? (selected.contaminationIntersectingCount ?? 0) > 0 ||
+                      (selected.contaminationNearbyCount ?? 0) > 0
+                      ? [
+                          (selected.contaminationIntersectingCount ?? 0) > 0
+                            ? `${selected.contaminationIntersectingCount} intersecting`
+                            : null,
+                          (selected.contaminationNearbyCount ?? 0) > 0
+                            ? `${selected.contaminationNearbyCount} nearby`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : "No mapped official records nearby"
+                    : "Environmental history not evaluated"
+                }
+              />
             </div>
             <p className="mt-2 text-xs text-muted">{selectedCovering.note}</p>
 

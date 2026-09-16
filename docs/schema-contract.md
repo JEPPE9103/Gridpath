@@ -81,7 +81,7 @@ SCB slug: `scb-administrative-areas`. Lantmäteriet DTM slug: `lantmateriet-dtm-
 SvK slug: `svk-indicative-transmission-2026` (blocked; no structured source).
 
 `official_precision_summaries` holds 100 m land-cover / detailed terrain tiles for refinement only.
-`opportunity_run_candidates` now includes `screening_stage`, `refinement_status`, discovery vs detailed ranks, and evidence-resolution labels.
+`opportunity_run_candidates` now includes `screening_stage`, `refinement_status`, discovery vs detailed ranks, and evidence-resolution labels. Flood/ground/contamination screening columns (`flood_*`, `ground_*`, `contamination_*`) hold evaluated official evidence metrics; `contamination_queried=true` with zero counts is evaluated empty, not missing.
 `opportunity_assessment_versions` stores assessment history; `opportunity_reassessment_notices` flags saved opportunities when an official source version changes.
 
 NUP numeric values are forecast transfer-capacity **need**, never available capacity / headroom / connection capacity.
@@ -107,6 +107,7 @@ NUP numeric values are forecast transfer-capacity **need**, never available capa
 - `public.get_organization_invite_preview(p_token_hash)` — authenticated + anon (token is the secret)
 - `public.review_organization_change_impact(p_impact_id, p_status, p_note)` — org-scoped confirm/dismiss of a change impact; resolves matching open alerts; does not mutate `external_changes`
 - `public.list_source_health()` — authenticated source-health view (no raw payloads)
-- `public.get_search_area_coverage(p_west, p_south, p_east, p_north)` — NMD/Copernicus/RoadLink bbox coverage plus national catalog state; no raw geometries
+- `public.get_search_area_coverage(p_west, p_south, p_east, p_north)` — NMD/Copernicus/RoadLink/flood/ground/contamination bbox coverage plus national catalog state; no raw geometries
+- `public.apply_flood_overlap_to_run(p_run_id)` / `public.apply_ground_composition_to_run(p_run_id)` / `public.apply_contamination_to_run(p_run_id)` — Candidate metrics from cached official features after site segmentation
 - `public.search_swedish_administrative_places(p_query)` — SCB envelopes for place search; cartographic, not cadastral
-- Service-role only: `claim_official_ingest_window`, `finish_official_ingest_window`, `upsert_official_physical_summaries`, `upsert_official_transport_features`, `insert_official_source_snapshot`, `project_bbox_to_sweref99tm`
+- Service-role only: `claim_official_ingest_window`, `finish_official_ingest_window`, `upsert_official_physical_summaries`, `upsert_official_transport_features`, `upsert_official_geographic_features`, `insert_official_source_snapshot`, `project_bbox_to_sweref99tm`

@@ -61,6 +61,12 @@ const BASE = {
   groundClayMajorRiskPct: GROUND_CLAY_MAJOR_RISK_PCT,
   groundPeatRiskPct: GROUND_PEAT_RISK_PCT,
   groundPeatMajorRiskPct: GROUND_PEAT_MAJOR_RISK_PCT,
+  contaminationQueried: true,
+  contaminationIntersectingCount: 0,
+  contaminationNearbyCount: 0,
+  contaminationNearestM: null as number | null,
+  contaminationRiskClasses: [] as string[],
+  contaminationMode: "preference" as const,
 };
 
 describe("SGU ground intelligence", () => {

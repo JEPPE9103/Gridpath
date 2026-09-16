@@ -193,6 +193,20 @@ export function OpportunityComparePage({
                     : ground.title;
                 }}
               </CompareRow>
+              <CompareRow label="Environmental history" items={items}>
+                {(item) => {
+                  const intelligence = intelligenceById.get(item.id);
+                  const env = intelligence?.constraints.find(
+                    (row) => row.evidenceCategory === "environmental_history",
+                  );
+                  if (!env) return "Evidence unavailable";
+                  if (env.id === "contamination_unavailable") return "Evidence unavailable";
+                  if (env.id === "contamination_no_mapped_records") return "No mapped records nearby";
+                  return env.measuredValue
+                    ? `${env.measuredValue} / ${env.severity.replace("_", " ")}`
+                    : env.title;
+                }}
+              </CompareRow>
               <CompareRow label="Key risk" items={items}>
                 {(item) => item.keyRisk ?? "No stored risk yet."}
               </CompareRow>
