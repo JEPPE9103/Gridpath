@@ -8,8 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { existsSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import { fetchPlanningFeatures, buildMalmoPlanningQueryUrl } from "../src/lib/ingest/planning.ts";
+import { fetchPlanningFeatures } from "../src/lib/ingest/planning.ts";
 import { PLANNING_SOURCE_SLUG } from "../src/lib/ingest/coverage-keys.ts";
 import { DESIGN_PARTNER_CLOUD_PROJECT_REF, runSupabase } from "./lib/ingest-target.mjs";
 
