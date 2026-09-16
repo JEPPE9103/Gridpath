@@ -106,6 +106,12 @@ export type ScreeningCellRow = {
   flood_overlap_ha?: number | string | null;
   flood_classes?: string[] | null;
   flood_provider_key?: string | null;
+  ground_queried?: boolean | null;
+  ground_composition?: Record<string, number> | null;
+  ground_dominant_group?: string | null;
+  ground_source_classes?: string[] | null;
+  ground_provider_key?: string | null;
+  ground_map_scale?: string | null;
   exclusion_breakdown?: ExclusionBreakdown | null;
   screening_stage?: string | null;
   refinement_status?: string | null;
@@ -281,7 +287,12 @@ function landCoverScore(row: ScreeningCellRow, criteria: ScreeningCriteria): num
     if (rule === "preferred") preferred += share;
     if (rule === "deprioritised") deprioritised += share;
   }
-  return Math.min(1, Math.max(0, 0.5 + (preferred - deprioritised) / 200));
+  let score = Math.min(1, Math.max(0, 0.5 + (preferred - deprioritised) / 200));
+  // Missing SGU ground evidence must never improve rank.
+  if (row.ground_queried !== true) {
+    score = Math.min(score, 0.55);
+  }
+  return score;
 }
 
 function roadScore(row: ScreeningCellRow, criteria: ScreeningCriteria): number {
@@ -511,6 +522,10 @@ export function rankScreeningCells(
         floodOverlapPct: num(item.row.flood_overlap_pct),
         floodOverlapHa: num(item.row.flood_overlap_ha),
         floodClasses: item.row.flood_classes ?? [],
+        groundQueried: item.row.ground_queried === true,
+        groundComposition: item.row.ground_composition ?? {},
+        groundDominantGroup: item.row.ground_dominant_group ?? null,
+        groundSourceClasses: item.row.ground_source_classes ?? [],
         keyPositive: item.screening.positives[0] ?? null,
         keyRisk: item.screening.risks[0] ?? null,
         targetFitLabel: null,

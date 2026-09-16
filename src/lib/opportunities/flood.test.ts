@@ -48,6 +48,11 @@ const BASE = {
   floodHardExclusionPct: FLOOD_HARD_EXCLUSION_PCT,
   floodRiskOverlapPct: FLOOD_RISK_OVERLAP_PCT,
   floodMajorRiskOverlapPct: FLOOD_MAJOR_RISK_OVERLAP_PCT,
+  groundQueried: true,
+  groundComposition: { TILL: 100 } as Record<string, number>,
+  groundDominantGroup: "TILL",
+  groundSourceClasses: ["Morän"],
+  groundMode: "preference" as const,
 };
 
 describe("flood / water intelligence", () => {

@@ -182,6 +182,17 @@ export function OpportunityComparePage({
                     : flood.title;
                 }}
               </CompareRow>
+              <CompareRow label="Mapped ground" items={items}>
+                {(item) => {
+                  const intelligence = intelligenceById.get(item.id);
+                  const ground = intelligence?.constraints.find((row) => row.evidenceCategory === "ground_soil");
+                  if (!ground) return "Evidence unavailable";
+                  if (ground.id === "ground_unavailable") return "Evidence unavailable";
+                  return ground.measuredValue
+                    ? `${ground.measuredValue} / ${ground.severity.replace("_", " ")}`
+                    : ground.title;
+                }}
+              </CompareRow>
               <CompareRow label="Key risk" items={items}>
                 {(item) => item.keyRisk ?? "No stored risk yet."}
               </CompareRow>

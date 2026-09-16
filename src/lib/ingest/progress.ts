@@ -7,7 +7,7 @@
 export const DISCOVERY_PROGRESS_HEADING = "Preparing Swedish geography";
 
 export const DISCOVERY_PROGRESS_WAIT_COPY =
-  "The first search in a new area may load official land cover, terrain, road and flood geography. A repeat search over the same area reuses the cache.";
+  "The first search in a new area may load official land cover, terrain, road, flood and ground geography. A repeat search over the same area reuses the cache.";
 
 export const DISCOVERY_PROGRESS_NAVIGATE_COPY =
   "Leaving this page does not cancel the screening. Return to Opportunities if you navigate away.";
@@ -44,6 +44,11 @@ export const DISCOVERY_PROGRESS_STAGES = [
     detail: "Fetching missing MSB mapped flood extents for this Search Area, or reusing cache.",
   },
   {
+    id: "ground",
+    title: "Loading ground / soil",
+    detail: "Fetching missing SGU surficial geology for this Search Area, or reusing cache.",
+  },
+  {
     id: "screening",
     title: "Running screening",
     detail: "Applying the existing site-generation engine to official evidence.",
@@ -77,8 +82,9 @@ export const FALLBACK_STAGE_STARTS_MS: Record<DiscoveryProgressStageId, number> 
   terrain: 2_000,
   roads: 4_000,
   flood: 6_000,
-  screening: 10_000,
-  candidates: 18_000,
+  ground: 8_000,
+  screening: 12_000,
+  candidates: 20_000,
 };
 
 export function discoveryProgressFromStage(

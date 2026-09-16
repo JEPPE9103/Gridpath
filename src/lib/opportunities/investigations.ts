@@ -70,7 +70,8 @@ function priorityFor(constraint: CandidateConstraint): InvestigationPriority {
       constraint.id === "land_cover_unavailable" ||
       constraint.id === "protected_not_evaluated" ||
       constraint.id === "natura_not_evaluated" ||
-      constraint.id === "flood_unavailable"
+      constraint.id === "flood_unavailable" ||
+      constraint.id === "ground_unavailable"
     ) {
       return "now";
     }
@@ -142,6 +143,26 @@ function actionFor(constraint: CandidateConstraint): { action: string; evidenceS
       return {
         action: "Review mapped flood exposure and site drainage implications",
         evidenceSource: "Official Source — MSB/MCF översvämningskartering (BHF)",
+      };
+    case "ground_unavailable":
+      return {
+        action: "Obtain ground-condition evidence before major land commitment",
+        evidenceSource: "Official Source — SGU Jordarter 1:25 000–1:100 000",
+      };
+    case "ground_peat_hard_exclusion":
+    case "ground_peat_major":
+    case "ground_peat_risk":
+      return {
+        action:
+          "Review ground conditions and potential settlement/foundation implications with a geotechnical specialist",
+        evidenceSource: "Official Source — SGU Jordarter (grundlager)",
+      };
+    case "ground_clay_hard_exclusion":
+    case "ground_clay_major":
+    case "ground_clay_risk":
+      return {
+        action: "Verify ground conditions with geotechnical investigation",
+        evidenceSource: "Official Source — SGU Jordarter (grundlager)",
       };
     case "network_covering_capacity_unknown":
     case "network_covering_none":

@@ -26,6 +26,12 @@ describe("open geodata fetch allowlist", () => {
       ),
       true,
     );
+    assert.equal(
+      isAllowedOpenGeodataUrl(
+        "https://api.sgu.se/oppnadata/jordarter25k-100k/ogc/features/v1/collections/grundlager/items",
+      ),
+      true,
+    );
     assert.equal(isAllowedOpenGeodataUrl("http://geodata.naturvardsverket.se/wfs"), false);
   });
 

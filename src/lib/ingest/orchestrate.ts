@@ -2,17 +2,20 @@ import { coverageGapMessage, onDemandSourcePlan, parseSearchAreaCoverage, type S
 import {
   COPERNICUS_SOURCE_SLUG,
   FLOOD_SOURCE_SLUG,
+  GROUND_SOURCE_SLUG,
   NMD_SOURCE_SLUG,
   ROADLINK_SOURCE_SLUG,
   clipWindowToSearch,
   copernicusWindows,
   floodWindows,
+  groundWindows,
   nmdWindows,
   roadlinkWindows,
   type CoverageWindow,
 } from "@/lib/ingest/coverage-keys";
 import { copernicusCogUrl, copernicusSnapshotHash, fetchCopernicusTileSummaries } from "@/lib/ingest/copernicus";
 import { fetchFloodFeatures, floodSnapshotHash } from "@/lib/ingest/flood";
+import { fetchGroundFeatures, groundSnapshotHash } from "@/lib/ingest/ground";
 import {
   nmdDiscoverySummariesFromSource,
   nmdSnapshotHash,
@@ -144,6 +147,46 @@ async function upsertFlood(service: SupabaseClient, snapshotId: string | null, r
   return count;
 }
 
+async function upsertGround(service: SupabaseClient, snapshotId: string | null, rows: unknown[]): Promise<number> {
+  let count = 0;
+  const batch = 80;
+  for (let i = 0; i < rows.length; i += batch) {
+    const payload = (
+      rows.slice(i, i + batch) as Array<{
+        id: string;
+        name: string;
+        designation: string;
+        geom: unknown;
+        properties: Record<string, unknown>;
+        clipWest?: number;
+        clipSouth?: number;
+        clipEast?: number;
+        clipNorth?: number;
+      }>
+    ).map((row) => ({
+      id: row.id,
+      name: row.name,
+      designation: row.designation,
+      geom: JSON.stringify(row.geom),
+      properties: row.properties,
+      sourceVersion: "sgu-jordarter-25k-100k",
+      clipWest: row.clipWest,
+      clipSouth: row.clipSouth,
+      clipEast: row.clipEast,
+      clipNorth: row.clipNorth,
+    }));
+    const { data, error } = await service.rpc("upsert_official_geographic_features", {
+      p_source_slug: GROUND_SOURCE_SLUG,
+      p_snapshot_id: snapshotId,
+      p_feature_class: "mapped_ground",
+      p_rows: payload,
+    });
+    if (error) throw new Error(error.message);
+    count += Number(data ?? 0);
+  }
+  return count;
+}
+
 async function withWindow(
   service: SupabaseClient,
   window: CoverageWindow,
@@ -229,6 +272,25 @@ async function ingestFloodWindow(service: SupabaseClient, window: CoverageWindow
     await upsertFlood(service, snapshotId, rows);
     // Covered even when zero polygons — that is an evaluated "no mapped overlap in dataset" result.
     return { status: "covered", snapshotId, version: "msb-bhf" };
+  });
+}
+
+async function ingestGroundWindow(service: SupabaseClient, window: CoverageWindow, search: SearchBbox): Promise<DiscoverySourceRun> {
+  const clipped = clipWindowToSearch(window.bbox, search) ?? window.bbox;
+  return withWindow(service, window, async () => {
+    const rows = await fetchGroundFeatures(clipped);
+    const snapshotId = await insertSnapshot(service, GROUND_SOURCE_SLUG, groundSnapshotHash(clipped, rows.length), {
+      publisher: "Sveriges geologiska undersökning (SGU)",
+      dataset: "Jordarter 1:25 000–1:100 000 — grundlager",
+      collection: "grundlager",
+      bbox: clipped,
+      feature_count: rows.length,
+      map_scale: "1:25 000–1:100 000",
+      normalize_version: "sgu-ground-normalize-v1",
+      note: "Surficial geology near mapping depth (~0.5 m). Screening-level mapped composition, not a geotechnical investigation.",
+    });
+    await upsertGround(service, snapshotId, rows);
+    return { status: rows.length > 0 ? "covered" : "partial", snapshotId, version: "sgu-jordarter-25k-100k" };
   });
 }
 
@@ -356,6 +418,19 @@ export async function ensureSearchAreaEvidence(input: {
       sources.push(result);
       if (result.action === "fetched") fetched.push(FLOOD_SOURCE_SLUG);
       if (result.action === "failed") messages.push(coverageGapMessage(FLOOD_SOURCE_SLUG, result.detail ?? ""));
+    }
+  }
+
+  await emit("ground");
+  const groundPlan = plan.find((item) => item.slug === GROUND_SOURCE_SLUG);
+  if (!groundPlan?.fetch) {
+    sources.push({ slug: GROUND_SOURCE_SLUG, action: "cache", detail: groundPlan?.status ?? "covered" });
+  } else {
+    for (const window of groundWindows(input.bbox)) {
+      const result = await ingestGroundWindow(input.service, window, input.bbox);
+      sources.push(result);
+      if (result.action === "fetched") fetched.push(GROUND_SOURCE_SLUG);
+      if (result.action === "failed") messages.push(coverageGapMessage(GROUND_SOURCE_SLUG, result.detail ?? ""));
     }
   }
 

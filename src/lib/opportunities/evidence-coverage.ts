@@ -1,5 +1,6 @@
 import { evidenceSourceLabel, type EvidenceSourceValue, type OpportunityConfidenceValue } from "@/lib/opportunities/catalog";
 import { opportunityCopyContainsForbiddenTerm } from "@/lib/opportunities/copy";
+import { formatGroundComposition } from "@/lib/opportunities/ground";
 import {
   LAND_COVER_PROVIDER_PRIORITY,
   NMD_2023_SOURCE_RESOLUTION_M,
@@ -37,6 +38,7 @@ export type EvidenceCategoryId =
   | "network_geography"
   | "road_access"
   | "flood_water"
+  | "ground_soil"
   | "residential_proximity";
 
 export type EvidenceSourceDetail = {
@@ -81,6 +83,7 @@ const CATEGORY_LABELS: Record<EvidenceCategoryId, string> = {
   network_geography: "Network geography",
   road_access: "Road proximity",
   flood_water: "Water / flood",
+  ground_soil: "Ground / soil",
   residential_proximity: "Residential proximity",
 };
 
@@ -94,6 +97,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   "ei-official-covering": "Energimarknadsinspektionen",
   "trafikverket-inspire-roadlink": "Trafikverket",
   "msb-oversvamningskartering": "MSB / MCF",
+  "sgu-jordarter-25k-100k": "SGU",
   terrain: "Copernicus",
   "land-cover": "Naturvårdsverket",
 };
@@ -208,6 +212,9 @@ export type CandidateEvidenceInput = {
   floodQueried: boolean;
   floodOverlapPct: number | null;
   floodClasses: string[] | null;
+  groundQueried: boolean;
+  groundComposition: Record<string, number> | null;
+  groundDominantGroup: string | null;
   providerAvailability?: Record<string, boolean>;
   sourceVersions?: Record<string, string | null>;
 };
@@ -236,6 +243,9 @@ export function candidateToEvidenceInput(
     floodQueried?: boolean;
     floodOverlapPct?: number | null;
     floodClasses?: string[] | null;
+    groundQueried?: boolean;
+    groundComposition?: Record<string, number> | null;
+    groundDominantGroup?: string | null;
   },
   extras?: {
     providerAvailability?: Record<string, boolean>;
@@ -265,6 +275,9 @@ export function candidateToEvidenceInput(
     floodQueried: candidate.floodQueried === true || candidate.floodOverlapPct != null,
     floodOverlapPct: candidate.floodOverlapPct ?? null,
     floodClasses: candidate.floodClasses ?? null,
+    groundQueried: candidate.groundQueried === true,
+    groundComposition: candidate.groundComposition ?? null,
+    groundDominantGroup: candidate.groundDominantGroup ?? null,
     providerAvailability: extras?.providerAvailability,
     sourceVersions: extras?.sourceVersions,
   };
@@ -438,6 +451,24 @@ export function buildEvidenceCoverage(input: CandidateEvidenceInput): EvidenceCo
       required: true,
     }),
     item({
+      id: "ground_soil",
+      state: input.groundQueried ? "evaluated" : "not_evaluated",
+      summary: input.groundQueried
+        ? formatGroundComposition(input.groundComposition)
+        : "Not evaluated",
+      provenance: input.groundQueried ? "official" : null,
+      sourceDetail: input.groundQueried
+        ? sourceDetail({
+            providerKey: "sgu-jordarter-25k-100k",
+            dataset: "Jordarter 1:25 000–1:100 000 — grundlager",
+            version: "OGC API Features",
+            nativeResolution: "1:25 000–1:100 000",
+            snapshot: versions["sgu-jordarter-25k-100k"] ?? null,
+          })
+        : null,
+      required: true,
+    }),
+    item({
       id: "residential_proximity",
       state: "not_evaluated",
       summary: "Not evaluated",
@@ -496,6 +527,9 @@ export function buildEvidenceCoverageFromAssessments(input: {
     floodQueried: false,
     floodOverlapPct: null,
     floodClasses: null,
+    groundQueried: false,
+    groundComposition: null,
+    groundDominantGroup: null,
   });
 }
 

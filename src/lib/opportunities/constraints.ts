@@ -14,6 +14,15 @@
 import type { EvidenceSourceValue } from "@/lib/opportunities/catalog";
 import type { EvidenceCategoryId } from "@/lib/opportunities/evidence-coverage";
 import { opportunityCopyContainsForbiddenTerm } from "@/lib/opportunities/copy";
+import {
+  GROUND_GROUP_LABELS,
+  describeGroundComposition,
+  formatGroundPct,
+  groundGroupPct,
+  isGroundGroup,
+  parseGroundComposition,
+  type GroundGroup,
+} from "@/lib/opportunities/ground";
 import type { SlopeConstraintMode } from "@/lib/opportunities/terrain";
 
 export const CONSTRAINT_SEMANTICS_VERSION = "candidate-constraints-v1";
@@ -78,6 +87,16 @@ export type CandidateConstraintInput = {
   floodHardExclusionPct?: number | null;
   floodRiskOverlapPct?: number | null;
   floodMajorRiskOverlapPct?: number | null;
+  groundQueried?: boolean;
+  groundComposition?: Record<string, number> | null;
+  groundDominantGroup?: string | null;
+  groundSourceClasses?: string[] | null;
+  groundMode?: SlopeConstraintMode | null;
+  groundHardExclusionPct?: number | null;
+  groundClayRiskPct?: number | null;
+  groundClayMajorRiskPct?: number | null;
+  groundPeatRiskPct?: number | null;
+  groundPeatMajorRiskPct?: number | null;
 };
 
 const SEVERITY_ORDER: Record<ConstraintSeverity, number> = {
@@ -424,6 +443,150 @@ export function deriveCandidateConstraints(input: CandidateConstraintInput): Can
           userActionRecommended: false,
         }),
       );
+    }
+  }
+
+  {
+    const groundMode = input.groundMode === "hard" ? "hard" : "preference";
+    const clayRisk = input.groundClayRiskPct ?? 15;
+    const clayMajor = input.groundClayMajorRiskPct ?? 40;
+    const peatRisk = input.groundPeatRiskPct ?? 5;
+    const peatMajor = input.groundPeatMajorRiskPct ?? 15;
+    const hardPct = input.groundHardExclusionPct ?? 40;
+    const composition = parseGroundComposition(input.groundComposition);
+    const clayPct = groundGroupPct(composition, "CLAY_FINE_SEDIMENT");
+    const peatPct = groundGroupPct(composition, "PEAT_ORGANIC");
+    const dominant = isGroundGroup(input.groundDominantGroup ?? null)
+      ? (input.groundDominantGroup as GroundGroup)
+      : null;
+
+    if (input.groundQueried !== true) {
+      rows.push(
+        constraint({
+          id: "ground_unavailable",
+          severity: "unknown",
+          title: "Ground / soil evidence not evaluated",
+          explanation: "Official SGU mapped surficial geology was not evaluated for this Candidate.",
+          whyItMatters:
+            "Screening-level ground conditions are unknown. This is not a finding that ground conditions are favourable.",
+          evidenceCategory: "ground_soil",
+          provenance: "official",
+          evaluated: false,
+          measuredValue: null,
+          threshold:
+            groundMode === "hard"
+              ? `hard exclusion ≥ ${hardPct}% clay or peat (screening assumption)`
+              : `clay risk ≥ ${clayRisk}% · major ≥ ${clayMajor}% · peat risk ≥ ${peatRisk}% · major ≥ ${peatMajor}% (screening assumptions)`,
+          automaticExclusion: false,
+          userActionRecommended: true,
+        }),
+      );
+    } else {
+      const compositionText = describeGroundComposition({ composition, dominant });
+      let emittedRisk = false;
+
+      if (peatPct > 0) {
+        const hardHit = groundMode === "hard" && peatPct >= hardPct;
+        const majorHit = peatPct >= peatMajor;
+        const riskHit = peatPct >= peatRisk;
+        if (hardHit || majorHit || riskHit || peatPct > 0) {
+          rows.push(
+            constraint({
+              id: hardHit
+                ? "ground_peat_hard_exclusion"
+                : majorHit
+                  ? "ground_peat_major"
+                  : riskHit
+                    ? "ground_peat_risk"
+                    : "ground_peat_trace",
+              severity: hardHit ? "blocker" : majorHit ? "major_risk" : riskHit ? "risk" : "info",
+              title: hardHit
+                ? "Mapped peat / organic ground exceeds the hard exclusion threshold"
+                : majorHit
+                  ? "Material mapped peat / organic ground"
+                  : riskHit
+                    ? "Mapped peat / organic ground present"
+                    : "Trace mapped peat / organic ground",
+              explanation: `SGU mapping indicates peat / organic ground across ${formatGroundPct(peatPct)} of the Candidate footprint. Screening-level mapped surficial geology — not a geotechnical investigation.`,
+              whyItMatters: hardHit
+                ? "The active screening profile treats this mapped class share as a reason not to proceed."
+                : "Mapped peat / organic ground warrants geotechnical verification before further development spend.",
+              evidenceCategory: "ground_soil",
+              provenance: "official",
+              evaluated: true,
+              measuredValue: `${formatGroundPct(peatPct)} peat / organic`,
+              threshold: hardHit
+                ? `hard ≥ ${hardPct}%`
+                : `risk ≥ ${peatRisk}% · major ≥ ${peatMajor}% (screening assumptions)`,
+              automaticExclusion: hardHit,
+              userActionRecommended: hardHit || majorHit || riskHit,
+            }),
+          );
+          emittedRisk = true;
+        }
+      }
+
+      if (clayPct > 0) {
+        const hardHit = groundMode === "hard" && clayPct >= hardPct;
+        const majorHit = clayPct >= clayMajor;
+        const riskHit = clayPct >= clayRisk;
+        if (hardHit || majorHit || riskHit || clayPct > 0) {
+          rows.push(
+            constraint({
+              id: hardHit
+                ? "ground_clay_hard_exclusion"
+                : majorHit
+                  ? "ground_clay_major"
+                  : riskHit
+                    ? "ground_clay_risk"
+                    : "ground_clay_trace",
+              severity: hardHit ? "blocker" : majorHit ? "major_risk" : riskHit ? "risk" : "info",
+              title: hardHit
+                ? "Mapped clay / fine sediment exceeds the hard exclusion threshold"
+                : majorHit
+                  ? "Material mapped clay / fine sediment"
+                  : riskHit
+                    ? "Mapped clay / fine sediment present"
+                    : "Trace mapped clay / fine sediment",
+              explanation: `SGU mapping indicates clay / fine sediment across ${formatGroundPct(clayPct)} of the Candidate footprint. Screening-level mapped surficial geology — not a geotechnical investigation.`,
+              whyItMatters: hardHit
+                ? "The active screening profile treats this mapped class share as a reason not to proceed."
+                : "Mapped fine-grained material warrants geotechnical verification before further development spend.",
+              evidenceCategory: "ground_soil",
+              provenance: "official",
+              evaluated: true,
+              measuredValue: `${formatGroundPct(clayPct)} clay / fine sediment`,
+              threshold: hardHit
+                ? `hard ≥ ${hardPct}%`
+                : `risk ≥ ${clayRisk}% · major ≥ ${clayMajor}% (screening assumptions)`,
+              automaticExclusion: hardHit,
+              userActionRecommended: hardHit || majorHit || riskHit,
+            }),
+          );
+          emittedRisk = true;
+        }
+      }
+
+      if (!emittedRisk) {
+        const label = dominant ? GROUND_GROUP_LABELS[dominant] : "Mapped surficial geology";
+        rows.push(
+          constraint({
+            id: "ground_mapped_context",
+            severity: "info",
+            title: `Mapped ground: ${label}`,
+            explanation: compositionText,
+            whyItMatters:
+              "Mapped ground composition is context for investigation planning. It is not a foundation recommendation or constructability finding.",
+            evidenceCategory: "ground_soil",
+            provenance: "official",
+            evaluated: true,
+            measuredValue: dominant ? GROUND_GROUP_LABELS[dominant] : "Evaluated",
+            threshold: null,
+            automaticExclusion: false,
+            userActionRecommended: false,
+          }),
+        );
+      }
     }
   }
 

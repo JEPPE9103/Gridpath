@@ -22,6 +22,7 @@ const ALLOWED_HOSTS = new Set([
   "geo-inspire.trafikverket.se",
   "geodata.scb.se",
   "inspire.mcf.se",
+  "api.sgu.se",
 ]);
 
 export function isAllowedOpenGeodataUrl(url) {

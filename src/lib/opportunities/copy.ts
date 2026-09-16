@@ -36,6 +36,11 @@ const FORBIDDEN_TERMS = [
   "drainage approved",
   "no flood risk",
   "approved site",
+  "piling required",
+  "bearing capacity inadequate",
+  "foundation unsuitable",
+  "geotechnically feasible",
+  "settlement will occur",
 ] as const;
 
 export function publicOpportunityError(message: string | undefined, fallback: string): string {

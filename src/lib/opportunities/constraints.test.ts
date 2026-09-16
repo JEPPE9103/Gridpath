@@ -36,6 +36,11 @@ const BASE = {
   floodOverlapHa: 0,
   floodClasses: [],
   floodMode: "preference" as const,
+  groundQueried: true,
+  groundComposition: { TILL: 100 },
+  groundDominantGroup: "TILL",
+  groundSourceClasses: ["Morän"],
+  groundMode: "preference" as const,
 };
 
 describe("candidate constraints", () => {

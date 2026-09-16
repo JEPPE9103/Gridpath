@@ -14,6 +14,7 @@ import {
 import { whyCandidateRanks } from "@/lib/opportunities/evidence-coverage";
 import { isOpportunityTechnology } from "@/lib/opportunities/catalog";
 import { defaultScreeningProfile } from "@/lib/opportunities/screening-profiles";
+import { parseGroundComposition } from "@/lib/opportunities/ground";
 
 export const CANDIDATE_INTELLIGENCE_VERSION = "candidate-intelligence-v1";
 
@@ -40,6 +41,12 @@ export function intelligenceCriteriaForTechnology(
     floodHardExclusionPct?: number | null;
     floodRiskOverlapPct?: number | null;
     floodMajorRiskOverlapPct?: number | null;
+    groundMode?: "preference" | "hard" | null;
+    groundHardExclusionPct?: number | null;
+    groundClayRiskPct?: number | null;
+    groundClayMajorRiskPct?: number | null;
+    groundPeatRiskPct?: number | null;
+    groundPeatMajorRiskPct?: number | null;
   } | null,
 ): Parameters<typeof constraintInputFromCandidate>[1] {
   const pack = defaultScreeningProfile(
@@ -56,6 +63,12 @@ export function intelligenceCriteriaForTechnology(
     floodHardExclusionPct: searchCriteria?.floodHardExclusionPct ?? pack.floodHardExclusionPct,
     floodRiskOverlapPct: searchCriteria?.floodRiskOverlapPct ?? pack.floodRiskOverlapPct,
     floodMajorRiskOverlapPct: searchCriteria?.floodMajorRiskOverlapPct ?? pack.floodMajorRiskOverlapPct,
+    groundMode: searchCriteria?.groundMode === "hard" ? "hard" : pack.groundMode,
+    groundHardExclusionPct: searchCriteria?.groundHardExclusionPct ?? pack.groundHardExclusionPct,
+    groundClayRiskPct: searchCriteria?.groundClayRiskPct ?? pack.groundClayRiskPct,
+    groundClayMajorRiskPct: searchCriteria?.groundClayMajorRiskPct ?? pack.groundClayMajorRiskPct,
+    groundPeatRiskPct: searchCriteria?.groundPeatRiskPct ?? pack.groundPeatRiskPct,
+    groundPeatMajorRiskPct: searchCriteria?.groundPeatMajorRiskPct ?? pack.groundPeatMajorRiskPct,
   };
 }
 
@@ -84,6 +97,10 @@ export function constraintInputFromCandidate(
     | "floodOverlapPct"
     | "floodOverlapHa"
     | "floodClasses"
+    | "groundQueried"
+    | "groundComposition"
+    | "groundDominantGroup"
+    | "groundSourceClasses"
   >,
   criteria?: Pick<
     ScreeningCriteria,
@@ -97,6 +114,12 @@ export function constraintInputFromCandidate(
     | "floodHardExclusionPct"
     | "floodRiskOverlapPct"
     | "floodMajorRiskOverlapPct"
+    | "groundMode"
+    | "groundHardExclusionPct"
+    | "groundClayRiskPct"
+    | "groundClayMajorRiskPct"
+    | "groundPeatRiskPct"
+    | "groundPeatMajorRiskPct"
   >,
 ): CandidateConstraintInput {
   return {
@@ -132,6 +155,16 @@ export function constraintInputFromCandidate(
     floodHardExclusionPct: criteria?.floodHardExclusionPct ?? 1,
     floodRiskOverlapPct: criteria?.floodRiskOverlapPct ?? 1,
     floodMajorRiskOverlapPct: criteria?.floodMajorRiskOverlapPct ?? 10,
+    groundQueried: candidate.groundQueried,
+    groundComposition: candidate.groundComposition,
+    groundDominantGroup: candidate.groundDominantGroup,
+    groundSourceClasses: candidate.groundSourceClasses,
+    groundMode: criteria?.groundMode ?? "preference",
+    groundHardExclusionPct: criteria?.groundHardExclusionPct ?? 40,
+    groundClayRiskPct: criteria?.groundClayRiskPct ?? 15,
+    groundClayMajorRiskPct: criteria?.groundClayMajorRiskPct ?? 40,
+    groundPeatRiskPct: criteria?.groundPeatRiskPct ?? 5,
+    groundPeatMajorRiskPct: criteria?.groundPeatMajorRiskPct ?? 15,
   };
 }
 
@@ -147,6 +180,8 @@ export function whyCandidateLags(candidate: {
   nupCoveringName?: string | null;
   floodQueried?: boolean;
   floodOverlapPct?: number | null;
+  groundQueried?: boolean;
+  groundComposition?: Record<string, number>;
   keyRisk?: string | null;
   excluded?: boolean;
 }): string[] {
@@ -168,6 +203,13 @@ export function whyCandidateLags(candidate: {
   if (candidate.floodQueried !== true) negatives.push("Flood / water evidence not evaluated");
   else if (candidate.floodOverlapPct != null && candidate.floodOverlapPct >= 1) {
     negatives.push("Mapped flood geography intersects the Candidate footprint");
+  }
+  if (candidate.groundQueried !== true) negatives.push("Ground / soil evidence not evaluated");
+  else if (
+    Number(candidate.groundComposition?.CLAY_FINE_SEDIMENT ?? 0) >= 15 ||
+    Number(candidate.groundComposition?.PEAT_ORGANIC ?? 0) >= 5
+  ) {
+    negatives.push("Mapped clay or peat/organic ground indicated across part of the footprint");
   }
   if (negatives.length === 0 && candidate.keyRisk) negatives.push(candidate.keyRisk);
   return negatives.slice(0, 4);
@@ -216,6 +258,10 @@ export function constraintInputFromScreeningCell(
     flood_overlap_pct?: number | string | null;
     flood_overlap_ha?: number | string | null;
     flood_classes?: string[] | null;
+    ground_queried?: boolean | null;
+    ground_composition?: Record<string, number> | null;
+    ground_dominant_group?: string | null;
+    ground_source_classes?: string[] | null;
   },
   criteria?: Parameters<typeof constraintInputFromCandidate>[1],
   extras?: { excluded?: boolean; exclusionReason?: string | null },
@@ -249,6 +295,12 @@ export function constraintInputFromScreeningCell(
       floodOverlapPct: num(row.flood_overlap_pct),
       floodOverlapHa: num(row.flood_overlap_ha),
       floodClasses: Array.isArray(row.flood_classes) ? row.flood_classes.map(String) : [],
+      groundQueried: row.ground_queried === true,
+      groundComposition: parseGroundComposition(row.ground_composition),
+      groundDominantGroup: row.ground_dominant_group ?? null,
+      groundSourceClasses: Array.isArray(row.ground_source_classes)
+        ? row.ground_source_classes.map(String)
+        : [],
     },
     criteria,
   );

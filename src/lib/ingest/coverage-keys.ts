@@ -4,10 +4,12 @@ export const NMD_SOURCE_SLUG = "nv-nmd-2023";
 export const COPERNICUS_SOURCE_SLUG = "copernicus-dem-glo90";
 export const ROADLINK_SOURCE_SLUG = "trafikverket-inspire-roadlink";
 export const FLOOD_SOURCE_SLUG = "msb-oversvamningskartering";
+export const GROUND_SOURCE_SLUG = "sgu-jordarter-25k-100k";
 
 export const NMD_WINDOW_STEP_DEG = 0.2;
 export const ROADLINK_WINDOW_STEP_DEG = 0.25;
 export const FLOOD_WINDOW_STEP_DEG = 0.2;
+export const GROUND_WINDOW_STEP_DEG = 0.2;
 
 export type CoverageStatus = "covered" | "partial" | "missing" | "stale";
 export type IngestWindowOutcome = "acquired" | "covered" | "waiting";
@@ -90,6 +92,10 @@ export function roadlinkWindows(bbox: SearchBbox): CoverageWindow[] {
 
 export function floodWindows(bbox: SearchBbox): CoverageWindow[] {
   return steppedWindows(bbox, FLOOD_SOURCE_SLUG, "flood-bhf", FLOOD_WINDOW_STEP_DEG);
+}
+
+export function groundWindows(bbox: SearchBbox): CoverageWindow[] {
+  return steppedWindows(bbox, GROUND_SOURCE_SLUG, "sgu-grundlager", GROUND_WINDOW_STEP_DEG);
 }
 
 export function clipWindowToSearch(window: SearchBbox, search: SearchBbox): SearchBbox | null {

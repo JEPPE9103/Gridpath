@@ -37,6 +37,12 @@ export type OpportunityRunCandidate = {
   floodOverlapHa: number | null;
   floodClasses: string[];
   floodProviderKey: string | null;
+  groundQueried: boolean;
+  groundComposition: Record<string, number>;
+  groundDominantGroup: string | null;
+  groundSourceClasses: string[];
+  groundProviderKey: string | null;
+  groundMapScale: string | null;
   keyPositive: string | null;
   keyRisk: string | null;
   savedOpportunityId: string | null;
@@ -176,7 +182,7 @@ export const getOpportunitySearchRun = cache(
     const candidatesQuery = supabase
       .from("opportunity_run_candidates")
       .select(
-        "id, name, rank, recommendation, recommendation_summary, data_confidence, excluded, exclusion_reason, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, terrain_queried, land_cover_queried, road_queried, flood_queried, flood_overlap_pct, flood_overlap_ha, flood_classes, flood_provider_key, key_positive, key_risk, saved_opportunity_id, mean_slope_deg, p90_slope_deg, pct_below_slope, land_cover, road_distance_m, road_class, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, strategic_flags, rank_change_explanation, county_name, municipality_name, transmission_context, discovery_contiguous_area_ha, candidate_kind, geometry_quality, geometry_quality_reason, target_fit_score, target_fit_label, compactness, site_index",
+        "id, name, rank, recommendation, recommendation_summary, data_confidence, excluded, exclusion_reason, latitude, longitude, gross_area_ha, usable_area_ha, contiguous_area_ha, protected_overlap_pct, natura_overlap_pct, local_covering_name, nup_covering_name, covering_queried, protected_queried, natura_queried, terrain_queried, land_cover_queried, road_queried, flood_queried, flood_overlap_pct, flood_overlap_ha, flood_classes, flood_provider_key, ground_queried, ground_composition, ground_dominant_group, ground_source_classes, ground_provider_key, ground_map_scale, key_positive, key_risk, saved_opportunity_id, mean_slope_deg, p90_slope_deg, pct_below_slope, land_cover, road_distance_m, road_class, exclusion_breakdown, screening_stage, refinement_status, discovery_rank, detailed_rank, terrain_resolution, land_cover_resolution, terrain_provider_key, land_cover_provider_key, strategic_flags, rank_change_explanation, county_name, municipality_name, transmission_context, discovery_contiguous_area_ha, candidate_kind, geometry_quality, geometry_quality_reason, target_fit_score, target_fit_label, compactness, site_index",
       )
       .eq("run_id", runId)
       .eq("organization_id", organization.id)
@@ -282,6 +288,17 @@ export const getOpportunitySearchRun = cache(
         floodOverlapHa: toNumber(row.flood_overlap_ha),
         floodClasses: Array.isArray(row.flood_classes) ? row.flood_classes.map(String) : [],
         floodProviderKey: typeof row.flood_provider_key === "string" ? row.flood_provider_key : null,
+        groundQueried: row.ground_queried === true,
+        groundComposition:
+          row.ground_composition && typeof row.ground_composition === "object"
+            ? (row.ground_composition as Record<string, number>)
+            : {},
+        groundDominantGroup: typeof row.ground_dominant_group === "string" ? row.ground_dominant_group : null,
+        groundSourceClasses: Array.isArray(row.ground_source_classes)
+          ? row.ground_source_classes.map(String)
+          : [],
+        groundProviderKey: typeof row.ground_provider_key === "string" ? row.ground_provider_key : null,
+        groundMapScale: typeof row.ground_map_scale === "string" ? row.ground_map_scale : null,
         keyPositive: row.key_positive,
         keyRisk: row.key_risk,
         savedOpportunityId: row.saved_opportunity_id,

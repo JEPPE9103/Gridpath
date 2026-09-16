@@ -89,6 +89,24 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
       "Dataset licence CC0. Official WFS GetFeature uses typeNames=RoadLink and EPSG:4326 lat,lon bbox. Screening stores nearest-road proximity, not construction access. OSM is not substituted (ODbL). Lastkajen GeoPackage remains an optional bulk path (TRAFIKVERKET_ROADLINK_GPKG) when an operator file is supplied.",
   },
   {
+    key: "msb-oversvamningskartering",
+    name: "MSB/MCF översvämningskartering (BHF)",
+    geography: "SE",
+    status: "supported",
+    dimensions: ["environmental"],
+    notes:
+      "Official INSPIRE WFS/WMS mapped flood extents (calculated highest flow). On-demand Search Area windows. Screening-level mapped overlap — not hydrological modelling or a finding of absent flood exposure.",
+  },
+  {
+    key: "sgu-jordarter-25k-100k",
+    name: "SGU Jordarter 1:25 000–1:100 000 (grundlager)",
+    geography: "SE",
+    status: "supported",
+    dimensions: ["land_suitability"],
+    notes:
+      "CC0 OGC API Features surficial geology near mapping depth (~0.5 m). On-demand Search Area windows. Screening-level mapped composition — not a geotechnical investigation, bearing capacity, or constructability finding.",
+  },
+  {
     key: "lm-marktacke",
     name: "Lantmäteriet Marktäcke Nedladdning, vektor",
     geography: "SE",

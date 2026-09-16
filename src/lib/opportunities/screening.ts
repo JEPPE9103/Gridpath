@@ -58,6 +58,13 @@ export type ScreeningCriteria = {
   floodHardExclusionPct?: number | null;
   floodRiskOverlapPct?: number | null;
   floodMajorRiskOverlapPct?: number | null;
+  /** Screening assumption — preference (default) or hard exclusion on clay/peat share. */
+  groundMode?: SlopeConstraintMode;
+  groundHardExclusionPct?: number | null;
+  groundClayRiskPct?: number | null;
+  groundClayMajorRiskPct?: number | null;
+  groundPeatRiskPct?: number | null;
+  groundPeatMajorRiskPct?: number | null;
 };
 
 export type OfficialCoveringEvidence = {
