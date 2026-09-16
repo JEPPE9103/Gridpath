@@ -70,7 +70,7 @@ If an exclusion is configured but the layer is not ingested, candidates are **no
 
 **Soft signals**: official Ei covering geography at the candidate centroid; terrain preference; land-cover preference against the organisation profile; road proximity. Covering is not a connection point and is not available capacity.
 
-Unsupported (insufficient evidence, never a silent pass): residential proximity (licence/GDPR blocked), electricity infrastructure proximity, connection capacity, municipal planning, land ownership, official SE1–SE4 geometry, Lantmäteriet Grid 50+ DTM (Geotorget OAuth not configured).
+Unsupported (insufficient evidence, never a silent pass): residential proximity (licence/GDPR blocked), electricity infrastructure proximity, connection capacity, land ownership, official SE1–SE4 geometry, Lantmäteriet Grid 50+ DTM (Geotorget OAuth not configured). Municipal planning is coverage-aware (Malmö machine-readable detaljplaner first; other municipalities UNKNOWN until an official public source is registered).
 
 SE1–SE4 may be stored as search intent. It is **not** used as a spatial clip.
 
@@ -177,7 +177,7 @@ Not integrated (insufficient evidence, not a pass):
 - Lantmäteriet parcels / cadastral geometry
 - electricity infrastructure proximity (substations, lines)
 - available connection capacity
-- municipal planning
+- municipal planning outside registered provider coverage (Göteborg/Örebro and most municipalities: no public machine-readable detaljplan API integrated yet; never treat as “no plan”)
 - residential distance (licence / GDPR blocked)
 - land ownership / legal access
 - official electricity-area (SE1–SE4) geometry
