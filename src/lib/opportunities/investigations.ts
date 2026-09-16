@@ -72,7 +72,8 @@ function priorityFor(constraint: CandidateConstraint): InvestigationPriority {
       constraint.id === "natura_not_evaluated" ||
       constraint.id === "flood_unavailable" ||
       constraint.id === "ground_unavailable" ||
-      constraint.id === "contamination_unavailable"
+      constraint.id === "contamination_unavailable" ||
+      constraint.id === "planning_unavailable"
     ) {
       return "now";
     }
@@ -80,7 +81,8 @@ function priorityFor(constraint: CandidateConstraint): InvestigationPriority {
   }
   if (
     constraint.id === "contamination_intersecting_record" ||
-    constraint.id === "contamination_high_risk_intersecting"
+    constraint.id === "contamination_high_risk_intersecting" ||
+    constraint.id === "planning_intersecting_plan"
   ) {
     return "now";
   }
@@ -187,6 +189,21 @@ function actionFor(constraint: CandidateConstraint): { action: string; evidenceS
       return {
         action: "Review whether nearby historical activity could affect Candidate",
         evidenceSource: "Official Source — Länsstyrelserna EBH (potentiellt förorenade områden)",
+      };
+    case "planning_unavailable":
+      return {
+        action: "Confirm municipal planning context",
+        evidenceSource: "Official Source — municipal planning (not evaluated / unavailable)",
+      };
+    case "planning_intersecting_plan":
+      return {
+        action: "Review applicable detailed plan and confirm implications for the proposed project",
+        evidenceSource: "Official Source — municipal mapped detailed-plan geometry",
+      };
+    case "planning_outside_mapped_plans":
+      return {
+        action: "Confirm whether municipal planning context outside mapped geometry still applies",
+        evidenceSource: "Official Source — municipal planning (evaluated, no mapped intersection)",
       };
     case "network_covering_capacity_unknown":
     case "network_covering_none":

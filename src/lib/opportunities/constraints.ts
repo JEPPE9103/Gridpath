@@ -22,6 +22,11 @@ import {
   type ContaminationConstraintMode,
 } from "@/lib/opportunities/contamination";
 import {
+  describePlanningEvidence,
+  formatPlanningNearestM,
+  formatPlanningOverlapPct,
+} from "@/lib/opportunities/planning";
+import {
   GROUND_GROUP_LABELS,
   describeGroundComposition,
   formatGroundPct,
@@ -114,6 +119,15 @@ export type CandidateConstraintInput = {
   contaminationProviderKey?: string | null;
   /** preference (default) = risk/major_risk only; hard = intersecting becomes BLOCKER. Never default blocker. */
   contaminationMode?: ContaminationConstraintMode | SlopeConstraintMode | null;
+  planningQueried?: boolean;
+  planningIntersectingCount?: number | null;
+  planningOverlapPct?: number | null;
+  planningNearestM?: number | null;
+  planningPlanIds?: string[] | null;
+  planningPlanNames?: string[] | null;
+  planningPlanStatuses?: string[] | null;
+  planningMunicipality?: string | null;
+  planningProviderKey?: string | null;
 };
 
 const SEVERITY_ORDER: Record<ConstraintSeverity, number> = {
@@ -721,10 +735,86 @@ export function deriveCandidateConstraints(input: CandidateConstraintInput): Can
     }
   }
 
+  {
+    const intersecting = input.planningIntersectingCount ?? 0;
+    const evidenceText = describePlanningEvidence({
+      queried: input.planningQueried === true,
+      intersectingCount: intersecting,
+      overlapPct: input.planningOverlapPct,
+      nearestM: input.planningNearestM,
+      planIds: input.planningPlanIds,
+      planNames: input.planningPlanNames,
+      planStatuses: input.planningPlanStatuses,
+      municipality: input.planningMunicipality,
+    });
+
+    if (input.planningQueried !== true) {
+      rows.push(
+        constraint({
+          id: "planning_unavailable",
+          severity: "unknown",
+          title: "Official planning evidence unavailable",
+          explanation: evidenceText,
+          whyItMatters:
+            "Machine-readable municipal planning data is not integrated for this geography. Confirm planning context with the municipality before further site commitment.",
+          evidenceCategory: "planning",
+          provenance: "official",
+          evaluated: false,
+          measuredValue: null,
+          threshold: null,
+          automaticExclusion: false,
+          userActionRecommended: true,
+        }),
+      );
+    } else if (intersecting > 0) {
+      const measured =
+        intersecting === 1
+          ? `1 intersecting plan · overlap ${formatPlanningOverlapPct(input.planningOverlapPct)}`
+          : `${intersecting} intersecting plans · overlap ${formatPlanningOverlapPct(input.planningOverlapPct)}`;
+      rows.push(
+        constraint({
+          id: "planning_intersecting_plan",
+          severity: "risk",
+          title: "Candidate intersects mapped detailed-plan geometry",
+          explanation: evidenceText,
+          whyItMatters:
+            "Mapped detailed-plan geometry is official planning context that should be reviewed with the municipality. Intersection is not automatically positive or negative for development.",
+          evidenceCategory: "planning",
+          provenance: "official",
+          evaluated: true,
+          measuredValue: measured,
+          threshold: "any intersecting official mapped plan polygon",
+          automaticExclusion: false,
+          userActionRecommended: true,
+        }),
+      );
+    } else {
+      rows.push(
+        constraint({
+          id: "planning_outside_mapped_plans",
+          severity: "info",
+          title: "Outside mapped plan geometry in the evaluated dataset",
+          explanation: evidenceText,
+          whyItMatters:
+            "No mapped detailed-plan intersection in the evaluated municipal dataset is not a finding of absent planning context or low planning risk. Municipal review may still be required.",
+          evidenceCategory: "planning",
+          provenance: "official",
+          evaluated: true,
+          measuredValue:
+            input.planningNearestM != null
+              ? `0 intersecting · nearest ${formatPlanningNearestM(input.planningNearestM)}`
+              : "0 intersecting",
+          threshold: null,
+          automaticExclusion: false,
+          userActionRecommended: false,
+        }),
+      );
+    }
+  }
+
   rows.push(
     constraint({
-      id: "residential_not_evaluated",
-      severity: "unknown",
+      id: "residential_not_evaluated",      severity: "unknown",
       title: "Residential proximity not evaluated",
       explanation: "NOXHEIM does not currently use a residential-distance dataset.",
       whyItMatters: "Neighbour and disturbance questions remain outside this screening.",

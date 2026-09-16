@@ -40,6 +40,7 @@ export type EvidenceCategoryId =
   | "flood_water"
   | "ground_soil"
   | "environmental_history"
+  | "planning"
   | "residential_proximity";
 
 export type EvidenceSourceDetail = {
@@ -86,6 +87,7 @@ const CATEGORY_LABELS: Record<EvidenceCategoryId, string> = {
   flood_water: "Water / flood",
   ground_soil: "Ground / soil",
   environmental_history: "Environmental history",
+  planning: "Planning",
   residential_proximity: "Residential proximity",
 };
 
@@ -101,6 +103,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   "msb-oversvamningskartering": "MSB / MCF",
   "sgu-jordarter-25k-100k": "SGU",
   "lst-ebh-potentiellt-fororenade": "Länsstyrelserna / EBH",
+  "malmo-gallande-detaljplaner": "Malmö stad · SBK",
   terrain: "Copernicus",
   "land-cover": "Naturvårdsverket",
 };
@@ -223,6 +226,13 @@ export type CandidateEvidenceInput = {
   contaminationNearbyCount: number | null;
   contaminationNearestM: number | null;
   contaminationRiskClasses: string[] | null;
+  planningQueried: boolean;
+  planningIntersectingCount: number | null;
+  planningOverlapPct: number | null;
+  planningNearestM: number | null;
+  planningPlanIds: string[] | null;
+  planningMunicipality: string | null;
+  planningProviderKey: string | null;
   providerAvailability?: Record<string, boolean>;
   sourceVersions?: Record<string, string | null>;
 };
@@ -259,6 +269,13 @@ export function candidateToEvidenceInput(
     contaminationNearbyCount?: number | null;
     contaminationNearestM?: number | null;
     contaminationRiskClasses?: string[] | null;
+    planningQueried?: boolean;
+    planningIntersectingCount?: number | null;
+    planningOverlapPct?: number | null;
+    planningNearestM?: number | null;
+    planningPlanIds?: string[] | null;
+    planningMunicipality?: string | null;
+    planningProviderKey?: string | null;
   },
   extras?: {
     providerAvailability?: Record<string, boolean>;
@@ -296,6 +313,13 @@ export function candidateToEvidenceInput(
     contaminationNearbyCount: candidate.contaminationNearbyCount ?? null,
     contaminationNearestM: candidate.contaminationNearestM ?? null,
     contaminationRiskClasses: candidate.contaminationRiskClasses ?? null,
+    planningQueried: candidate.planningQueried === true,
+    planningIntersectingCount: candidate.planningIntersectingCount ?? null,
+    planningOverlapPct: candidate.planningOverlapPct ?? null,
+    planningNearestM: candidate.planningNearestM ?? null,
+    planningPlanIds: candidate.planningPlanIds ?? null,
+    planningMunicipality: candidate.planningMunicipality ?? null,
+    planningProviderKey: candidate.planningProviderKey ?? null,
     providerAvailability: extras?.providerAvailability,
     sourceVersions: extras?.sourceVersions,
   };
@@ -516,6 +540,34 @@ export function buildEvidenceCoverage(input: CandidateEvidenceInput): EvidenceCo
       required: true,
     }),
     item({
+      id: "planning",
+      state: input.planningQueried ? "evaluated" : "not_evaluated",
+      summary: input.planningQueried
+        ? (() => {
+            const intersecting = input.planningIntersectingCount ?? 0;
+            if (intersecting <= 0) {
+              return "Evaluated · no mapped detailed-plan intersection";
+            }
+            const overlap =
+              input.planningOverlapPct != null && Number.isFinite(input.planningOverlapPct)
+                ? ` · ${Math.round(input.planningOverlapPct)}% overlap`
+                : "";
+            const place = input.planningMunicipality ? ` · ${input.planningMunicipality}` : "";
+            return `Intersects ${intersecting} mapped plan${intersecting === 1 ? "" : "s"}${overlap}${place}`;
+          })()
+        : "Official machine-readable planning data unavailable / not integrated",
+      provenance: input.planningQueried ? "official" : null,
+      sourceDetail: input.planningQueried
+        ? sourceDetail({
+            providerKey: input.planningProviderKey ?? "malmo-gallande-detaljplaner",
+            dataset: "Municipal gällande detaljplaner",
+            version: "planning-normalize-v1",
+            snapshot: versions[input.planningProviderKey ?? "malmo-gallande-detaljplaner"] ?? null,
+          })
+        : null,
+      required: true,
+    }),
+    item({
       id: "residential_proximity",
       state: "not_evaluated",
       summary: "Not evaluated",
@@ -582,6 +634,13 @@ export function buildEvidenceCoverageFromAssessments(input: {
     contaminationNearbyCount: null,
     contaminationNearestM: null,
     contaminationRiskClasses: null,
+    planningQueried: false,
+    planningIntersectingCount: null,
+    planningOverlapPct: null,
+    planningNearestM: null,
+    planningPlanIds: null,
+    planningMunicipality: null,
+    planningProviderKey: null,
   });
 }
 

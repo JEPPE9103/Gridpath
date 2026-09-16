@@ -12,6 +12,7 @@ const ALLOWED_HOSTS = new Set([
   "inspire.mcf.se",
   "api.sgu.se",
   "ext-dokument.lansstyrelsen.se",
+  "gis.malmo.se",
 ]);
 
 export function isAllowedOpenGeodataUrl(url: string): boolean {

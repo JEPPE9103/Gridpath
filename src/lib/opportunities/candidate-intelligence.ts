@@ -110,6 +110,15 @@ export function constraintInputFromCandidate(
     | "contaminationRiskClasses"
     | "contaminationStatuses"
     | "contaminationRecordIds"
+    | "planningQueried"
+    | "planningIntersectingCount"
+    | "planningOverlapPct"
+    | "planningNearestM"
+    | "planningPlanIds"
+    | "planningPlanNames"
+    | "planningPlanStatuses"
+    | "planningMunicipality"
+    | "planningProviderKey"
   >,
   criteria?: Pick<
     ScreeningCriteria,
@@ -183,6 +192,15 @@ export function constraintInputFromCandidate(
     contaminationStatuses: candidate.contaminationStatuses,
     contaminationRecordIds: candidate.contaminationRecordIds,
     contaminationMode: criteria?.contaminationMode ?? "preference",
+    planningQueried: candidate.planningQueried,
+    planningIntersectingCount: candidate.planningIntersectingCount,
+    planningOverlapPct: candidate.planningOverlapPct,
+    planningNearestM: candidate.planningNearestM,
+    planningPlanIds: candidate.planningPlanIds,
+    planningPlanNames: candidate.planningPlanNames,
+    planningPlanStatuses: candidate.planningPlanStatuses,
+    planningMunicipality: candidate.planningMunicipality,
+    planningProviderKey: candidate.planningProviderKey,
   };
 }
 
@@ -203,6 +221,8 @@ export function whyCandidateLags(candidate: {
   contaminationQueried?: boolean;
   contaminationIntersectingCount?: number | null;
   contaminationNearbyCount?: number | null;
+  planningQueried?: boolean;
+  planningIntersectingCount?: number | null;
   keyRisk?: string | null;
   excluded?: boolean;
 }): string[] {
@@ -238,6 +258,11 @@ export function whyCandidateLags(candidate: {
     negatives.push("Official environmental-history record intersects the Candidate footprint");
   } else if ((candidate.contaminationNearbyCount ?? 0) > 0) {
     negatives.push("Official environmental-history record nearby");
+  }
+  if (candidate.planningQueried !== true) {
+    negatives.push("Official planning evidence unavailable");
+  } else if ((candidate.planningIntersectingCount ?? 0) > 0) {
+    negatives.push("Candidate intersects mapped detailed-plan geometry");
   }
   if (negatives.length === 0 && candidate.keyRisk) negatives.push(candidate.keyRisk);
   return negatives.slice(0, 4);
@@ -297,6 +322,15 @@ export function constraintInputFromScreeningCell(
     contamination_risk_classes?: string[] | null;
     contamination_statuses?: string[] | null;
     contamination_record_ids?: string[] | null;
+    planning_queried?: boolean | null;
+    planning_intersecting_count?: number | string | null;
+    planning_overlap_pct?: number | string | null;
+    planning_nearest_m?: number | string | null;
+    planning_plan_ids?: string[] | null;
+    planning_plan_names?: string[] | null;
+    planning_plan_statuses?: string[] | null;
+    planning_municipality?: string | null;
+    planning_provider_key?: string | null;
   },
   criteria?: Parameters<typeof constraintInputFromCandidate>[1],
   extras?: { excluded?: boolean; exclusionReason?: string | null },
@@ -349,6 +383,17 @@ export function constraintInputFromScreeningCell(
       contaminationRecordIds: Array.isArray(row.contamination_record_ids)
         ? row.contamination_record_ids.map(String)
         : [],
+      planningQueried: row.planning_queried === true,
+      planningIntersectingCount: num(row.planning_intersecting_count),
+      planningOverlapPct: num(row.planning_overlap_pct),
+      planningNearestM: num(row.planning_nearest_m),
+      planningPlanIds: Array.isArray(row.planning_plan_ids) ? row.planning_plan_ids.map(String) : [],
+      planningPlanNames: Array.isArray(row.planning_plan_names) ? row.planning_plan_names.map(String) : [],
+      planningPlanStatuses: Array.isArray(row.planning_plan_statuses)
+        ? row.planning_plan_statuses.map(String)
+        : [],
+      planningMunicipality: row.planning_municipality ?? null,
+      planningProviderKey: row.planning_provider_key ?? null,
     },
     criteria,
   );

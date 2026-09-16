@@ -229,6 +229,17 @@ async function executeGeographicScreening(input: {
       searchId: input.searchId,
     };
   }
+  const { error: planningError } = await input.supabase.rpc("apply_planning_to_run", {
+    p_run_id: runRow.run_id,
+  });
+  if (planningError) {
+    console.error("executeGeographicScreening planning assessment failed", planningError.message);
+    return {
+      error: publicError(planningError.message, "Screening ran but planning assessment failed."),
+      values: input.values,
+      searchId: input.searchId,
+    };
+  }
   try {
     await applyScreeningRunAssessments(input.supabase, runRow.run_id, input.criteria);
   } catch (error) {
@@ -742,6 +753,13 @@ export async function rerunOpportunitySearchAction(formData: FormData): Promise<
   });
   if (contaminationError) {
     console.error("rerunOpportunitySearchAction contamination assessment failed", contaminationError.message);
+    return;
+  }
+  const { error: planningError } = await supabase.rpc("apply_planning_to_run", {
+    p_run_id: runRow.run_id,
+  });
+  if (planningError) {
+    console.error("rerunOpportunitySearchAction planning assessment failed", planningError.message);
     return;
   }
 

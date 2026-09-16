@@ -40,6 +40,8 @@ describe("opportunity tenancy and provider contract", () => {
     assert.ok(supportedEvidenceProviders().some((item) => item.key === "lm-marktacke"));
     assert.ok(supportedEvidenceProviders().some((item) => item.key === "scb-administrative-areas"));
     assert.ok(supportedEvidenceProviders().some((item) => item.key === "trafikverket-inspire-roadlink"));
+    assert.ok(supportedEvidenceProviders().some((item) => item.key === "lst-ebh-potentiellt-fororenade"));
+    assert.ok(supportedEvidenceProviders().some((item) => item.key === "malmo-gallande-detaljplaner"));
     assert.ok(unsupportedEvidenceProviders().some((item) => item.key === "svk-indicative-transmission-2026"));
     assert.ok(unsupportedEvidenceProviders().some((item) => item.key === "electricity-area-geometry"));
     assert.equal(

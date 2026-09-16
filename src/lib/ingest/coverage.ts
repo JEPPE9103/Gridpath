@@ -4,6 +4,7 @@ import {
   FLOOD_SOURCE_SLUG,
   GROUND_SOURCE_SLUG,
   NMD_SOURCE_SLUG,
+  PLANNING_SOURCE_SLUG,
   ROADLINK_SOURCE_SLUG,
   needsOnDemandFetch,
   type CoverageStatus,
@@ -29,6 +30,7 @@ export type SearchAreaCoverage = {
   flood: LayerCoverage;
   ground: LayerCoverage;
   contamination: LayerCoverage;
+  planning: LayerCoverage;
   protectedAreas: LayerCoverage;
   natura2000: LayerCoverage;
   eiNetworkAreas: LayerCoverage;
@@ -76,6 +78,7 @@ export function parseSearchAreaCoverage(value: unknown): SearchAreaCoverage | nu
     flood: asLayer(row.flood, EMPTY_LAYER),
     ground: asLayer(row.ground, EMPTY_LAYER),
     contamination: asLayer(row.contamination ?? row.environmentalHistory, EMPTY_LAYER),
+    planning: asLayer(row.planning, EMPTY_LAYER),
     protectedAreas: asLayer(row.protectedAreas, EMPTY_CATALOG),
     natura2000: asLayer(row.natura2000, EMPTY_CATALOG),
     eiNetworkAreas: asLayer(row.eiNetworkAreas, EMPTY_CATALOG),
@@ -90,7 +93,8 @@ export type OnDemandSourcePlan = {
     | typeof ROADLINK_SOURCE_SLUG
     | typeof FLOOD_SOURCE_SLUG
     | typeof GROUND_SOURCE_SLUG
-    | typeof CONTAMINATION_SOURCE_SLUG;
+    | typeof CONTAMINATION_SOURCE_SLUG
+    | typeof PLANNING_SOURCE_SLUG;
   fetch: boolean;
   status: CoverageStatus;
 };
@@ -123,6 +127,11 @@ export function onDemandSourcePlan(coverage: SearchAreaCoverage): OnDemandSource
       fetch: needsOnDemandFetch(coverage.contamination.status),
       status: coverage.contamination.status,
     },
+    {
+      slug: PLANNING_SOURCE_SLUG,
+      fetch: needsOnDemandFetch(coverage.planning.status),
+      status: coverage.planning.status,
+    },
   ];
 }
 
@@ -144,6 +153,9 @@ export function coverageGapMessage(slug: string, reason: string): string {
   }
   if (slug === CONTAMINATION_SOURCE_SLUG) {
     return `Environmental-history evidence unavailable — screening continued with reduced evidence. ${reason}`.trim();
+  }
+  if (slug === PLANNING_SOURCE_SLUG) {
+    return `Municipal planning evidence unavailable — screening continued with reduced evidence. ${reason}`.trim();
   }
   return `Official evidence unavailable — screening continued with reduced evidence. ${reason}`.trim();
 }

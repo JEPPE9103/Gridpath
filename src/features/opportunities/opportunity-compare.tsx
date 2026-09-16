@@ -206,6 +206,27 @@ export function OpportunityComparePage({
                     : env.title;
                 }}
               </CompareRow>
+              <CompareRow label="Planning" items={items}>
+                {(item) => {
+                  const intelligence = intelligenceById.get(item.id);
+                  const planning = intelligence?.constraints.find((row) => row.evidenceCategory === "planning");
+                  if (!planning) return "Evidence unavailable";
+                  if (planning.id === "planning_unavailable") {
+                    return "Official planning evidence unavailable · Unknown";
+                  }
+                  if (planning.id === "planning_outside_mapped_plans") {
+                    return "Official plan evaluated · no mapped plan overlap";
+                  }
+                  if (planning.id === "planning_intersecting_plan") {
+                    return planning.measuredValue
+                      ? `Intersects mapped plan · ${planning.measuredValue}`
+                      : "Intersects mapped detailed-plan geometry";
+                  }
+                  return planning.measuredValue
+                    ? `${planning.measuredValue} / ${planning.severity.replace("_", " ")}`
+                    : planning.title;
+                }}
+              </CompareRow>
               <CompareRow label="Key risk" items={items}>
                 {(item) => item.keyRisk ?? "No stored risk yet."}
               </CompareRow>

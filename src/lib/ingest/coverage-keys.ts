@@ -6,12 +6,14 @@ export const ROADLINK_SOURCE_SLUG = "trafikverket-inspire-roadlink";
 export const FLOOD_SOURCE_SLUG = "msb-oversvamningskartering";
 export const GROUND_SOURCE_SLUG = "sgu-jordarter-25k-100k";
 export const CONTAMINATION_SOURCE_SLUG = "lst-ebh-potentiellt-fororenade";
+export const PLANNING_SOURCE_SLUG = "malmo-gallande-detaljplaner";
 
 export const NMD_WINDOW_STEP_DEG = 0.2;
 export const ROADLINK_WINDOW_STEP_DEG = 0.25;
 export const FLOOD_WINDOW_STEP_DEG = 0.2;
 export const GROUND_WINDOW_STEP_DEG = 0.2;
 export const CONTAMINATION_WINDOW_STEP_DEG = 0.25;
+export const PLANNING_WINDOW_STEP_DEG = 0.15;
 
 export type CoverageStatus = "covered" | "partial" | "missing" | "stale";
 export type IngestWindowOutcome = "acquired" | "covered" | "waiting";
@@ -102,6 +104,10 @@ export function groundWindows(bbox: SearchBbox): CoverageWindow[] {
 
 export function contaminationWindows(bbox: SearchBbox): CoverageWindow[] {
   return steppedWindows(bbox, CONTAMINATION_SOURCE_SLUG, "ebh", CONTAMINATION_WINDOW_STEP_DEG);
+}
+
+export function planningWindows(bbox: SearchBbox): CoverageWindow[] {
+  return steppedWindows(bbox, PLANNING_SOURCE_SLUG, "plan-malmo", PLANNING_WINDOW_STEP_DEG);
 }
 
 export function clipWindowToSearch(window: SearchBbox, search: SearchBbox): SearchBbox | null {

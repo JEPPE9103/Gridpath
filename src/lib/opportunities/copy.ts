@@ -47,6 +47,15 @@ const FORBIDDEN_TERMS = [
   "foundation unsuitable",
   "geotechnically feasible",
   "settlement will occur",
+  "project permitted",
+  "bess allowed",
+  "zoning approved",
+  "municipality will approve",
+  "planning permission likely",
+  "no planning risk",
+  "development-ready",
+  "development ready",
+  "cannot be developed",
 ] as const;
 
 export function publicOpportunityError(message: string | undefined, fallback: string): string {

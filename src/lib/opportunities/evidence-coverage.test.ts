@@ -48,13 +48,20 @@ const CORE_EVALUATED = {
   contaminationNearbyCount: 0,
   contaminationNearestM: null,
   contaminationRiskClasses: [],
+  planningQueried: true,
+  planningIntersectingCount: 0,
+  planningOverlapPct: 0,
+  planningNearestM: null,
+  planningPlanIds: [],
+  planningMunicipality: "Malmö",
+  planningProviderKey: "malmo-gallande-detaljplaner",
 };
 
 describe("evidence coverage", () => {
   it("distinguishes evaluated official evidence from missing categories", () => {
     const coverage = buildEvidenceCoverage(CORE_EVALUATED);
-    assert.equal(coverage.evaluatedCount, 8);
-    assert.equal(coverage.totalCount, 11);
+    assert.equal(coverage.evaluatedCount, 9);
+    assert.equal(coverage.totalCount, 12);
     const land = coverage.items.find((item) => item.id === "land_cover");
     const roads = coverage.items.find((item) => item.id === "road_access");
     const residential = coverage.items.find((item) => item.id === "residential_proximity");

@@ -47,6 +47,15 @@ const BASE = {
   contaminationNearestM: null as number | null,
   contaminationRiskClasses: [] as string[],
   contaminationMode: "preference" as const,
+  planningQueried: true,
+  planningIntersectingCount: 0,
+  planningOverlapPct: 0,
+  planningNearestM: null as number | null,
+  planningPlanIds: [] as string[],
+  planningPlanNames: [] as string[],
+  planningPlanStatuses: [] as string[],
+  planningMunicipality: null as string | null,
+  planningProviderKey: null as string | null,
 };
 
 describe("candidate constraints", () => {

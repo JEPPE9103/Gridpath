@@ -116,6 +116,15 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
       "Official EBH external point layer (ZIP shapefile, SWEREF99 TM). On-demand Search Area windows with disk cache. Screening-level environmental-history evidence — not contamination confirmation, remediation design, cost, or liability.",
   },
   {
+    key: "malmo-gallande-detaljplaner",
+    name: "Malmö stad Gällande detaljplaner (municipal planning)",
+    geography: "SE",
+    status: "supported",
+    dimensions: ["environmental"],
+    notes:
+      "Coverage-aware municipal planning. First layer: Malmö SBK ArcGIS REST Gällande planer (GeoJSON). Göteborg/Örebro registered as unavailable (no public machine-readable API). Not Sweden-wide; UNKNOWN outside supported municipalities. Screening context only — not zoning approval or permitting prediction. NGP Detaljplan remains a future AUTH_REQUIRED national path.",
+  },
+  {
     key: "lm-marktacke",
     name: "Lantmäteriet Marktäcke Nedladdning, vektor",
     geography: "SE",

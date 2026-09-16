@@ -362,6 +362,26 @@ export function OpportunitySearchResults({
                     : "Environmental history not evaluated"
                 }
               />
+              <Fact
+                label="Planning"
+                value={
+                  selected.planningQueried
+                    ? (selected.planningIntersectingCount ?? 0) > 0
+                      ? [
+                          `${selected.planningIntersectingCount} intersecting plan${
+                            (selected.planningIntersectingCount ?? 0) === 1 ? "" : "s"
+                          }`,
+                          selected.planningOverlapPct != null
+                            ? `${Math.round(selected.planningOverlapPct)}% overlap`
+                            : null,
+                          selected.planningMunicipality,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : "Evaluated · no mapped plan overlap"
+                    : "Official planning evidence unavailable"
+                }
+              />
             </div>
             <p className="mt-2 text-xs text-muted">{selectedCovering.note}</p>
 

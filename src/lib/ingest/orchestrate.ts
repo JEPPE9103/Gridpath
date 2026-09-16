@@ -5,6 +5,7 @@ import {
   FLOOD_SOURCE_SLUG,
   GROUND_SOURCE_SLUG,
   NMD_SOURCE_SLUG,
+  PLANNING_SOURCE_SLUG,
   ROADLINK_SOURCE_SLUG,
   clipWindowToSearch,
   contaminationWindows,
@@ -12,6 +13,7 @@ import {
   floodWindows,
   groundWindows,
   nmdWindows,
+  planningWindows,
   roadlinkWindows,
   type CoverageWindow,
 } from "@/lib/ingest/coverage-keys";
@@ -25,9 +27,11 @@ import {
   resolveNmd2023Source,
   type NmdRasterSource,
 } from "@/lib/ingest/nmd";
+import { fetchPlanningFeatures, planningSnapshotHash } from "@/lib/ingest/planning";
 import { fetchRoadLinkFeatures, roadlinkSnapshotHash } from "@/lib/ingest/roads";
 import { claimIngestWindow, finishIngestWindow, waitForWindow } from "@/lib/ingest/windows";
 import type { DiscoveryIngestProgress, DiscoveryProgressStageId, DiscoverySourceRun } from "@/lib/ingest/progress";
+import { planningProvidersForBbox } from "@/lib/opportunities/planning-providers";
 import type { SearchBbox } from "@/lib/opportunities/spatial-screening";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -223,6 +227,47 @@ async function upsertContamination(service: SupabaseClient, snapshotId: string |
   return count;
 }
 
+async function upsertPlanning(service: SupabaseClient, snapshotId: string | null, rows: unknown[]): Promise<number> {
+  let count = 0;
+  const batch = 40;
+  for (let i = 0; i < rows.length; i += batch) {
+    const payload = (
+      rows.slice(i, i + batch) as Array<{
+        id: string;
+        name: string;
+        designation: string;
+        geom: unknown;
+        properties: Record<string, unknown>;
+        clipWest?: number;
+        clipSouth?: number;
+        clipEast?: number;
+        clipNorth?: number;
+        sourceVersion?: string;
+      }>
+    ).map((row) => ({
+      id: row.id,
+      name: row.name,
+      designation: row.designation,
+      geom: JSON.stringify(row.geom),
+      properties: row.properties,
+      sourceVersion: row.sourceVersion ?? PLANNING_SOURCE_SLUG,
+      clipWest: row.clipWest,
+      clipSouth: row.clipSouth,
+      clipEast: row.clipEast,
+      clipNorth: row.clipNorth,
+    }));
+    const { data, error } = await service.rpc("upsert_official_geographic_features", {
+      p_source_slug: PLANNING_SOURCE_SLUG,
+      p_snapshot_id: snapshotId,
+      p_feature_class: "mapped_planning",
+      p_rows: payload,
+    });
+    if (error) throw new Error(error.message);
+    count += Number(data ?? 0);
+  }
+  return count;
+}
+
 async function withWindow(
   service: SupabaseClient,
   window: CoverageWindow,
@@ -356,6 +401,33 @@ async function ingestContaminationWindow(
     await upsertContamination(service, snapshotId, rows);
     // Covered even when zero points — evaluated "no mapped records in dataset".
     return { status: "covered", snapshotId, version: "lst-ebh" };
+  });
+}
+
+async function ingestPlanningWindow(
+  service: SupabaseClient,
+  window: CoverageWindow,
+  search: SearchBbox,
+): Promise<DiscoverySourceRun> {
+  const clipped = clipWindowToSearch(window.bbox, search) ?? window.bbox;
+  return withWindow(service, window, async () => {
+    const rows = await fetchPlanningFeatures(clipped);
+    const snapshotId = await insertSnapshot(
+      service,
+      PLANNING_SOURCE_SLUG,
+      planningSnapshotHash(clipped, rows.length),
+      {
+        publisher: "SBK Malmö stad",
+        dataset: "Gällande detaljplaner",
+        layer: "SEPlan/Gallande_planer/MapServer/1",
+        bbox: clipped,
+        feature_count: rows.length,
+        normalize_version: "planning-normalize-v1",
+        note: "Empty feature_count means the window was evaluated with no mapped detailed-plan polygons. Screening-level municipal planning evidence — not zoning approval.",
+      },
+    );
+    await upsertPlanning(service, snapshotId, rows);
+    return { status: "covered", snapshotId, version: "malmo-gallande" };
   });
 }
 
@@ -514,6 +586,34 @@ export async function ensureSearchAreaEvidence(input: {
       if (result.action === "fetched") fetched.push(CONTAMINATION_SOURCE_SLUG);
       if (result.action === "failed") {
         messages.push(coverageGapMessage(CONTAMINATION_SOURCE_SLUG, result.detail ?? ""));
+      }
+    }
+  }
+
+  await emit("planning");
+  const supportedPlanning = planningProvidersForBbox(input.bbox).filter((p) => p.status === "supported");
+  if (supportedPlanning.length === 0) {
+    sources.push({
+      slug: PLANNING_SOURCE_SLUG,
+      action: "skipped",
+      detail: "no supported municipal planning provider for Search Area",
+    });
+  } else {
+    const planningPlan = plan.find((item) => item.slug === PLANNING_SOURCE_SLUG);
+    if (!planningPlan?.fetch) {
+      sources.push({
+        slug: PLANNING_SOURCE_SLUG,
+        action: "cache",
+        detail: planningPlan?.status ?? "covered",
+      });
+    } else {
+      for (const window of planningWindows(input.bbox)) {
+        const result = await ingestPlanningWindow(input.service, window, input.bbox);
+        sources.push(result);
+        if (result.action === "fetched") fetched.push(PLANNING_SOURCE_SLUG);
+        if (result.action === "failed") {
+          messages.push(coverageGapMessage(PLANNING_SOURCE_SLUG, result.detail ?? ""));
+        }
       }
     }
   }

@@ -59,6 +59,7 @@ describe("coverage plan", () => {
       flood: { status: "missing", scope: "bbox" },
       ground: { status: "missing", scope: "bbox" },
       contamination: { status: "missing", scope: "bbox" },
+      planning: { status: "missing", scope: "bbox" },
       protectedAreas: { status: "covered", scope: "national_catalog" },
       natura2000: { status: "covered", scope: "national_catalog" },
       eiNetworkAreas: { status: "covered", scope: "national_catalog" },
@@ -72,6 +73,7 @@ describe("coverage plan", () => {
     assert.equal(plan.find((item) => item.slug === "msb-oversvamningskartering")?.fetch, true);
     assert.equal(plan.find((item) => item.slug === "sgu-jordarter-25k-100k")?.fetch, true);
     assert.equal(plan.find((item) => item.slug === "lst-ebh-potentiellt-fororenade")?.fetch, true);
+    assert.equal(plan.find((item) => item.slug === "malmo-gallande-detaljplaner")?.fetch, true);
     assert.equal(needsOnDemandFetch("partial"), true);
     assert.equal(needsOnDemandFetch("covered"), false);
   });

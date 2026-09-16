@@ -120,6 +120,15 @@ export type ScreeningCellRow = {
   contamination_statuses?: string[] | null;
   contamination_record_ids?: string[] | null;
   contamination_provider_key?: string | null;
+  planning_queried?: boolean | null;
+  planning_intersecting_count?: number | string | null;
+  planning_overlap_pct?: number | string | null;
+  planning_nearest_m?: number | string | null;
+  planning_plan_ids?: string[] | null;
+  planning_plan_names?: string[] | null;
+  planning_plan_statuses?: string[] | null;
+  planning_municipality?: string | null;
+  planning_provider_key?: string | null;
   exclusion_breakdown?: ExclusionBreakdown | null;
   screening_stage?: string | null;
   refinement_status?: string | null;
@@ -277,6 +286,10 @@ function environmentalScore(row: ScreeningCellRow, screening: ScreeningResult): 
   }
   // Missing environmental-history evidence must never improve environmental score.
   if (row.contamination_queried !== true) {
+    score = Math.min(score, 0.55);
+  }
+  // Missing planning evidence must never improve environmental score.
+  if (row.planning_queried !== true) {
     score = Math.min(score, 0.55);
   }
   return score;
@@ -545,6 +558,15 @@ export function rankScreeningCells(
         contaminationRiskClasses: item.row.contamination_risk_classes ?? [],
         contaminationStatuses: item.row.contamination_statuses ?? [],
         contaminationRecordIds: item.row.contamination_record_ids ?? [],
+        planningQueried: item.row.planning_queried === true,
+        planningIntersectingCount: num(item.row.planning_intersecting_count),
+        planningOverlapPct: num(item.row.planning_overlap_pct),
+        planningNearestM: num(item.row.planning_nearest_m),
+        planningPlanIds: item.row.planning_plan_ids ?? [],
+        planningPlanNames: item.row.planning_plan_names ?? [],
+        planningPlanStatuses: item.row.planning_plan_statuses ?? [],
+        planningMunicipality: item.row.planning_municipality ?? null,
+        planningProviderKey: item.row.planning_provider_key ?? null,
         keyPositive: item.screening.positives[0] ?? null,
         keyRisk: item.screening.risks[0] ?? null,
         targetFitLabel: null,

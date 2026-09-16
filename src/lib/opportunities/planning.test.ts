@@ -3,12 +3,17 @@ import { describe, it } from "node:test";
 import { buildCandidateIntelligence, parseFrozenIntelligence } from "./candidate-intelligence";
 import { deriveCandidateConstraints, hasBlocker } from "./constraints";
 import { opportunityCopyContainsForbiddenTerm } from "./copy";
-import {
-  CONTAMINATION_NEARBY_M,
-  describeContaminationEvidence,
-  isHighOfficialRiskClass,
-} from "./contamination";
 import { deriveNextInvestigations } from "./investigations";
+import {
+  describePlanningEvidence,
+  formatPlanningOverlapPct,
+  normalizeMalmoPlanRecord,
+} from "./planning";
+import {
+  planningProvidersForBbox,
+  supportedPlanningProviders,
+  unavailablePlanningProvidersForBbox,
+} from "./planning-providers";
 import { suitabilityScoreV4 } from "./run-ranking";
 import type { ScreeningCriteria } from "./screening";
 import { evaluateOpportunityScreening } from "./screening";
@@ -66,103 +71,92 @@ const BASE = {
   planningPlanIds: [] as string[],
   planningPlanNames: [] as string[],
   planningPlanStatuses: [] as string[],
-  planningMunicipality: null as string | null,
-  planningProviderKey: null as string | null,
+  planningMunicipality: "Malmö",
+  planningProviderKey: "malmo-gallande-detaljplaner",
 };
 
-describe("contamination / environmental history intelligence", () => {
-  it("treats evaluated zero records as INFO, never environmentally-safe language", () => {
+describe("planning intelligence", () => {
+  it("registers Malmö as supported and Göteborg/Örebro as unavailable", () => {
+    assert.equal(supportedPlanningProviders().length, 1);
+    assert.equal(supportedPlanningProviders()[0]?.municipalityName, "Malmö");
+    const gbg = planningProvidersForBbox({ west: 11.8, south: 57.65, east: 12.0, north: 57.75 });
+    assert.ok(gbg.some((p) => p.key === "goteborg-detaljplan" && p.status === "unavailable"));
+    const ore = unavailablePlanningProvidersForBbox({
+      west: 15.1,
+      south: 59.2,
+      east: 15.25,
+      north: 59.3,
+    });
+    assert.ok(ore.some((p) => p.key === "orebro-detaljplan"));
+  });
+
+  it("preserves Malmö source terminology in normalization", () => {
+    const normalized = normalizeMalmoPlanRecord({
+      PLAN_: "DP5123",
+      PLANNAMN: "Testområdet",
+      LAGAKRAFT_: "20180315",
+      LMAKT: "1280K-DP5123",
+      BESLUTSDAT: "20180201",
+      url_dok: "https://example.malmo.se/plan",
+    });
+    assert.equal(normalized.planId, "DP5123");
+    assert.equal(normalized.planName, "Testområdet");
+    assert.match(normalized.planStatus ?? "", /Gällande/);
+    assert.match(normalized.planStatus ?? "", /20180315/);
+    assert.equal(normalized.lmAkt, "1280K-DP5123");
+    assert.equal(normalized.municipalityCode, "1280");
+  });
+
+  it("treats evaluated zero mapped plans as INFO, never no-planning-risk language", () => {
     const constraints = deriveCandidateConstraints(BASE);
-    const row = constraints.find((item) => item.id === "contamination_no_mapped_records");
+    const row = constraints.find((item) => item.id === "planning_outside_mapped_plans");
     assert.equal(row?.severity, "info");
-    assert.match(row?.explanation ?? "", /not a finding that environmental history is absent/i);
+    assert.match(row?.explanation ?? "", /not a finding of absent planning context/i);
     assert.equal(opportunityCopyContainsForbiddenTerm(row?.explanation ?? ""), null);
-    assert.equal(opportunityCopyContainsForbiddenTerm("environmentally safe site"), "environmentally safe");
-    assert.equal(opportunityCopyContainsForbiddenTerm("contaminated land confirmed"), "contaminated land confirmed");
+    assert.equal(opportunityCopyContainsForbiddenTerm("no planning risk"), "no planning risk");
+    assert.equal(opportunityCopyContainsForbiddenTerm("project permitted"), "project permitted");
   });
 
-  it("maps nearby records to RISK and intersecting high official class to MAJOR_RISK", () => {
-    const nearby = deriveCandidateConstraints({
-      ...BASE,
-      contaminationNearbyCount: 2,
-      contaminationNearestM: 90,
-    }).find((item) => item.id === "contamination_nearby_record");
-    assert.equal(nearby?.severity, "risk");
-    assert.match(nearby?.measuredValue ?? "", new RegExp(`${CONTAMINATION_NEARBY_M}`));
-
-    const major = deriveCandidateConstraints({
-      ...BASE,
-      contaminationIntersectingCount: 1,
-      contaminationNearestM: 0,
-      contaminationRiskClasses: ["Riskklass 2"],
-    }).find((item) => item.id === "contamination_high_risk_intersecting");
-    assert.equal(major?.severity, "major_risk");
-    assert.equal(isHighOfficialRiskClass("Riskklass 2"), true);
-  });
-
-  it("never defaults intersecting records to BLOCKER; hard mode can", () => {
-    const preference = deriveCandidateConstraints({
-      ...BASE,
-      contaminationIntersectingCount: 1,
-      contaminationMode: "preference",
-    });
-    assert.equal(hasBlocker(preference), false);
-    assert.ok(preference.some((item) => item.id === "contamination_intersecting_record"));
-
-    const hard = deriveCandidateConstraints({
-      ...BASE,
-      contaminationIntersectingCount: 1,
-      contaminationMode: "hard",
-    });
-    assert.ok(hard.some((item) => item.id === "contamination_hard_exclusion" && item.severity === "blocker"));
-  });
-
-  it("marks missing evidence as UNKNOWN and plans investigation", () => {
+  it("maps intersecting plans to RISK and never default BLOCKER", () => {
     const constraints = deriveCandidateConstraints({
       ...BASE,
-      contaminationQueried: false,
-      contaminationIntersectingCount: null,
-      contaminationNearbyCount: null,
+      planningIntersectingCount: 2,
+      planningOverlapPct: 62,
+      planningPlanIds: ["DP5123", "DP4000"],
+      planningPlanNames: ["Testområdet"],
+      planningPlanStatuses: ["Gällande"],
     });
-    const missing = constraints.find((item) => item.id === "contamination_unavailable");
-    assert.equal(missing?.severity, "unknown");
-    const next = deriveNextInvestigations(constraints);
-    assert.ok(next.some((item) => item.id === "investigate_contamination_unavailable"));
-    assert.match(
-      next.find((item) => item.id === "investigate_contamination_unavailable")?.action ?? "",
-      /Obtain contamination\/environmental-history/,
-    );
+    const row = constraints.find((item) => item.id === "planning_intersecting_plan");
+    assert.equal(row?.severity, "risk");
+    assert.equal(hasBlocker(constraints), false);
+    assert.match(row?.measuredValue ?? "", /62%/);
+    assert.match(describePlanningEvidence({
+      queried: true,
+      intersectingCount: 2,
+      overlapPct: 62,
+      planIds: ["DP5123"],
+    }), /permitting conclusion/i);
   });
 
-  it("plans NOW investigation for intersecting official records", () => {
+  it("marks unavailable planning as UNKNOWN with deterministic Next Investigation", () => {
     const constraints = deriveCandidateConstraints({
       ...BASE,
-      contaminationIntersectingCount: 1,
-      contaminationNearestM: 0,
+      planningQueried: false,
+      planningIntersectingCount: null,
+      planningOverlapPct: null,
+      planningMunicipality: null,
+      planningProviderKey: null,
     });
+    const row = constraints.find((item) => item.id === "planning_unavailable");
+    assert.equal(row?.severity, "unknown");
     const next = deriveNextInvestigations(constraints);
-    const row = next.find(
-      (item) =>
-        item.constraintId === "contamination_intersecting_record" ||
-        item.constraintId === "contamination_high_risk_intersecting",
-    );
-    assert.equal(row?.priority, "now");
-    assert.match(row?.action ?? "", /Review environmental history/);
+    const planningNext = next.find((item) => item.constraintId === "planning_unavailable");
+    assert.ok(planningNext);
+    assert.equal(planningNext?.priority, "now");
+    assert.match(planningNext?.action ?? "", /Confirm municipal planning context/i);
   });
 
-  it("describes evidence without claiming confirmed contamination", () => {
-    const text = describeContaminationEvidence({
-      intersectingCount: 1,
-      nearbyCount: 0,
-      nearestM: 0,
-      riskClasses: ["Riskklass 2"],
-    });
-    assert.match(text, /intersects the Candidate footprint/i);
-    assert.match(text, /not a contamination confirmation/i);
-    assert.equal(opportunityCopyContainsForbiddenTerm(text), null);
-  });
-
-  it("does not let missing contamination evidence improve suitability score", () => {
+  it("does not let missing planning evidence improve suitability score", () => {
     const criteria: ScreeningCriteria = {
       technology: "battery_storage",
       country: "SE",
@@ -183,8 +177,8 @@ describe("contamination / environmental history intelligence", () => {
     const baseRow = {
       id: "1",
       name: "A",
-      latitude: 59,
-      longitude: 15,
+      latitude: 55.6,
+      longitude: 13.0,
       gross_area_ha: 12,
       usable_area_ha: 12,
       contiguous_area_ha: 12,
@@ -210,6 +204,8 @@ describe("contamination / environmental history intelligence", () => {
       contamination_queried: true,
       contamination_intersecting_count: 0,
       contamination_nearby_count: 0,
+      planning_queried: true,
+      planning_intersecting_count: 0,
       target_fit_score: 0.9,
       geometry_quality: "pass",
     };
@@ -220,8 +216,8 @@ describe("contamination / environmental history intelligence", () => {
         country: "SE",
         region: null,
         municipality: null,
-        latitude: 59,
-        longitude: 15,
+        latitude: 55.6,
+        longitude: 13.0,
         targetMw: null,
         targetMwh: null,
         siteAreaHa: 12,
@@ -240,19 +236,21 @@ describe("contamination / environmental history intelligence", () => {
     });
     const evaluated = suitabilityScoreV4(baseRow, screening, criteria);
     const missing = suitabilityScoreV4(
-      { ...baseRow, contamination_queried: false, contamination_intersecting_count: null },
+      { ...baseRow, planning_queried: false, planning_intersecting_count: null },
       screening,
       criteria,
     );
     assert.ok(missing <= evaluated);
   });
 
-  it("freezes contamination constraints into Opportunity intelligence snapshot", () => {
+  it("freezes planning constraints into Opportunity intelligence snapshot", () => {
     const intelligence = buildCandidateIntelligence({
       ...BASE,
-      contaminationIntersectingCount: 1,
-      contaminationNearestM: 0,
-      contaminationRiskClasses: ["Riskklass 1"],
+      planningIntersectingCount: 1,
+      planningOverlapPct: 40,
+      planningPlanIds: ["DP5123"],
+      planningPlanNames: ["Testområdet"],
+      planningPlanStatuses: ["Gällande"],
       keyPositive: null,
       keyRisk: null,
       targetFitLabel: null,
@@ -263,11 +261,7 @@ describe("contamination / environmental history intelligence", () => {
       maxRoadDistanceM: 1000,
     });
     const frozen = parseFrozenIntelligence({ intelligence });
-    assert.ok(
-      frozen?.constraints.some(
-        (item) =>
-          item.id === "contamination_high_risk_intersecting" || item.id === "contamination_intersecting_record",
-      ),
-    );
+    assert.ok(frozen?.constraints.some((row) => row.id === "planning_intersecting_plan"));
+    assert.equal(formatPlanningOverlapPct(40), "40%");
   });
 });
