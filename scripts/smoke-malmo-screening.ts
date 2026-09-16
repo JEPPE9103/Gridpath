@@ -138,6 +138,16 @@ async function main() {
   });
   if (segmentError) throw new Error(segmentError.message);
 
+  for (const rpc of [
+    "apply_flood_overlap_to_run",
+    "apply_ground_composition_to_run",
+    "apply_contamination_to_run",
+    "apply_planning_to_run",
+  ] as const) {
+    const { error } = await userClient.rpc(rpc, { p_run_id: runRow.run_id });
+    if (error) throw new Error(`${rpc}: ${error.message}`);
+  }
+
   const { count } = await userClient
     .from("opportunity_run_candidates")
     .select("id", { count: "exact", head: true })
@@ -147,11 +157,16 @@ async function main() {
   const { data: sample } = await userClient
     .from("opportunity_run_candidates")
     .select(
-      "name, usable_area_ha, land_cover_queried, terrain_queried, road_queried, protected_queried, mean_slope_deg, road_distance_m",
+      "id, name, usable_area_ha, planning_queried, planning_intersecting_count, planning_overlap_pct, planning_nearest_m, planning_plan_ids, planning_plan_names, planning_plan_statuses, planning_municipality, planning_provider_key, land_cover_queried, terrain_queried, road_queried, protected_queried, mean_slope_deg, road_distance_m",
     )
     .eq("run_id", runRow.run_id)
     .eq("candidate_kind", "site")
-    .limit(3);
+    .order("rank", { ascending: true, nullsFirst: false })
+    .limit(25);
+
+  const outside = (sample ?? []).filter((c) => c.planning_queried && (c.planning_intersecting_count ?? 0) === 0);
+  const intersecting = (sample ?? []).filter((c) => (c.planning_intersecting_count ?? 0) > 0);
+  const multi = intersecting.filter((c) => (c.planning_intersecting_count ?? 0) > 1);
 
   const { data: geojson } = await userClient.rpc("get_opportunity_run_geojson", { p_run_id: runRow.run_id });
   const featureCount = Array.isArray((geojson as { features?: unknown[] } | null)?.features)
@@ -170,9 +185,17 @@ async function main() {
         warnings: runRow.warnings ?? [],
         ensureMessages: ensure.messages,
         ensureSources: ensure.sources,
-        sample,
+        planningContrast: {
+          outsideCount: outside.length,
+          intersectingCount: intersecting.length,
+          multiCount: multi.length,
+          candidateA_outside: outside[0] ?? null,
+          candidateB_intersecting: intersecting[0] ?? null,
+          candidateC_multi: multi[0] ?? null,
+        },
+        sample: (sample ?? []).slice(0, 5),
         runGeojsonFeatureCount: featureCount,
-        note: "GeoJSON is run candidates/zones only — not nationwide RoadLink/NMD.",
+        note: "GeoJSON is run candidates/zones only — not nationwide RoadLink/NMD. Planning applied via product RPC chain.",
       },
       null,
       2,

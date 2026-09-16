@@ -13,7 +13,11 @@ export const ROADLINK_WINDOW_STEP_DEG = 0.25;
 export const FLOOD_WINDOW_STEP_DEG = 0.2;
 export const GROUND_WINDOW_STEP_DEG = 0.2;
 export const CONTAMINATION_WINDOW_STEP_DEG = 0.25;
-export const PLANNING_WINDOW_STEP_DEG = 0.15;
+/**
+ * Dense municipal detaljplaner: small tile steps split a city AOI into multiple
+ * near-duplicate ArcGIS downloads. One quantized Search Area window is enough.
+ */
+export const PLANNING_WINDOW_STEP_DEG = 0.01;
 
 export type CoverageStatus = "covered" | "partial" | "missing" | "stale";
 export type IngestWindowOutcome = "acquired" | "covered" | "waiting";
@@ -107,7 +111,19 @@ export function contaminationWindows(bbox: SearchBbox): CoverageWindow[] {
 }
 
 export function planningWindows(bbox: SearchBbox): CoverageWindow[] {
-  return steppedWindows(bbox, PLANNING_SOURCE_SLUG, "plan-malmo", PLANNING_WINDOW_STEP_DEG);
+  // Single window keyed to the Search Area (quantized). Avoids 0.15°-style tiling
+  // that fetched the same dense Malmö plan set twice for a typical AOI.
+  const west = quantizeFloor(bbox.west, PLANNING_WINDOW_STEP_DEG);
+  const south = quantizeFloor(bbox.south, PLANNING_WINDOW_STEP_DEG);
+  const east = quantizeCeil(bbox.east, PLANNING_WINDOW_STEP_DEG);
+  const north = quantizeCeil(bbox.north, PLANNING_WINDOW_STEP_DEG);
+  return [
+    {
+      sourceSlug: PLANNING_SOURCE_SLUG,
+      coverageKey: `plan-malmo:search:${west.toFixed(4)}:${south.toFixed(4)}:${east.toFixed(4)}:${north.toFixed(4)}`,
+      bbox: { west, south, east, north },
+    },
+  ];
 }
 
 export function clipWindowToSearch(window: SearchBbox, search: SearchBbox): SearchBbox | null {

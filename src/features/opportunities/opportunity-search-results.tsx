@@ -374,12 +374,15 @@ export function OpportunitySearchResults({
                           selected.planningOverlapPct != null
                             ? `${Math.round(selected.planningOverlapPct)}% overlap`
                             : null,
+                          selected.planningPlanIds?.[0]
+                            ? `ID ${selected.planningPlanIds[0]}`
+                            : null,
                           selected.planningMunicipality,
                         ]
                           .filter(Boolean)
                           .join(" · ")
-                      : "Evaluated · no mapped plan overlap"
-                    : "Official planning evidence unavailable"
+                      : "Evaluated · no mapped plan intersection (not a no-risk finding)"
+                    : "Official planning evidence unavailable · not evaluated"
                 }
               />
             </div>

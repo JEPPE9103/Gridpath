@@ -229,7 +229,8 @@ async function upsertContamination(service: SupabaseClient, snapshotId: string |
 
 async function upsertPlanning(service: SupabaseClient, snapshotId: string | null, rows: unknown[]): Promise<number> {
   let count = 0;
-  const batch = 40;
+  // Dense plan polygons: larger batches cut RPC round-trips (measured cold-path waste).
+  const batch = 120;
   for (let i = 0; i < rows.length; i += batch) {
     const payload = (
       rows.slice(i, i + batch) as Array<{

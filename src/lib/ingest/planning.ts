@@ -19,6 +19,9 @@ const PAGE_SIZE = 1000;
 const MAX_PAGES = 20;
 const FETCH_TIMEOUT_MS = 90_000;
 const MAX_ATTEMPTS = 2;
+/** Provenance fields only; geometry dominates payload — avoid outFields=*. */
+const MALMO_OUT_FIELDS =
+  "OBJECTID,PLAN_,PLANID,PLANNAMN,LAGAKRAFT_,FIX_LAGAKR,BESLUTSDAT,LMAKT,url_dok,url_1,url_2,url_ovrig";
 
 export type PlanningFeatureRow = {
   id: string;
@@ -74,7 +77,7 @@ export function buildMalmoPlanningQueryUrl(
   const url = new URL(MALMO_GALLANDE_QUERY_ENDPOINT);
   url.searchParams.set("f", "geojson");
   url.searchParams.set("outSR", "4326");
-  url.searchParams.set("outFields", "*");
+  url.searchParams.set("outFields", MALMO_OUT_FIELDS);
   url.searchParams.set("where", "1=1");
   url.searchParams.set("returnGeometry", "true");
   url.searchParams.set("geometryType", "esriGeometryEnvelope");
@@ -83,6 +86,9 @@ export function buildMalmoPlanningQueryUrl(
   url.searchParams.set("geometry", `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`);
   url.searchParams.set("resultOffset", String(resultOffset));
   url.searchParams.set("resultRecordCount", String(resultRecordCount));
+  // NOTE: ArcGIS maxAllowableOffset (~10 m) cut payload ~10× in profiling, but
+  // generalized polygons can fail PostGIS ST_Intersection (TopologyException).
+  // Keep full official geometry until upsert makevalid-before-clip is shipped.
   return url.href;
 }
 
@@ -118,22 +124,23 @@ async function fetchPlanningPage(
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
-      let text: string;
+      // Prefer WGS84 envelope (matches Search Area). Retry EPSG:3008 only when 4326 fails.
+      const text = await fetchOpenGeodataText(
+        buildMalmoPlanningQueryUrl(bbox, resultOffset, PAGE_SIZE, 4326),
+        FETCH_TIMEOUT_MS,
+      );
+      return parseFeatureCollection(text);
+    } catch (error4326) {
       try {
-        text = await fetchOpenGeodataText(
-          buildMalmoPlanningQueryUrl(bbox, resultOffset, PAGE_SIZE, 4326),
-          FETCH_TIMEOUT_MS,
-        );
-      } catch {
-        text = await fetchOpenGeodataText(
+        const text = await fetchOpenGeodataText(
           buildMalmoPlanningQueryUrl(bbox, resultOffset, PAGE_SIZE, 3008),
           FETCH_TIMEOUT_MS,
         );
+        return parseFeatureCollection(text);
+      } catch (error3008) {
+        lastError = error3008 ?? error4326;
+        if (attempt < MAX_ATTEMPTS) await sleep(400 * attempt);
       }
-      return parseFeatureCollection(text);
-    } catch (error) {
-      lastError = error;
-      if (attempt < MAX_ATTEMPTS) await sleep(400 * attempt);
     }
   }
   throw lastError instanceof Error ? lastError : new Error("Malmö planning fetch failed");
