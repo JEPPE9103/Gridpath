@@ -14,7 +14,6 @@ import { buildEvidenceCoverageFromAssessments } from "@/lib/opportunities/eviden
 import {
   constraintTitlesForCompare,
   nextInvestigationForCompare,
-  parseFrozenIntelligence,
   type CandidateIntelligence,
 } from "@/lib/opportunities/candidate-intelligence";
 import { cn } from "@/lib/cn";

@@ -611,13 +611,17 @@ export function deriveCandidateConstraints(input: CandidateConstraintInput): Can
     const contaminationMode = input.contaminationMode === "hard" ? "hard" : "preference";
     const intersecting = input.contaminationIntersectingCount ?? 0;
     const nearby = input.contaminationNearbyCount ?? 0;
-    const riskClasses = (input.contaminationRiskClasses ?? []).filter(Boolean);
+    const riskClasses = (input.contaminationRiskClasses ?? []).filter(
+      (item) => item && item !== "unspecified",
+    );
+    const statuses = (input.contaminationStatuses ?? []).filter(Boolean);
+    const classificationLabels = riskClasses.length > 0 ? riskClasses : statuses;
     const highRisk = riskClasses.some((item) => isHighOfficialRiskClass(item));
     const evidenceText = describeContaminationEvidence({
       intersectingCount: intersecting,
       nearbyCount: nearby,
       nearestM: input.contaminationNearestM,
-      riskClasses,
+      riskClasses: classificationLabels,
     });
 
     if (input.contaminationQueried !== true) {

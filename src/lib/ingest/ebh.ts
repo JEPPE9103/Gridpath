@@ -157,7 +157,8 @@ function parseDbf(buffer: Buffer): { fields: Array<{ name: string; length: numbe
     let cursor = start + 1;
     const row: Record<string, string> = {};
     for (const field of fields) {
-      row[field.name] = buffer.slice(cursor, cursor + field.length).toString("latin1").trim();
+      // EBH external shapefile DBF strings are UTF-8 (Swedish diacritics).
+      row[field.name] = buffer.slice(cursor, cursor + field.length).toString("utf8").replace(/\0/g, "").trim();
       cursor += field.length;
     }
     records.push(row);
@@ -237,7 +238,7 @@ export async function fetchContaminationFeatures(bbox: SearchBbox): Promise<Cont
     rows.push({
       id: `ebh:${normalized.ebhId}`,
       name: normalized.primaryBranch ?? `EBH ${normalized.ebhId}`,
-      designation: normalized.riskClass ?? normalized.status ?? "EBH",
+      designation: normalized.riskClass ?? "unspecified",
       geom: { type: "Point", coordinates: [lon, lat] },
       properties: {
         ...props,
