@@ -77,7 +77,7 @@ export const EVIDENCE_PROVIDERS: EvidenceProvider[] = [
     status: "supported",
     dimensions: ["land_suitability"],
     notes:
-      "Preferred detailed terrain. STAC https://api.lantmateriet.se/stac-hojd/v1. Requires Geotorget credentials (LANTMATERIET_GEOTORGET_USERNAME/PASSWORD or LANTMATERIET_STAC_TOKEN). Candidate-scoped on-demand tiles only — not a nationwide PostGIS ingest. Unconfigured state: AUTH_REQUIRED / FALLBACK_ACTIVE (Copernicus).",
+      "Requires Geotorget credentials (LANTMATERIET_CLIENT_ID/SECRET OAuth2 preferred, or LANTMATERIET_STAC_TOKEN, or LANTMATERIET_GEOTORGET_USERNAME/PASSWORD). Candidate-scoped on-demand tiles only — not a nationwide PostGIS ingest. Unconfigured state: AUTH_REQUIRED / FALLBACK_ACTIVE (Copernicus).",
   },
   {
     key: "trafikverket-inspire-roadlink",

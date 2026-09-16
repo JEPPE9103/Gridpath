@@ -7,7 +7,9 @@ import {
 } from "@/lib/opportunities/detailed-terrain";
 import {
   lantmaterietCredentialsConfigured,
+  resolveLantmaterietAuthHeaders,
   LANTMATERIET_STAC_URL,
+  type LantmaterietAuthHeaders,
 } from "@/lib/opportunities/lantmateriet";
 import { hornSlopeDegrees, percentile } from "@/lib/opportunities/terrain";
 import type { SearchBbox } from "@/lib/opportunities/spatial-screening";
@@ -37,8 +39,9 @@ export type DetailedTerrainSummaryRow = {
   elevRangeM: number;
 };
 
-export type DtmAuthHeaders = { authorization: string };
+export type DtmAuthHeaders = LantmaterietAuthHeaders;
 
+/** @deprecated Prefer resolveDtmAuthHeaders — sync helpers cannot mint OAuth2 tokens. */
 export function dtmAuthHeaders(env: NodeJS.ProcessEnv = process.env): DtmAuthHeaders | null {
   const token = env.LANTMATERIET_STAC_TOKEN?.trim();
   const user = env.LANTMATERIET_GEOTORGET_USERNAME?.trim();
@@ -48,6 +51,12 @@ export function dtmAuthHeaders(env: NodeJS.ProcessEnv = process.env): DtmAuthHea
     return { authorization: `Basic ${Buffer.from(`${user}:${password}`).toString("base64")}` };
   }
   return null;
+}
+
+export async function resolveDtmAuthHeaders(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<DtmAuthHeaders | null> {
+  return resolveLantmaterietAuthHeaders(env);
 }
 
 export function dtmConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -234,7 +243,7 @@ export async function fetchDetailedTerrainSummaries(
   bbox: SearchBbox,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<{ rows: DetailedTerrainSummaryRow[]; tileCount: number; authRequired: boolean }> {
-  const auth = dtmAuthHeaders(env);
+  const auth = await resolveDtmAuthHeaders(env);
   if (!auth) {
     return { rows: [], tileCount: 0, authRequired: true };
   }
