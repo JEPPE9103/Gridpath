@@ -8,8 +8,9 @@ import { useEffect, useState } from "react";
 
 const LINKS = [
   { href: "/#product", label: "Product" },
+  { href: "/#intelligence", label: "Intelligence" },
   { href: "/#evidence", label: "Evidence" },
-  { href: "/#develop", label: "Develop" },
+  { href: "/#develop", label: "Opportunity" },
   { href: "/#use-cases", label: "Use cases" },
 ];
 
@@ -107,7 +108,7 @@ export function MarketingNavbar() {
               className="w-full"
               onClick={() => setOpen(false)}
             >
-              Become a design partner
+              Design partner inquiry
             </CtaLink>
           </div>
         </div>

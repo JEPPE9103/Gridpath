@@ -11,12 +11,12 @@ export function CompareSection() {
       <Reveal>
         <Eyebrow>Compare / decide</Eyebrow>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-          Compare Candidate Sites on the same evidence. Then decide what to keep.
+          Put Candidate Sites side by side before you commit diligence budget.
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-          See differences in Evidence Coverage, covering geography and remaining uncertainty.
-          Save a Candidate Site as an Opportunity. Shortlist, reject, reopen or promote happen on
-          that Opportunity — not on the screening result.
+          Same evidence language as the product: coverage, covering geography, unknowns, and
+          recommended next — so the shortlist debate stays grounded. Save a Candidate Site as an
+          Opportunity; shortlist, reject, reopen or promote happen there.
         </p>
       </Reveal>
 
@@ -33,8 +33,8 @@ export function CompareSection() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <caption className="sr-only">
-                Sample comparison of three Candidate Sites on stored Evidence Coverage. Investigation
-                priority is Noxheim derived, not a success score.
+                Sample comparison of three Candidate Sites on stored Evidence Coverage and Candidate
+                Intelligence. Investigation priority is Noxheim derived, not a success score.
               </caption>
               <thead>
                 <tr className="border-b border-line bg-surface text-[11px] uppercase tracking-wide text-muted">
@@ -64,50 +64,50 @@ export function CompareSection() {
                   values={SAMPLE_CANDIDATE_SITES.map((site) => site.evidenceSummary)}
                 />
                 <CompareRow
-                  label="Main uncertainty"
-                  values={SAMPLE_CANDIDATE_SITES.map((site) => site.keyRisk)}
+                  label="Top unknown"
+                  values={SAMPLE_CANDIDATE_SITES.map((site) => site.topUnknown)}
+                />
+                <CompareRow
+                  label="Recommended next"
+                  values={SAMPLE_CANDIDATE_SITES.map((site) => site.recommendedNext)}
                 />
               </tbody>
             </table>
           </div>
           <p className="border-t border-line px-4 py-3 text-[11px] leading-5 text-muted">
-            Investigation priority from stored evidence. Not a success score.
+            Investigation priority from stored evidence. Not a success score. Unknown ≠ pass.
           </p>
         </div>
       </Reveal>
 
       <Reveal delay={90}>
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <ActionGroup
-            stage="Candidate Site"
-            copy="On the screening result."
-            actions={CANDIDATE_ACTIONS}
-          />
-          <ActionGroup
-            stage="Opportunity"
-            copy="After you keep a site."
-            actions={OPPORTUNITY_ACTIONS}
-          />
+          <ActionCard title="On a Candidate Site" actions={CANDIDATE_ACTIONS} />
+          <ActionCard title="On an Opportunity" actions={OPPORTUNITY_ACTIONS} />
         </div>
       </Reveal>
     </MarketingSection>
   );
 }
 
-function ActionGroup({
-  stage,
-  copy,
-  actions,
-}: {
-  stage: string;
-  copy: string;
-  actions: readonly string[];
-}) {
+function CompareRow({ label, values }: { label: string; values: readonly string[] }) {
   return (
-    <article className="rounded-lg border border-line bg-canvas px-4 py-3.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{stage}</p>
-      <p className="mt-1 text-[11px] leading-4 text-muted">{copy}</p>
-      <ul className="mt-2.5 flex flex-wrap gap-1.5">
+    <tr className="border-b border-line last:border-b-0">
+      <th className="px-4 py-3 text-left text-[12px] font-medium text-muted">{label}</th>
+      {values.map((value, index) => (
+        <td key={`${label}-${index}`} className="px-4 py-3 text-[13px] leading-5 text-ink">
+          {value}
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+function ActionCard({ title, actions }: { title: string; actions: readonly string[] }) {
+  return (
+    <div className="rounded-md border border-line bg-canvas px-4 py-4">
+      <p className="text-[11px] uppercase tracking-wide text-muted">{title}</p>
+      <ul className="mt-2 flex flex-wrap gap-2">
         {actions.map((action) => (
           <li
             key={action}
@@ -117,22 +117,6 @@ function ActionGroup({
           </li>
         ))}
       </ul>
-    </article>
-  );
-}
-
-function CompareRow({ label, values }: { label: string; values: readonly string[] }) {
-  return (
-    <tr className="border-b border-line last:border-b-0">
-      <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted">{label}</th>
-      {values.map((value, index) => (
-        <td
-          key={`${label}-${index}`}
-          className={index === 0 ? "px-4 py-2.5 text-[13px] leading-5 font-medium" : "px-4 py-2.5 text-[13px] leading-5"}
-        >
-          {value}
-        </td>
-      ))}
-    </tr>
+    </div>
   );
 }

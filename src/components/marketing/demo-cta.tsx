@@ -23,8 +23,8 @@ export function DemoCTA() {
           </h2>
           <p className="mt-5 max-w-md text-base leading-7 text-muted">
             Tell us about the geographies you develop. We&apos;ll walk Search Area to Candidate
-            Sites, Evidence Coverage, Opportunity to Project, and the connection process tracking
-            that follows — in the same workspace you would use.
+            Sites, Candidate Intelligence, Evidence Coverage, Opportunity freeze, and Project
+            promotion — in the same workspace you would use.
           </p>
         </Reveal>
         <Reveal delay={80}>

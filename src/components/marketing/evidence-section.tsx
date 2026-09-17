@@ -3,7 +3,10 @@ import { EvidenceStateMark, ProvenanceChip } from "@/components/marketing/proven
 import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 import { provenanceCustomerLabel } from "@/lib/opportunities/evidence-coverage";
-import { SAMPLE_EVIDENCE_COVERAGE, SAMPLE_SELECTED_CANDIDATE } from "@/lib/demo/sample-discovery-preview";
+import {
+  SAMPLE_EVIDENCE_COVERAGE,
+  SAMPLE_SELECTED_CANDIDATE,
+} from "@/lib/demo/sample-discovery-preview";
 
 const FENCES = [
   {
@@ -15,8 +18,8 @@ const FENCES = [
     copy: "Investigation priority is Noxheim derived from evaluated evidence. Authorities do not rank these sites.",
   },
   {
-    title: "Network covering ≠ available capacity",
-    copy: "Official Ei geography shows which network area covers a location. It does not show available MW or a connection offer.",
+    title: "Unknown ≠ pass",
+    copy: "No mapped ground classes or no nearby EBH objects is not clearance. Gaps stay visible in Evidence Coverage.",
   },
 ];
 
@@ -25,18 +28,19 @@ export function EvidenceSection() {
     <MarketingSection id="evidence">
       <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <Reveal>
-          <Eyebrow>Understand</Eyebrow>
+          <Eyebrow>Evidence Coverage</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Noxheim does not hide missing evidence.
+            See what was evaluated — and what was not.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Every Candidate Site shows what was evaluated and what was not. Official Source,
-            Customer Entered and Noxheim Derived stay labelled. Missing evidence is not treated as a
-            pass.
+            Every Candidate Site shows category-level coverage with Official Source labels. Missing
+            evidence is not treated as a pass. Road proximity, ground / soil and environmental
+            history sit alongside protection, terrain and network covering.
           </p>
           <p className="mt-4 max-w-md text-sm leading-6 text-muted">
             {SAMPLE_SELECTED_CANDIDATE.name} in this sample has {SAMPLE_EVIDENCE_COVERAGE.summary}.
-            Road proximity and detailed terrain remain not evaluated.
+            Detailed terrain and residential proximity remain not evaluated. Ground and EBH are
+            evaluated — and still call out that silence is not clearance.
           </p>
         </Reveal>
         <Reveal delay={80} fade>
@@ -77,7 +81,7 @@ function MarketingEvidenceCoverage() {
         <p className="text-sm font-semibold">Evidence Coverage</p>
         <p className="text-xs text-muted">{SAMPLE_EVIDENCE_COVERAGE.summary}</p>
       </div>
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-3 max-h-[320px] space-y-2 overflow-y-auto pr-1">
         {SAMPLE_EVIDENCE_COVERAGE.items.map((item) => {
           const provenance = provenanceCustomerLabel(item.provenance);
           return (

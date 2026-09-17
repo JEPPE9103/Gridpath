@@ -10,22 +10,23 @@ export function Hero() {
             Development Intelligence
           </p>
           <h1 className="mt-4 max-w-xl text-[32px] font-semibold leading-[1.1] tracking-tight text-ink sm:text-[40px] md:text-[48px] lg:text-[52px]">
-            Find the sites worth investigating.
+            Find and prioritize BESS sites with evidence — not guesswork.
           </h1>
           <p className="mt-5 max-w-md text-[15px] leading-7 text-muted sm:text-base">
-            Screen large areas against official evidence, compare Candidate Sites, understand
-            constraints, and move the strongest opportunities into development.
+            Noxheim turns public Swedish geospatial evidence into ranked Candidate Sites,
+            explicit unknowns, and a clear next step — so development teams move faster with
+            fewer false starts.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <CtaLink href="/#demo" className="w-full px-5 sm:w-auto">
               Book a demo
             </CtaLink>
             <CtaLink href="/#design-partner" variant="secondary" className="w-full px-5 sm:w-auto">
-              Become a design partner
+              Design partner inquiry
             </CtaLink>
           </div>
           <p className="mt-5 text-sm text-muted">
-            Built for BESS, solar, wind and hybrid renewable development teams.
+            Built for BESS developers and advisors screening sites across Sweden.
           </p>
         </div>
         <div className="min-w-0">

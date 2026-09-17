@@ -12,8 +12,8 @@ export function DesignPartnerSection() {
             Help shape Development Intelligence against real Swedish sites.
           </h2>
           <p className="mt-5 max-w-2xl text-base leading-7 text-muted">
-            We are working with a small number of Swedish BESS and renewable development teams to
-            validate Noxheim on real geographies, real evidence gaps and real connection workflows.
+            We are working with a small number of Swedish BESS development teams to validate
+            Noxheim on real geographies, real evidence gaps and real screening workflows.
           </p>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
             Design partners get guided onboarding, close support, screening on real development
@@ -24,7 +24,7 @@ export function DesignPartnerSection() {
               Book a demo
             </CtaLink>
             <CtaLink href="/#demo" variant="secondary" className="w-full px-5 sm:w-auto">
-              Become a design partner
+              Design partner inquiry
             </CtaLink>
           </div>
         </div>

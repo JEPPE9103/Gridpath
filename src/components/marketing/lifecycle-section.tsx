@@ -4,29 +4,30 @@ import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 const STAGES = [
   {
     title: "Candidate Site",
-    copy: "A bounded investigation target from geographic screening, with Evidence Coverage attached.",
+    copy: "A bounded investigation target from geographic screening, with Evidence Coverage and Candidate Intelligence attached.",
   },
   {
     title: "Opportunity",
-    copy: "A Candidate Site your team chose to keep. Shortlist, reject, reopen, or promote to a Project without losing the screening record.",
+    copy: "A Candidate Site your team chose to keep — freeze the decision trail. Shortlist, reject, reopen, or promote without losing the screening record.",
   },
   {
     title: "Project",
     copy: "Promote when the site is worth developing. Origin, Evidence Coverage and covering geography follow into the project record.",
   },
-];
+] as const;
 
 export function LifecycleSection() {
   return (
     <MarketingSection id="develop">
       <Reveal>
-        <Eyebrow>Develop</Eyebrow>
+        <Eyebrow>Opportunity</Eyebrow>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-          The same site, from Candidate Site to Project.
+          From search to a frozen decision trail.
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-          Evidence and origin stay attached when a Candidate Site becomes an Opportunity and then a
-          Project.
+          Discover, decide, freeze. Evidence and origin stay attached when a Candidate Site becomes
+          an Opportunity and then a Project — so the next person inherits the trail, not a
+          spreadsheet of opinions.
         </p>
       </Reveal>
 

@@ -2,7 +2,7 @@ import { Reveal } from "@/components/marketing/reveal";
 import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 
 const OUTCOMES = [
-  "Find areas worth investigating earlier",
+  "Find BESS areas worth investigating earlier",
   "Stop weak sites when evidence is missing",
   "Compare Candidate Sites on one standard",
   "Keep the decision attached into the Project",
@@ -22,8 +22,9 @@ export function ValueSection() {
           should have been stopped — is easy to lose between first look and project development.
         </p>
         <p className="mt-4 max-w-2xl text-base leading-7 text-ink">
-          Noxheim keeps geographic screening, Evidence Coverage and the development record in one
-          workspace, so teams spend diligence on sites that still deserve it.
+          Noxheim is Development Intelligence for BESS screening: geographic discovery, Evidence
+          Coverage, Candidate Intelligence and the development record in one workspace — so teams
+          spend diligence on sites that still deserve it.
         </p>
       </Reveal>
 

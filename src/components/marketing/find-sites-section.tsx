@@ -6,7 +6,7 @@ import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 const STEPS = [
   {
     title: "Search Area",
-    copy: "A bounded geography you choose to investigate.",
+    copy: "A bounded geography you choose to investigate — Sweden-wide, coverage-aware.",
   },
   {
     title: "Opportunity Zones",
@@ -16,7 +16,7 @@ const STEPS = [
     title: "Candidate Sites",
     copy: "Bounded investigation targets grown from qualifying land. Rankings, constraints and next investigations show what to look at — not whether a site can be built.",
   },
-];
+] as const;
 
 export function FindSitesSection() {
   return (
@@ -25,16 +25,19 @@ export function FindSitesSection() {
         <Reveal>
           <Eyebrow>Find</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Search a geography. Identify Candidate Sites worth investigating.
+            Screen BESS candidates across Sweden — with coverage you can trust.
           </h2>
           <p className="mt-4 max-w-md text-base leading-7 text-muted">
-            Candidate Sites are grown from qualifying land inside the Search Area. Opportunity Zones
-            stay in the background as broader remaining geography.
+            Start from a place or region and generate Candidate Sites shaped by environmental,
+            terrain, network, road, flood, ground and history evidence. Where a layer has no
+            coverage, Noxheim marks the gap — it does not invent a pass.
           </p>
           <ol className="mt-6 max-w-md space-y-4">
             {STEPS.map((step, index) => (
               <li key={step.title} className="flex gap-3">
-                <span className="font-mono text-xs text-teal">{String(index + 1).padStart(2, "0")}</span>
+                <span className="font-mono text-xs text-teal">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
                 <div>
                   <p className="text-sm font-semibold">{step.title}</p>
                   <p className="mt-1 text-sm leading-6 text-muted">{step.copy}</p>

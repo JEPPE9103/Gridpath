@@ -4,7 +4,7 @@ import { Eyebrow, MarketingSection } from "@/components/marketing/section";
 const KINDS = [
   {
     title: "Official Source",
-    copy: "Published information from authorities and network-related sources — including Ei covering geography, NMD 2023, Natura 2000 and protected areas.",
+    copy: "Published information from authorities — Naturvårdsverket, Ei covering geography, Trafikverket RoadLink, MSB flood, SGU ground, Länsstyrelserna EBH, and more.",
     label: "Official Source",
   },
   {
@@ -14,7 +14,7 @@ const KINDS = [
   },
   {
     title: "Noxheim Derived",
-    copy: "Geographic matching, Candidate Site generation, ranking and workflow calculations created from the underlying data. Ranking is not an official verdict.",
+    copy: "Geographic matching, Candidate Site generation, ranking and Candidate Intelligence. Ranking is not an official verdict.",
     label: "Noxheim Derived",
   },
 ];
@@ -24,14 +24,15 @@ export function DataTrustSection() {
     <MarketingSection id="trust" dark>
       <Reveal>
         <Eyebrow>
-          <span className="text-[#9ad1c8]">Provenance</span>
+          <span className="text-[#9ad1c8]">Trust</span>
         </Eyebrow>
         <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight text-white sm:text-[40px] sm:leading-[1.15]">
-          Know where Candidate Site evidence comes from.
+          Public Swedish sources. Explicit about what is missing.
         </h2>
         <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
           Noxheim separates Official Source information, Customer Entered data and Noxheim Derived
-          context — on the site, not only after a project exists.
+          context — on the site, not only after a project exists. Coverage varies by place, and the
+          product says so.
         </p>
       </Reveal>
       <div className="mt-12 grid gap-3 sm:grid-cols-3">
@@ -48,7 +49,8 @@ export function DataTrustSection() {
         ))}
       </div>
       <p className="mt-10 text-sm text-white/55">
-        Source provenance is shown on Evidence Coverage for each Candidate Site.
+        Absence of an EBH object or soil polygon is not clearance. Unknown stays unknown until
+        evidence improves.
       </p>
     </MarketingSection>
   );

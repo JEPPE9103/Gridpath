@@ -22,18 +22,18 @@ const jetbrainsMono = JetBrains_Mono({
 
 const siteUrl = getPublicSiteUrl();
 const siteDescription =
-  "Development Intelligence for Swedish BESS and renewable development teams. Search geography, identify Candidate Sites, understand the evidence, and carry opportunities into development.";
+  "Development Intelligence for Swedish BESS teams. Screen geography, rank Candidate Sites with evidence and unknowns, compare shortlists, and freeze opportunities into development.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "NOXHEIM — Development Intelligence",
+    default: "NOXHEIM — Development Intelligence for BESS",
     template: "%s · NOXHEIM",
   },
   description: siteDescription,
   icons: { icon: "/favicon.svg" },
   openGraph: {
-    title: "NOXHEIM — Development Intelligence",
+    title: "NOXHEIM — Development Intelligence for BESS",
     description: siteDescription,
     type: "website",
     locale: "en_GB",

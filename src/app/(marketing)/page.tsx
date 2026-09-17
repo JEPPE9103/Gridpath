@@ -1,3 +1,4 @@
+import { CandidateIntelligenceSection } from "@/components/marketing/candidate-intelligence-section";
 import { CompareSection } from "@/components/marketing/compare-section";
 import { ConnectMonitorSection } from "@/components/marketing/connect-monitor-section";
 import { DataTrustSection } from "@/components/marketing/data-trust-section";
@@ -15,18 +16,18 @@ import { ValueSection } from "@/components/marketing/value-section";
 import type { Metadata } from "next";
 
 const DESCRIPTION =
-  "Development Intelligence for Swedish BESS and renewable development teams. Search geography, identify Candidate Sites, understand the evidence, and carry opportunities into development.";
+  "Development Intelligence for Swedish BESS teams. Screen geography, rank Candidate Sites with evidence and unknowns, compare shortlists, and freeze opportunities into development.";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "NOXHEIM — Development Intelligence",
+    absolute: "NOXHEIM — Development Intelligence for BESS",
   },
   description: DESCRIPTION,
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "NOXHEIM — Development Intelligence",
+    title: "NOXHEIM — Development Intelligence for BESS",
     description: DESCRIPTION,
     type: "website",
     locale: "en_GB",
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "NOXHEIM — Development Intelligence",
+    title: "NOXHEIM — Development Intelligence for BESS",
     description: DESCRIPTION,
   },
 };
@@ -46,6 +47,7 @@ export default function MarketingHomePage() {
       <Hero />
       <ValueSection />
       <FindSitesSection />
+      <CandidateIntelligenceSection />
       <EvidenceSection />
       <CompareSection />
       <LifecycleSection />
