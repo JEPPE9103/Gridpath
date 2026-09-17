@@ -7,12 +7,16 @@ export function MarketingFooter() {
         <div>
           <p className="text-[13px] font-semibold tracking-[0.18em]">NOXHEIM</p>
           <p className="mt-3 max-w-sm text-sm leading-6 text-muted">
-            Development Intelligence for Swedish BESS and renewable development teams.
+            Development Intelligence for early physical development decisions — official evidence,
+            explicit unknowns, and a clearer next step.
           </p>
         </div>
         <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-          <Link href="/#product" className="text-muted hover:text-ink">
-            Product
+          <Link href="/#how-it-works" className="text-muted hover:text-ink">
+            How it works
+          </Link>
+          <Link href="/#trust" className="text-muted hover:text-ink">
+            Trust
           </Link>
           <Link href="/about" className="text-muted hover:text-ink">
             About

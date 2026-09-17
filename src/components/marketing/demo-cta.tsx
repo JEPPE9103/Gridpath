@@ -1,46 +1,49 @@
 "use client";
 
 import { Reveal } from "@/components/marketing/reveal";
-import { Eyebrow, MarketingSection } from "@/components/marketing/section";
-import { authInputClass } from "@/components/auth/auth-card";
-import { submitDemoRequestAction, type DemoRequestState } from "@/lib/marketing/demo-actions";
+import { MarketingSection } from "@/components/marketing/section";
 import { cn } from "@/lib/cn";
+import { submitDemoRequestAction, type DemoRequestState } from "@/lib/marketing/demo-actions";
 import { useActionState } from "react";
 
 const INITIAL: DemoRequestState = {};
 
+/**
+ * Final conversion — dark geospatial CTA with integrated demo form.
+ */
 export function DemoCTA() {
   const [state, formAction, pending] = useActionState(submitDemoRequestAction, INITIAL);
   const values = state.values;
 
   return (
-    <MarketingSection id="demo">
-      <div className="grid gap-12 lg:grid-cols-[1fr_0.9fr]">
+    <MarketingSection id="demo" dark wide className="border-t border-white/5">
+      <div className="grid gap-10 lg:grid-cols-[1fr_0.92fr] lg:items-start lg:gap-14">
         <Reveal>
-          <Eyebrow>Book a demo</Eyebrow>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[42px] sm:leading-[1.12]">
-            See Noxheim on a real development workflow.
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9ad1c8]">
+            Book a demo
+          </p>
+          <h2 className="mt-3 max-w-lg text-3xl font-semibold tracking-tight text-white sm:text-[40px] sm:leading-[1.12]">
+            Make the next investigation the right one.
           </h2>
-          <p className="mt-5 max-w-md text-base leading-7 text-muted">
-            Tell us about the geographies you develop. We&apos;ll walk Search Area to Candidate
-            Sites, Candidate Intelligence, Evidence Coverage, Opportunity freeze, and Project
-            promotion — in the same workspace you would use.
+          <p className="mt-5 max-w-md text-base leading-7 text-white/70">
+            See Noxheim on the geographies you develop.
           </p>
         </Reveal>
-        <Reveal delay={80}>
+
+        <Reveal delay={60}>
           <div
             id="demo-form"
-            className="scroll-mt-28 rounded-md border border-line bg-surface p-6 sm:p-8"
+            className="scroll-mt-28 rounded-lg border border-white/12 bg-white/[0.06] p-6 backdrop-blur-[6px] sm:p-8"
           >
             {state.ok ? (
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9ad1c8]">
                   Request received
                 </p>
-                <h3 className="mt-3 text-2xl font-semibold tracking-tight">
+                <h3 className="mt-3 text-2xl font-semibold tracking-tight text-white">
                   Thanks — your request has been received.
                 </h3>
-                <p className="mt-3 text-sm leading-6 text-muted">
+                <p className="mt-3 text-sm leading-6 text-white/65">
                   We&apos;ll be in touch at the work email you provided.
                 </p>
               </div>
@@ -66,7 +69,7 @@ export function DemoCTA() {
                   defaultValue={values?.email}
                 />
                 <label className="block text-sm">
-                  <span className="mb-1.5 block text-xs font-medium text-muted">
+                  <span className="mb-1.5 block text-xs font-medium text-white/55">
                     Message (optional)
                   </span>
                   <textarea
@@ -74,8 +77,8 @@ export function DemoCTA() {
                     rows={3}
                     defaultValue={values?.message}
                     className={cn(
-                      "w-full rounded-md border bg-canvas px-3 py-2.5 text-sm outline-none focus:border-teal",
-                      state.fieldErrors?.message ? "border-critical" : "border-line",
+                      "w-full rounded-md border bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#9ad1c8]",
+                      state.fieldErrors?.message ? "border-critical" : "border-white/15",
                     )}
                     aria-invalid={state.fieldErrors?.message ? true : undefined}
                     aria-describedby={state.fieldErrors?.message ? "message-error" : undefined}
@@ -95,7 +98,7 @@ export function DemoCTA() {
                   type="submit"
                   disabled={pending}
                   aria-busy={pending}
-                  className="flex h-11 w-full items-center justify-center rounded-md bg-teal text-sm font-medium text-white transition-colors hover:bg-teal-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-11 w-full items-center justify-center rounded-md bg-teal text-sm font-medium text-white transition-colors hover:bg-teal-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9ad1c8] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {pending ? "Sending…" : "Request a demo"}
                 </button>
@@ -123,7 +126,7 @@ function Field({
 }) {
   return (
     <label className="block text-sm">
-      <span className="mb-1.5 block text-xs font-medium text-muted">{label}</span>
+      <span className="mb-1.5 block text-xs font-medium text-white/55">{label}</span>
       <input
         name={name}
         type={type}
@@ -131,7 +134,10 @@ function Field({
         defaultValue={defaultValue}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${name}-error` : undefined}
-        className={cn(authInputClass, "mt-0 h-11 focus-visible:outline-none")}
+        className={cn(
+          "mt-0 h-11 w-full rounded-md border px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#9ad1c8] focus-visible:outline-none",
+          "border-white/15 bg-white/[0.04]",
+        )}
       />
       {error ? (
         <span id={`${name}-error`} className="mt-1.5 block text-xs text-critical">
