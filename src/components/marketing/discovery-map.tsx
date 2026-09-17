@@ -203,7 +203,7 @@ export function DiscoveryMap({
     <div
       className={cn(
         "relative overflow-hidden bg-[#e4ebe8]",
-        size === "hero" && "h-[220px] sm:h-[280px] lg:h-[320px]",
+        size === "hero" && "h-[300px] sm:h-[300px] lg:h-[320px]",
         size === "full" && "h-[280px] sm:h-[400px] lg:h-[460px]",
         className,
       )}

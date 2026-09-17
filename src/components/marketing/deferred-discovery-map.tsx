@@ -39,7 +39,7 @@ export function DeferredDiscoveryMap({
   const placeholderClass =
     size === "full"
       ? "h-[280px] bg-[#e4ebe8] sm:h-[400px] lg:h-[460px]"
-      : "h-[220px] bg-[#e4ebe8] sm:h-[280px] lg:h-[320px]";
+      : "h-[300px] bg-[#e4ebe8] sm:h-[300px] lg:h-[320px]";
 
   return (
     <div ref={ref}>
