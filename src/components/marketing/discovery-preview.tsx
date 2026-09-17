@@ -2,7 +2,6 @@
 
 import { AppFrame } from "@/components/marketing/app-frame";
 import { DeferredDiscoveryMap } from "@/components/marketing/deferred-discovery-map";
-import { EvidenceStateMark, ProvenanceChip } from "@/components/marketing/provenance-chips";
 import {
   SAMPLE_EVIDENCE_COVERAGE,
   SAMPLE_SELECTED_CANDIDATE,
@@ -21,71 +20,78 @@ export function DiscoveryPreview() {
           <p className="hidden text-[11px] text-muted sm:block">
             <span className="font-semibold text-ink">3</span> Candidate Sites
           </p>
-          <p className="text-[11px] text-muted">
-            <span className="font-semibold text-ink">{SAMPLE_EVIDENCE_COVERAGE.summary}</span>
-          </p>
+          <span className="ml-auto text-[10px] uppercase tracking-wide text-muted sm:ml-0">
+            Sample
+          </span>
         </div>
         <div className="relative">
           <DeferredDiscoveryMap eager size="hero" />
-          <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-auto sm:w-[300px]">
-            <SelectedCandidateCard />
+          {/* Desktop: compact summary — leaves map geography readable */}
+          <div className="pointer-events-none absolute bottom-3 right-3 z-10 hidden w-[min(280px,calc(100%-1.5rem))] lg:block">
+            <HeroIntelligenceSummary />
           </div>
+        </div>
+        {/* Mobile: stack below map so the geography stays legible */}
+        <div className="border-t border-line p-3 lg:hidden">
+          <HeroIntelligenceSummary />
         </div>
       </div>
       <p className="sr-only">
         Sample Search Area with three Candidate Sites. Selected {site.name}, {site.recommendation}.{" "}
-        {SAMPLE_EVIDENCE_COVERAGE.summary}. Why: {site.whyThisSite}. Top unknown: {site.topUnknown}.
-        Ranking is Noxheim derived, not an official verdict.
+        {SAMPLE_EVIDENCE_COVERAGE.summary}. Top unknown: {site.topUnknown}. Recommended next:{" "}
+        {site.recommendedNext}. Ranking is Noxheim derived, not an official verdict.
       </p>
     </AppFrame>
   );
 }
 
-function SelectedCandidateCard() {
+/**
+ * Compact hero summary only — detailed Candidate Intelligence lives in its own section.
+ * Counts derived from sample evidence coverage + selected candidate fields.
+ */
+function HeroIntelligenceSummary() {
   const site = SAMPLE_SELECTED_CANDIDATE;
+  const unknownCount = SAMPLE_EVIDENCE_COVERAGE.items.filter(
+    (item) => item.state === "not_evaluated" || item.state === "insufficient",
+  ).length;
+  const constraintCount = site.topConstraint ? 1 : 0;
+  const recommendedNextShort = shortenRecommendedNext(site.recommendedNext);
 
   return (
-    <article className="max-h-[210px] overflow-hidden rounded-lg border border-line/80 bg-surface/92 p-2.5 shadow-[0_18px_36px_-22px_rgba(26,30,36,0.5)] backdrop-blur-[8px] sm:max-h-none sm:overflow-visible sm:p-3">
+    <article className="rounded-lg border border-line/80 bg-surface/95 p-3 shadow-[0_16px_32px_-24px_rgba(26,30,36,0.55)] backdrop-blur-[6px]">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.12em] text-muted">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
             Candidate Intelligence
           </p>
-          <p className="mt-1 text-sm font-semibold leading-5">
+          <p className="mt-1 text-sm font-semibold leading-5 text-ink">
             #{site.rank} {site.name}
           </p>
         </div>
-        <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+        <span className="shrink-0 rounded-full bg-canvas px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">
           Sample
         </span>
       </div>
-      <p className="mt-1.5 hidden text-[12px] leading-5 text-ink sm:mt-2 sm:block">{site.recommendation}</p>
-      <div className="mt-1.5 hidden flex-wrap items-center gap-2 sm:mt-2 sm:flex">
-        <ProvenanceChip label="Noxheim Derived" />
-        <EvidenceStateMark state="evaluated" />
+      <p className="mt-2 text-[12px] leading-5 text-ink">{site.recommendation}</p>
+      <p className="mt-2 text-[11px] text-muted">{site.evidenceSummary}</p>
+      <p className="mt-1 text-[11px] text-muted">
+        {constraintCount} constraint
+        {constraintCount === 1 ? "" : "s"} · {unknownCount} unknown
+        {unknownCount === 1 ? "" : "s"}
+      </p>
+      <div className="mt-3 border-t border-line/70 pt-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-teal">
+          Recommended next
+        </p>
+        <p className="mt-1 text-[12px] font-medium leading-4 text-ink">{recommendedNextShort}</p>
       </div>
-      <dl className="mt-2 space-y-1 text-[11px] sm:mt-2.5 sm:space-y-1.5">
-        <div className="hidden sm:block">
-          <dt className="text-muted">Why this site</dt>
-          <dd className="mt-0.5 font-medium leading-4 text-ink">{site.whyThisSite}</dd>
-        </div>
-        <div>
-          <dt className="text-muted">Top constraint</dt>
-          <dd className="mt-0.5 line-clamp-2 font-medium leading-4 text-ink">{site.topConstraint}</dd>
-        </div>
-        <div>
-          <dt className="text-muted">Top unknown</dt>
-          <dd className="mt-0.5 line-clamp-2 font-medium leading-4 text-ink">{site.topUnknown}</dd>
-        </div>
-        <div>
-          <dt className="text-muted">Recommended next</dt>
-          <dd className="mt-0.5 line-clamp-2 font-medium leading-4 text-ink">{site.recommendedNext}</dd>
-        </div>
-        <div className="flex justify-between gap-3 border-t border-line/60 pt-1.5">
-          <dt className="text-muted">Evidence</dt>
-          <dd className="font-medium">{site.evidenceSummary}</dd>
-        </div>
-      </dl>
     </article>
   );
+}
+
+function shortenRecommendedNext(full: string): string {
+  if (/surficial geology|ground|soil/i.test(full)) {
+    return "Confirm ground conditions";
+  }
+  return full.length > 48 ? `${full.slice(0, 45).trimEnd()}…` : full;
 }

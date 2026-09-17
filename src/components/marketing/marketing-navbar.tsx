@@ -7,11 +7,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const LINKS = [
-  { href: "/#product", label: "Product" },
-  { href: "/#intelligence", label: "Intelligence" },
-  { href: "/#evidence", label: "Evidence" },
-  { href: "/#develop", label: "Opportunity" },
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#intelligence", label: "Product" },
+  { href: "/#trust", label: "Trust" },
   { href: "/#use-cases", label: "Use cases" },
+  { href: "/about", label: "About" },
 ];
 
 export function MarketingNavbar() {
@@ -58,14 +58,21 @@ export function MarketingNavbar() {
 
         <nav className="hidden items-center gap-7 text-sm text-muted lg:flex">
           {LINKS.map((link) => (
-            <a key={link.href} href={link.href} className="hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal">
+            <a
+              key={link.href}
+              href={link.href}
+              className="hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
+            >
               {link.label}
             </a>
           ))}
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <Link href="/login" className="text-sm text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal">
+          <Link
+            href="/login"
+            className="text-sm text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal"
+          >
             Sign in
           </Link>
           <CtaLink href="/#demo">Book a demo</CtaLink>
@@ -98,17 +105,9 @@ export function MarketingNavbar() {
               Sign in
             </Link>
           </nav>
-          <div className="mt-5 flex flex-col gap-2">
+          <div className="mt-5">
             <CtaLink href="/#demo" className="w-full" onClick={() => setOpen(false)}>
               Book a demo
-            </CtaLink>
-            <CtaLink
-              href="/#design-partner"
-              variant="secondary"
-              className="w-full"
-              onClick={() => setOpen(false)}
-            >
-              Design partner inquiry
             </CtaLink>
           </div>
         </div>
