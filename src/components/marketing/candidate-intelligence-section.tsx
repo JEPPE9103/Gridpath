@@ -15,9 +15,9 @@ export function CandidateIntelligenceSection() {
         <div className="max-w-xl">
           <Eyebrow>Candidate Intelligence</Eyebrow>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-            Know what you know.
+            See what's known.
             <br />
-            See what you don&apos;t.
+            Surface what isn't.
           </h2>
           <p className="mt-4 text-base leading-7 text-muted">
             Known evidence, constraints, unknowns and what should happen next — for a specific
