@@ -35,6 +35,11 @@ export function DataTrustSection() {
           Screening supports early assessment — not engineering feasibility, available capacity, or
           a connection offer.
         </p>
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
+          Official evidence from Swedish and European public sources including SGU, Trafikverket,
+          Länsstyrelserna / EBH, Energimarknadsinspektionen, MSB / Myndigheten för civilt försvar,
+          Naturvårdsverket (NMD) and Copernicus.
+        </p>
       </Reveal>
 
       <div className="mt-10 grid gap-3 sm:grid-cols-3">

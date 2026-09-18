@@ -9,19 +9,19 @@ const CURRENT = {
 const EXPANDING = [
   {
     title: "Industrial development",
-    body: "Early land assessment with the same evidence and comparison workflow.",
+    body: "Direction for early land assessment with the same evidence model.",
   },
   {
     title: "Logistics",
-    body: "Location screening before deeper site diligence.",
+    body: "Future location screening before deeper site diligence.",
   },
   {
     title: "Data centres",
-    body: "Pre-feasibility with official evidence, constraints and unknowns.",
+    body: "Intended pre-feasibility path — not a live workflow yet.",
   },
   {
     title: "Municipal development",
-    body: "Earlier understanding of development land and alternatives.",
+    body: "Exploring earlier understanding of development land and alternatives.",
   },
 ] as const;
 
@@ -34,13 +34,11 @@ export function UseCases() {
       <Reveal>
         <Eyebrow>Use cases</Eyebrow>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-[36px] sm:leading-[1.15]">
-          One intelligence layer.
-          <br />
-          Whatever you plan to build.
+          One intelligence layer for development decisions.
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-          Start with what you want to develop. Noxheim brings together location evidence,
-          constraints and unknowns to help you understand where to assess next.
+          Energy &amp; storage is the mature workflow today. The same intelligence model can expand
+          into other development sectors with design partners.
         </p>
       </Reveal>
 
@@ -61,9 +59,12 @@ export function UseCases() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
             Expanding with design partners
           </p>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
+            Not live product modules today — sector expansion in progress with partners.
+          </p>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2">
             {EXPANDING.map((item) => (
-              <li key={item.title} className="rounded-lg border border-line bg-canvas px-4 py-4">
+              <li key={item.title} className="rounded-lg border border-dashed border-line bg-canvas px-4 py-4">
                 <h3 className="text-sm font-semibold text-ink">{item.title}</h3>
                 <p className="mt-1.5 text-sm leading-6 text-muted">{item.body}</p>
               </li>

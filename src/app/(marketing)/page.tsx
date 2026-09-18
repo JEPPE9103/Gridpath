@@ -9,7 +9,7 @@ import { ValueSection } from "@/components/marketing/value-section";
 import type { Metadata } from "next";
 
 const DESCRIPTION =
-  "Development Intelligence for early physical development decisions. Bring official evidence together, see constraints and unknowns, and know what to investigate before committing more capital.";
+  "Screen locations with official evidence, generate Candidate Sites, surface constraints and unknowns, compare alternatives and prioritise the next investigation.";
 
 export const metadata: Metadata = {
   title: {

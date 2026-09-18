@@ -75,9 +75,8 @@ function HeroIntelligenceSummary() {
       <p className="mt-2 text-[12px] leading-5 text-ink">{site.recommendation}</p>
       <p className="mt-2 text-[11px] text-muted">{site.evidenceSummary}</p>
       <p className="mt-1 text-[11px] text-muted">
-        {constraintCount} constraint
-        {constraintCount === 1 ? "" : "s"} · {unknownCount} unknown
-        {unknownCount === 1 ? "" : "s"}
+        {constraintCount} {constraintCount === 1 ? "constraint" : "constraints"} · {unknownCount}{" "}
+        {unknownCount === 1 ? "unknown" : "unknowns"}
       </p>
       <div className="mt-3 border-t border-line/70 pt-2.5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-teal">
@@ -90,6 +89,12 @@ function HeroIntelligenceSummary() {
 }
 
 function shortenRecommendedNext(full: string): string {
+  if (/environmental history/i.test(full)) {
+    return "Review environmental history";
+  }
+  if (/flood|water/i.test(full)) {
+    return "Review flood / water evidence";
+  }
   if (/surficial geology|ground|soil/i.test(full)) {
     return "Confirm ground conditions";
   }

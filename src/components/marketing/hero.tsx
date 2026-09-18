@@ -13,8 +13,8 @@ export function Hero() {
             Know where to investigate before you build.
           </h1>
           <p className="mt-4 max-w-md text-[15px] leading-6 text-muted sm:mt-5 sm:text-base sm:leading-7">
-            Noxheim screens locations with official evidence — so teams see constraints and unknowns
-            before committing significant time and capital.
+            Noxheim screens locations with official evidence so development teams can understand
+            constraints and unknowns before committing significant time and capital.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
             <CtaLink href="/#demo" className="w-full px-5 sm:w-auto">
